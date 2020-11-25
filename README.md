@@ -1,2 +1,3 @@
-# cluster-devops
-Kubernetes configurations for the GCP Integration Cluster
+# Cluster Devops
+
+**Kubernetes configurations for the GCP Integration Cluster**

@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: landing-placeholder-deployment
+  namespace: placeholder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: landing-placeholder
+  template:
+    metadata:
+      labels:
+        app: landing-placeholder
+    spec:
+      containers:
+      - name: landing-placeholder
+        image: bbengfort/trisa-placeholder:landing
+        ports:
+        - containerPort: 80
+          protocol: TCP
+          name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trisads-placeholder-deployment
+  namespace: placeholder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trisads-placeholder
+  template:
+    metadata:
+      labels:
+        app: trisads-placeholder
+    spec:
+      containers:
+      - name: trisads-placeholder
+        image: bbengfort/trisa-placeholder:trisads
+        ports:
+        - containerPort: 80
+          protocol: TCP
+          name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaspbot-placeholder-deployment
+  namespace: placeholder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vaspbot-placeholder
+  template:
+    metadata:
+      labels:
+        app: vaspbot-placeholder
+    spec:
+      containers:
+      - name: vaspbot-placeholder
+        image: bbengfort/trisa-placeholder:vaspbot
+        ports:
+        - containerPort: 80
+          protocol: TCP
+          name: http
