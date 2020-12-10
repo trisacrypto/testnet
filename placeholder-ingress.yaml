@@ -4,7 +4,9 @@ metadata:
   name: placeholder-ingress
   namespace: placeholder
   annotations:
+    kubernetes.io/ingress.allow-http: "false"
     kubernetes.io/ingress.global-static-ip-name: "trisa-test-net"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   rules:
   - host: test-net.io
@@ -35,3 +37,10 @@ spec:
         backend:
           serviceName: trisads-placeholder-service
           servicePort: http
+  tls:
+  - hosts:
+      - test-net.io
+      - trisatest.net
+      - vaspbot.net
+      - vaspdirectory.net
+    secretName: tls-certs

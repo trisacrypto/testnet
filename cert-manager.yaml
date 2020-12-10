@@ -1,0 +1,57 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  namespace: cert-manager
+spec:
+  acme:
+    email: benjamin@trisa.io
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+    - dns01:
+        cloudDNS:
+          project: fine-rookery-287916
+          serviceAccountSecretRef:
+            name: clouddns-dns01-solver-svc-acct
+            key: gcp-dns-admin.json
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  namespace: cert-manager
+spec:
+  acme:
+    email: admin@trisa.io
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - dns01:
+        cloudDNS:
+          project: fine-rookery-287916
+          serviceAccountSecretRef:
+            name: clouddns-dns01-solver-svc-acct
+            key: gcp-dns-admin.json
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tls-certs
+  namespace: cert-manager
+spec:
+  secretName: tls-certs
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - "trisatest.net"
+  - "*.trisatest.net"
+  - "test-net.io"
+  - "*.test-net.io"
+  - "vaspbot.net"
+  - "*.vaspbot.net"
+  - "vaspdirectory.net"
+  - "*.vaspdirectory.net"
