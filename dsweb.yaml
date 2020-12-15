@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsweb
+  namespace: trisa
+  labels:
+    app: dsweb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dsweb
+  template:
+    metadata:
+      labels:
+        app: dsweb
+    spec:
+      containers:
+      - name: dsweb
+        image: trisa/dsweb:1c0e54b
+        ports:
+        - containerPort: 80
+          protocol: TCP
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsweb-service
+  namespace: trisa
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    name: http
+  selector:
+    app: dsweb
+  type: NodePort

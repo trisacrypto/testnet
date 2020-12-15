@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: trisads
+  namespace: trisa
+  labels:
+    app: trisads
+spec:
+  serviceName: trisads
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trisads
+  template:
+    metadata:
+      labels:
+        app: trisads
+    spec:
+      containers:
+      - name: trisads
+        image: trisa/trisads:1c0e54b
+        ports:
+        - containerPort: 443
+          protocol: TCP
+          name: grpc
+        volumeMounts:
+        - name: dsdata
+          mountPath: /data
+        resources: {}
+        env:
+        - name: TRISADS_BIND_ADDR
+          value: :443
+        - name: TRISADS_DATABASE
+          value: /data
+        - name: TRISADS_SERVICE_EMAIL
+          value: admin@vaspdirectory.net
+        - name: TRISADS_ADMIN_EMAIL
+          value: admin@trisa.io
+        - name: TRISADS_LOG_LEVEL
+          value: info
+        - name: SECTIGO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: sectigo-creds
+              key: username
+        - name: SECTIGO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sectigo-creds
+              key: password
+        - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sendgrid-apikey
+              key: apikey
+  volumeClaimTemplates:
+  - metadata:
+      name: dsdata
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trisads-service
+  namespace: trisa
+  annotations:
+    cloud.google.com/app-protocols: '{"grpc":"HTTP2"}'
+    service.alpha.kubernetes.io/app-protocols: '{"grpc":"HTTP2"}'
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "trisads-backendconfig"}'
+spec:
+  type: ClusterIP
+  ports:
+  - name: grpc
+    port: 443
+    protocol: TCP
+    targetPort: grpc
+  selector:
+    app: trisads
+---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: trisads-backendconfig
+spec:
+  healthCheck:
+    type: HTTP2
+    requestPath: /
+    port: 8080

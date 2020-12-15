@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy
+  namespace: trisa
+  labels:
+    app: envoy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: envoy
+  template:
+    metadata:
+      labels:
+        app: envoy
+    spec:
+      containers:
+      - name: envoy
+        image: trisa/grpc-proxy:1c0e54b
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+          name: proxy
+        resources: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy-service
+  namespace: trisa
+spec:
+  ports:
+  - port: 8080
+    targetPort: proxy
+    name: proxy
+  selector:
+    app: envoy
+  type: NodePort

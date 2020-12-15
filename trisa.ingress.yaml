@@ -1,9 +1,10 @@
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
-  name: placeholder-ingress
-  namespace: placeholder
+  name: trisa-ingress
+  namespace: trisa
   annotations:
+    kubernetes.io/ingress.class: "gce"
     kubernetes.io/ingress.allow-http: "false"
     kubernetes.io/ingress.global-static-ip-name: "trisa-test-net"
     cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -35,12 +36,28 @@ spec:
       paths:
       - path: /*
         backend:
-          serviceName: trisads-placeholder-service
+          serviceName: dsweb-service
           servicePort: http
+  - host: proxy.vaspdirectory.net
+    http:
+      paths:
+      - path: /*
+        backend:
+          serviceName: envoy-service
+          servicePort: proxy
+  - host: api.vaspdirectory.net
+    http:
+      paths:
+        - path: /*
+          backend:
+            serviceName: trisads-service
+            servicePort: grpc
   tls:
   - hosts:
       - test-net.io
       - trisatest.net
       - vaspbot.net
       - vaspdirectory.net
+      - proxy.vaspdirectory.net
+      - api.vaspdirectory.net
     secretName: tls-certs
