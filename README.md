@@ -11,6 +11,20 @@ The TRISA test net is comprised of the following services:
 - [Bob rVASP](https://bob.vaspbot.net) - a secondary "robot VASP" that demos interactions with Alice and can develop against constrained resources.
 - [Evil rVASP](https://evil.vaspbot.net) - a "robot VASP" that is not registered with TRISA and is used to ensure correct error handling when the protocol is used incorrectly.
 
+## Monorepo Organization
+
+This repository consists of a monorepo that is designed to facilitate all TRISA test net operations. For now it is the reference implementation of TRISA until we can integrate it into the [trisacrypto/trisa](https://github.com/trisacrypto/trisa) repository. The organzation of the repository is as follows:
+
+- `cmd`: binary executables compiled with go
+- `containers`: Dockerfiles for various containers deployed to the test net
+- `docs`: documentation built with hugo
+- `fixtures`: initial or example data used to bootstrap services
+- `lib`: library modules in other languages (e.g. Python)
+- `manifests`: kubernetes manifests for our GKE cluster
+- `pkg`: Go code and implementations for various services
+- `proto`: Protocol Buffer definitions for the services
+- `web`: front-end web applications, either pure HTML or npm based
+
 ## Generate Protocol Buffers
 
 To regenerate the Go and Javascript code from the protocol buffers:

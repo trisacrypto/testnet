@@ -7,15 +7,27 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`trisatest.net`)
-      kind: Rule
-      services:
-        - name: landing-placeholder-service
-          port: 80
     - match: Host(`test-net.io`)
       kind: Rule
       services:
         - name: landing-placeholder-service
+          port: 80
+  tls:
+    secretName: tls-certs
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: docs-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`trisatest.net`)
+      kind: Rule
+      services:
+        - name: docs-service
           port: 80
   tls:
     secretName: tls-certs
