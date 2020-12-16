@@ -1,0 +1,17 @@
+include *.md
+include *.rst
+include *.txt
+include *.yml
+include *.cfg
+include Makefile
+include MANIFEST.in
+
+graft fixtures
+recursive-exclude fixtures *.csv *.dat *.json *.csv.gz *.json.gz
+
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .ipynb_checkpoints
+global-exclude .DS_Store
+global-exclude .env
+global-exclude .coverage.*

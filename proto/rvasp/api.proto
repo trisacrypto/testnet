@@ -1,0 +1,139 @@
+syntax = "proto3";
+package pb;
+
+// The TRISA Demo service uses a bidirectional stream to allow a websockets service to
+// display messages and commands in real time. Commands implement the same RPCs as the
+// TRISA Integration service, using a wrapper format. Messages from the rVASP are sent
+// to the UI to show messaging progress.
+service TRISADemo {
+    rpc LiveUpdates (stream Command) returns (stream Message);
+}
+
+// The TRISA Integration service can be used by VASPs as they develop their own internal
+// implementations of the InterVASP protocol. The integration service provides one
+// primary RPC - TransferTo, which gets the rVASP to kick off an InterVASP transfer
+// request. The rVASP also implements the InterVASP protocol to receive transactions and
+// provides a helper RPC, AccountStatus to get back all transactions the rVASP has seen
+// for debugging purposes.
+service TRISAIntegration {
+    rpc Transfer (TransferRequest) returns (TransferReply);
+    rpc AccountStatus (AccountRequest) returns (AccountReply);
+}
+
+// Allows for standardized error handling for demo purposes.
+message Error {
+    int32 code = 1;
+    string message = 2;
+}
+
+// Identity maps a wallet address, email, and VASP provider and is used to store
+// originator and beneficiary data as well as the KYC information that is collected
+// during the TRISA protocol exchange in JSON format.
+message Identity {
+    string wallet_address = 1;
+    string email = 2;
+    string ivms101 = 3;
+    string provider = 4;
+}
+
+// Describes a simple transaction between an originator and beneficiary and includes
+// identity information that was exchanged during the TRISA protocol.
+message Transaction {
+    string account = 1;         // email address of the account the transaction is associated with
+    Identity originator = 2;    // IVMS101 identity and wallet of originator and IVMS101 data for provider
+    Identity beneficiary = 3;   // IVMS101 identity and wallet of beneficiary and IVMS101 data for provider
+    float amount = 4;           // amount of the transaction
+    bool debit = 5;             // if true the amount was debited from account, otherwise it was credited
+    bool completed = 6;         // if the transaction has been completed or is still pending
+    string timestamp = 7;       // timestamp of completion on the account provider side
+}
+
+// Initiates a transfer from the specified account to the specified wallet address or
+// email address for a known wallet at some other rVASP.
+message TransferRequest {
+    string account = 1;         // email address of the account to debit
+    string beneficiary = 2;     // email address or wallet id to look up beneficiary with
+    float amount = 3;           // amount to transfer to the beneficiary (will be truncated to 2 decimal points)
+}
+
+// The transfer reply will contain the details of the transaction initiated or completed
+// or an error if there are insufficient funds or the account or beneficiary could not
+// be looked up. Errors encountered during the TRISA protocol may also be returned.
+message TransferReply {
+    Error error = 1;
+    Transaction transaction = 2;
+}
+
+// Account request is used to fetch the status information of the account as well as
+// all the transactions associated with the account (unless otherwise requested).
+// TODO: implement transaction pagination.
+message AccountRequest {
+    string account = 1;         // email address of the account to get information for.
+    bool no_transactions = 2;   // do not return list of transactions, just status info.
+    uint32 page = 3;            // not implemented yet
+    uint32 per_page = 4;        // not implemented yet
+}
+
+// Returns the account information and balance as well as transactions ordered from
+// most to least recent. An error is returned if the account cannot be found.
+message AccountReply {
+    Error error = 1;
+    string name = 2;
+    string email = 3;
+    string wallet_address = 4;
+    float balance = 5;
+    uint64 completed = 6;
+    uint64 pending = 7;
+    repeated Transaction transactions = 8;
+}
+
+// Specifies the RPC the command is wrapping in the bidirectional stream.
+enum RPC {
+    NORPC = 0;
+    TRANSFER = 1;
+    ACCOUNT = 2;
+}
+
+// Specifies the category the message is related to for rVASP UI colorization
+enum MessageCategory {
+    LEDGER = 0;
+    TRISADS = 1;
+    TRISAP2P = 2;
+    BLOCKCHAIN = 3;
+    ERROR = 4;
+}
+
+// A wrapper for the TransferRequet and AccountRequest RPCs to be sent via streaming.
+message Command {
+    RPC type = 1;       // what type of command is being sent to the rVASP
+    uint64 id = 2;      // client side message id for req/rep tracking
+    string client = 3;  // unique ID so the rVASP can correctly dispatch messages
+
+    // only one of these fields can be set, and the field that is set should
+    // match the RPC type described above.
+    oneof request {
+        TransferRequest transfer = 11;
+        AccountRequest account = 12;
+    }
+}
+
+// Message is either a wrapper for a TransferReply or AccountReply RPCs or it is a live
+// update message sent from the rVASP to show the communication interactions of the
+// InterVASP protocol. If it is a wrapper, then type will be > 0 and the ID will match
+// the id of the command request sent by the client. Otherwise both of these fields will
+// be zero and the update string will be populated.
+message Message {
+    RPC type = 1;
+    uint64 id = 2;
+    string update = 3;
+    string timestamp = 4;
+    MessageCategory category = 5;
+
+    // if type and id are greater than zero, one of these fields will be set, matching
+    // the RPC type described above.
+    oneof reply {
+        TransferReply transfer = 11;
+        AccountReply account = 12;
+    }
+}
+
