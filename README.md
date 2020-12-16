@@ -1,8 +1,15 @@
-# TRISA Directory Service
+# TRISA Test Net
 
-**Implements a simple gRPC directory service for TRISA.**
+**An integration and test platform for the [TRISA Travel Rule Implementation](https://trisa.io).**
 
-This is a prototype implementation of a gRPC directory service that can act as a standalone server for VASP lookup queries. This is not intended to be used for production, but rather as a proof-of-concept (PoC) for directory service registration, lookups, and searches.
+The TRISA test net is comprised of the following services:
+
+- [TRISA Directory Service](https://api.vaspdirectory.net) - a grpc service for registering TRISA participants, issuing certificates, and establishing trust.
+- [TRISA Directory UI](https://vaspdirectory.net) - a user interface to explore the TRISA directory service and interact with it manually.
+- [Envoy gRPC Proxy](https://proxy.vaspdirectory.net) - facilitates grpc-web interactions with the TRISA directory service.
+- [Alice rVASP](https://alice.vaspbot.net) - a "robot VASP" that demonstrates TRISA transactions and acts as an integration backstop to initiate and deliver transactions to.
+- [Bob rVASP](https://bob.vaspbot.net) - a secondary "robot VASP" that demos interactions with Alice and can develop against constrained resources.
+- [Evil rVASP](https://evil.vaspbot.net) - a "robot VASP" that is not registered with TRISA and is used to ensure correct error handling when the protocol is used incorrectly.
 
 ## Generate Protocol Buffers
 
@@ -14,21 +21,15 @@ $ go generate ./...
 
 The go generate directives are stored in `pb/pb.go`. The directives create grpc Go in the `pb` package as well as grpc-web in the `web/src/pb` directory.
 
-## Quick Start
+## Directory Service
 
-The simplest way to get started is to use the `docker-compose.yml` file to get the following services running locally:
+This is a prototype implementation of a gRPC directory service that can act as a standalone server for VASP lookup queries. This is not intended to be used for production, but rather as a proof-of-concept (PoC) for directory service registration, lookups, and searches.
+
+Thre directory service is composed of three component services:
 
 - **trsisads**: the TRISA directory service that implements the grpc protocol
 - **proxy**: an envoy proxy that translates HTTP 1.1 requests into HTTP 2.0 requests
-- **dsui**: UI that implements grpc-web to connect to the directory server via the proxy
-
-Run the services as follows:
-
-```
-$ docker-compose up
-```
-
-Then connect to the UI on https://localhost:8000/
+- **dsweb**: UI that implements grpc-web to connect to the directory server via the proxy
 
 ### Development
 
@@ -46,14 +47,14 @@ Note that you'll likely want to have the following environment variables configu
 To run the development web UI server:
 
 ```
-$ cd web
+$ cd web/trisads
 $ npx serve
 ```
 
 Finally, to run the proxy, use the docker image, building if necessary:
 
 ```
-$ docker run -n grpc-proxy trisacrypto/proxy:develop
+$ docker run -n grpc-proxy trisa/grpc-proxy:develop
 ```
 
 ## Sectigo API

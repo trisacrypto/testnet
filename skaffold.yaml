@@ -1,0 +1,34 @@
+apiVersion: skaffold/v2beta10
+kind: Config
+metadata:
+  name: testnet
+build:
+  artifacts:
+  - image: trisa/dsweb
+    context: .
+    docker:
+      dockerfile: containers/dsweb/Dockerfile
+  - image: trisa/trisads
+    context: .
+    docker:
+      dockerfile: containers/trisads/Dockerfile
+  local:
+    push: true
+    useDockerCLI: true
+deploy:
+  kubectl:
+    defaultNamespace: trisa
+    manifests:
+    - manifests/cert-manager.yaml
+    - manifests/dsweb.yaml
+    - manifests/namespaces.yaml
+    - manifests/placeholder.yaml
+    - manifests/trisa.routes.yaml
+    - manifests/trisads.yaml
+    - manifests/creds/sectigo-creds.yaml
+    - manifests/creds/sendgrid-apikey.yaml
+    - manifests/creds/traefik-dashboard-auth.yaml
+    - manifests/envoy/configmap.yaml
+    - manifests/envoy/deployment.yaml
+    - manifests/traefik/dashboard.yaml
+    - manifests/traefik/traefik-config.configmap.yaml

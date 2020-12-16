@@ -1,0 +1,17 @@
+# ignore repository and cache
+.git
+.cache
+
+# ignore developer settings
+.vscode
+.env
+
+# do not include k8s manifests in images
+manifests
+
+# npm artifacts
+web/**/node_modules
+web/**/npm-debug.log
+
+# fixtures may have to be included in the future
+fixtures
