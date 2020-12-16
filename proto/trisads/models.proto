@@ -1,0 +1,62 @@
+syntax = "proto3";
+package pb;
+
+message VASP {
+    uint64 id = 1;
+    Entity vaspEntity = 2;
+    TRISACertification vaspTRISACertification = 3;
+    string firstListed = 4;
+    string lastUpdated = 5;
+}
+
+message Entity {
+    uint64 id = 1;
+    string vaspFullLegalName = 2;
+    string vaspFullLegalAddress = 3;
+    string vaspIncorporationDate = 4;
+    string vaspIncorporationNumber = 5;
+    string vaspLEINumber = 6;
+    string vaspContactEmail = 7;
+    string vaspURL = 8;
+    string vaspCategory = 9;
+    string vaspCountry = 10;
+}
+
+message TRISACertification {
+    uint64 id = 1;
+    Name subjectName = 2;
+    Name issuerName = 3;
+    bytes serialNumber = 4;
+    string version = 5;
+    string signatureAlgorithm = 6;
+    repeated string parameters = 7;
+    string notValidBefore = 8;
+    string notValidAfter = 9;
+    PublicKeyInfo PublicKeyInfo = 10;
+    bool revoked = 11;
+}
+
+message Name {
+    uint64 id = 1;
+    string commonName = 2;
+    string countryRegion = 3;
+    string organization = 4;
+    string organizationalUnit = 5;
+    string locality = 6;
+    string stateProvince = 7;
+    string serialNumber = 8;
+    string incCountryRegion = 9;
+    string incStateProvince = 10;
+    string businessCategory = 11;
+}
+
+message PublicKeyInfo {
+    uint64 id = 1;
+    string algorithm = 2;
+    repeated string parameters = 3;
+    bytes publicKey = 4;
+    int64 exponent = 5;
+    int64 keySize = 6;
+    repeated string keyUsage = 7;
+    bytes signature = 8;
+}

@@ -1,0 +1,29 @@
+<div class="row py-4">
+  <div class="col-md-8 offset-md-2">
+    <table class="table table-striped table-hover table-border">
+    <thead class="thead-dark">
+      <tr>
+        <th scope="col">ID</th>
+        <th scope="col">Name</th>
+        <th scope="col">Category</th>
+        <th scope="col">Country</th>
+      </tr>
+    </thead>
+    <tbody>
+        {{#results}}
+        <tr>
+        <th scope="row">{{id}}</td>
+        <td><a href="{{url}}" target="_blank">{{name}}</a></td>
+        <td>{{category}}</td>
+        <td>{{country}}</td>
+        </tr>
+        {{/results}}
+        {{^results}}
+        <tr>
+        <td colspan=4>No results found</td>
+        </tr>
+        {{/results}}
+    </tbody>
+    </table>
+  </div>
+</div>

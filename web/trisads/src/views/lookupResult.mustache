@@ -1,0 +1,24 @@
+<div class="row py-4">
+  <div class="col-md-8 offset-md-2">
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{{ entity.name }}</h5>
+            <p class="card-text">{{ entity.address }}</p>
+            <p class="card-text"><strong>Country:</strong> {{ entity.country }}</p>
+            {{#cert}}
+            <h6>Key Info</h6>
+            {{#cert.revoked}}<p class="text-danger">TRISA Certificate has been revoked!</p>{{/cert.revoked}}
+            {{^cert.revoked}}
+            <p>{{ cert.keyInfo }}</p>
+            <p>SN: {{ cert.subject}} IN: {{ cert.issuer }} V: {{ cert.version }}</p>
+            {{/cert.revoked}}
+            {{/cert}}
+            {{^cert}}<p class="pt-2 text-warning">Not TRISA Certified</p>{{/cert}}
+            <a href="{{ entity.url }}" target="_blank" class="btn btn-primary btn-sm">Visit VASP</a>
+        </div>
+        <div class="card-footer text-muted">
+            <small>Registered {{ firstListed }} (Last Update: {{ lastUpdated }})</small>
+        </div>
+    </div>
+  </div>
+</div>
