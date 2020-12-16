@@ -36,6 +36,19 @@ spec:
             name: clouddns-dns01-solver-svc-acct
             key: gcp-dns-admin.json
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tls-certs
+  namespace: cert-manager
+  annotations:
+    kubed.appscode.com/sync: "app=routable"
+type: kubernetes.io/tls
+data:
+  ca.crt: ''
+  tls.crt: ''
+  tls.key: ''
+---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

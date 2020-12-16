@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trisa
+  labels:
+    name: trisa
+    app: routable
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: global
+  labels:
+    name: global
+    app: routable
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    name: cert-manager

@@ -1,0 +1,26 @@
+additionalArguments:
+  - --accesslog=true
+  - --accesslog.format=json
+  - --log.level=INFO
+  - --metrics.prometheus=true
+  - --metrics.prometheus.entryPoint=metrics
+  - --entrypoints.metrics.address=:8082
+  - --providers.file.filename=/conf/traefik-config.yaml
+deployment:
+  replicas: 2
+  podAnnotations:
+    prometheus.io/port: '8082'
+    prometheus.io/scrape: 'true'
+ports:
+  web:
+    redirectTo: websecure
+ingressRoute:
+  dashboard:
+    enabled: false
+volumes:
+  - mountPath: /conf
+    name: traefik-config
+    type: configMap
+service:
+  spec:
+    loadBalancerIP: 34.121.71.216

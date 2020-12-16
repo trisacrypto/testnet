@@ -35,4 +35,3 @@ spec:
     name: http
   selector:
     app: dsweb
-  type: NodePort

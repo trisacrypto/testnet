@@ -17,12 +17,19 @@ spec:
     spec:
       containers:
       - name: envoy
-        image: trisa/grpc-proxy:1c0e54b
+        image: envoyproxy/envoy-dev:933e67a9ecac814839f514fb5c31c78f3d33e5fe
         ports:
         - containerPort: 8080
           protocol: TCP
           name: proxy
+        volumeMounts:
+        - name: config
+          mountPath: /etc/envoy
         resources: {}
+      volumes:
+      - name: config
+        configMap:
+          name: envoy-conf
 ---
 apiVersion: v1
 kind: Service
@@ -36,4 +43,4 @@ spec:
     name: proxy
   selector:
     app: envoy
-  type: NodePort
+  type: ClusterIP

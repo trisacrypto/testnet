@@ -1,0 +1,90 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: landing-placeholder-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`trisatest.net`)
+      kind: Rule
+      services:
+        - name: landing-placeholder-service
+          port: 80
+    - match: Host(`test-net.io`)
+      kind: Rule
+      services:
+        - name: landing-placeholder-service
+          port: 80
+  tls:
+    secretName: tls-certs
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: vaspbot-placeholder-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`vaspbot.net`)
+      kind: Rule
+      services:
+        - name: vaspbot-placeholder-service
+          port: 80
+  tls:
+    secretName: tls-certs
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: dsweb-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`vaspdirectory.net`)
+      kind: Rule
+      services:
+        - name: dsweb-service
+          port: 80
+  tls:
+    secretName: tls-certs
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: trisads-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`api.vaspdirectory.net`)
+      kind: Rule
+      services:
+        - name: trisads-service
+          port: 443
+          scheme: h2c
+  tls:
+    secretName: tls-certs
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: envoy-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`proxy.vaspdirectory.net`)
+      kind: Rule
+      services:
+        - name: envoy-service
+          port: 8080
+  tls:
+    secretName: tls-certs
