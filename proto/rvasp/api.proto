@@ -1,5 +1,7 @@
 syntax = "proto3";
-package pb;
+
+package rvasp;
+option go_package = "pb";
 
 // The TRISA Demo service uses a bidirectional stream to allow a websockets service to
 // display messages and commands in real time. Commands implement the same RPCs as the

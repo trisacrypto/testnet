@@ -1,5 +1,7 @@
 syntax = "proto3";
-package pb;
+
+package trisads;
+option go_package = "pb";
 
 message VASP {
     uint64 id = 1;

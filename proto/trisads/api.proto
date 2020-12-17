@@ -1,8 +1,9 @@
 syntax = "proto3";
-package pb;
+
+package trisads;
+option go_package = "pb";
 
 import "models.proto";
-
 
 service TRISADirectory {
     rpc Register(RegisterRequest) returns (RegisterReply) {}
