@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-//go:generate protoc -I ../../proto/ivms101 --go_out=. enum.proto ivms101.proto identity.proto
-
 // Person converts a NaturalPerson into a Person protobuf message type.
 func (p *NaturalPerson) Person() *Person {
 	return &Person{

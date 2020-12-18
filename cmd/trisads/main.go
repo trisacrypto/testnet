@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -96,10 +94,6 @@ func main() {
 					Name:  "d, data",
 					Usage: "the json file containing the VASP data record",
 				},
-				cli.BoolFlag{
-					Name:  "V, no-verify",
-					Usage: "mark the request as no verification required",
-				},
 			},
 		},
 		{
@@ -109,14 +103,17 @@ func main() {
 			Action:   lookup,
 			Before:   initClient,
 			Flags: []cli.Flag{
-
 				cli.StringFlag{
-					Name:  "n, name",
-					Usage: "name of the VASP to lookup (case-insensitive, exact match)",
-				},
-				cli.Uint64Flag{
 					Name:  "i, id",
 					Usage: "id of the VASP to lookup",
+				},
+				cli.StringFlag{
+					Name:  "d, directory",
+					Usage: "directory that registered the VASP (assumes target directory by default)",
+				},
+				cli.StringFlag{
+					Name:  "n, common-name",
+					Usage: "domain name of the VASP to lookup (case-insensitive, exact match)",
 				},
 			},
 		},
@@ -134,6 +131,27 @@ func main() {
 				cli.StringSliceFlag{
 					Name:  "c, country",
 					Usage: "one or more countries of the VASPs to search for",
+				},
+			},
+		},
+		{
+			Name:     "status",
+			Usage:    "check on the verification and service status of a VASP",
+			Category: "client",
+			Action:   status,
+			Before:   initClient,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "i, id",
+					Usage: "id of the VASP to lookup",
+				},
+				cli.StringFlag{
+					Name:  "d, directory",
+					Usage: "directory that registered the VASP (assumes target directory by default)",
+				},
+				cli.StringFlag{
+					Name:  "n, common-name",
+					Usage: "domain name of the VASP to lookup (case-insensitive, exact match)",
 				},
 			},
 		},
@@ -183,54 +201,7 @@ func load(c *cli.Context) (err error) {
 	defer db.Close()
 
 	for _, path := range c.Args() {
-		var f *os.File
-		if f, err = os.Open(path); err != nil {
-			return cli.NewExitError(err, 1)
-		}
-
-		rows := 0
-		reader := csv.NewReader(f)
-
-		for {
-			var record []string
-			if record, err = reader.Read(); err != nil {
-				break
-			}
-
-			rows++
-			if rows == 1 {
-				// Skip the expected header: entity name,country,category,url,address
-				// TODO: validate the header
-				continue
-			}
-
-			vasp := pb.VASP{
-				VaspEntity: &pb.Entity{
-					VaspFullLegalName:    record[0],
-					VaspFullLegalAddress: record[4],
-					VaspURL:              record[3],
-					VaspCategory:         record[2],
-					VaspCountry:          record[1],
-				},
-			}
-
-			var id uint64
-			if id, err = db.Create(vasp); err != nil {
-				return cli.NewExitError(err, 1)
-			}
-
-			var check pb.VASP
-			if check, err = db.Retrieve(id); err != nil {
-				return cli.NewExitError(err, 1)
-			}
-
-			data, _ := json.Marshal(check)
-			fmt.Println(string(data))
-
-		}
-
-		f.Close()
-		if err != nil && err != io.EOF {
+		if err = store.Load(db, path); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -245,10 +216,6 @@ func verify(c *cli.Context) (err error) {
 
 // Register an entity using the API from a CLI client
 func register(c *cli.Context) (err error) {
-	req := &pb.RegisterRequest{
-		Verify: !c.Bool("no-verify"),
-	}
-
 	var path string
 	if path = c.String("data"); path == "" {
 		return cli.NewExitError("specify a json file to load the entity data from", 1)
@@ -259,7 +226,8 @@ func register(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	if err = json.Unmarshal(data, &req.Entity); err != nil {
+	var req *pb.RegisterRequest
+	if err = json.Unmarshal(data, &req); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -276,20 +244,22 @@ func register(c *cli.Context) (err error) {
 
 // Lookup VASPs using the API from a CLI client
 func lookup(c *cli.Context) (err error) {
-	name := c.String("name")
-	id := c.Uint64("id")
+	id := c.String("id")
+	directory := c.String("directory")
+	commonName := c.String("common-name")
 
-	if name == "" && id == 0 {
+	if commonName == "" && id == "" {
 		return cli.NewExitError("specify either name or id for lookup", 1)
 	}
 
-	if name != "" && id > 0 {
+	if commonName != "" && id != "" {
 		return cli.NewExitError("specify either name or id for lookup, not both", 1)
 	}
 
 	req := &pb.LookupRequest{
-		Name: name,
-		Id:   id,
+		Id:                  id,
+		RegisteredDirectory: directory,
+		CommonName:          commonName,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -318,6 +288,29 @@ func search(c *cli.Context) (err error) {
 	defer cancel()
 
 	rep, err := client.Search(ctx, req)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return printJSON(rep)
+}
+
+// Check on verification and service status of a VASP
+func status(c *cli.Context) (err error) {
+	req := &pb.StatusRequest{
+		Id:                  c.String("id"),
+		RegisteredDirectory: c.String("directory"),
+		CommonName:          c.String("common-name"),
+	}
+
+	if req.Id == "" && req.CommonName == "" {
+		return cli.NewExitError("specify either id or common-name", 1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rep, err := client.Status(ctx, req)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

@@ -54,6 +54,7 @@ func New(conf *Settings) (s *Server, err error) {
 
 // Server implements the GRPC TRISADirectoryService.
 type Server struct {
+	pb.UnimplementedTRISADirectoryServer
 	db    store.Store
 	srv   *grpc.Server
 	conf  *Settings
@@ -106,7 +107,19 @@ func (s *Server) Shutdown() (err error) {
 // status of verification can be obtained by using the lookup RPC call.
 func (s *Server) Register(ctx context.Context, in *pb.RegisterRequest) (out *pb.RegisterReply, err error) {
 	out = &pb.RegisterReply{}
-	vasp := pb.VASP{VaspEntity: in.Entity}
+	vasp := pb.VASP{
+		Entity:           in.Entity,
+		Contacts:         in.Contacts,
+		TrisaEndpoint:    in.TrisaEndpoint,
+		CommonName:       in.CommonName,
+		Website:          in.Website,
+		BusinessCategory: in.BusinessCategory,
+		VaspCategory:     in.VaspCategory,
+		EstablishedOn:    in.EstablishedOn,
+		Trixo:            in.Trixo,
+	}
+
+	// TODO: validate partial VASP record
 
 	if out.Id, err = s.db.Create(vasp); err != nil {
 		log.Warn().Err(err).Msg("could not register VASP")
@@ -115,7 +128,8 @@ func (s *Server) Register(ctx context.Context, in *pb.RegisterRequest) (out *pb.
 			Message: err.Error(),
 		}
 	} else {
-		log.Info().Str("name", in.Entity.VaspFullLegalName).Msg("registered VASP")
+		name, _ := vasp.Name()
+		log.Info().Str("name", name).Str("id", vasp.Id).Msg("registered VASP")
 	}
 
 	// TODO: if verify is true: send verification request
@@ -129,6 +143,7 @@ func (s *Server) Register(ctx context.Context, in *pb.RegisterRequest) (out *pb.
 		log.Info().Msg("verification email sent")
 	}
 
+	// TODO: populate register reply fields with status
 	return out, nil
 }
 
@@ -138,7 +153,8 @@ func (s *Server) Lookup(ctx context.Context, in *pb.LookupRequest) (out *pb.Look
 	var vasp pb.VASP
 	out = &pb.LookupReply{}
 
-	if in.Id > 0 {
+	if in.Id != "" {
+		// TODO: add registered directory to lookup
 		if vasp, err = s.db.Retrieve(in.Id); err != nil {
 			out.Error = &pb.Error{
 				Code:    404,
@@ -146,9 +162,10 @@ func (s *Server) Lookup(ctx context.Context, in *pb.LookupRequest) (out *pb.Look
 			}
 		}
 
-	} else if in.Name != "" {
+	} else if in.CommonName != "" {
+		// TODO: change lookup to unique common name lookup
 		var vasps []pb.VASP
-		if vasps, err = s.db.Search(map[string]interface{}{"name": in.Name}); err != nil {
+		if vasps, err = s.db.Search(map[string]interface{}{"common_name": in.CommonName}); err != nil {
 			out.Error = &pb.Error{
 				Code:    404,
 				Message: err.Error(),
@@ -172,8 +189,16 @@ func (s *Server) Lookup(ctx context.Context, in *pb.LookupRequest) (out *pb.Look
 	}
 
 	if out.Error == nil {
-		out.Vasp = &vasp
-		log.Info().Uint64("id", vasp.Id).Msg("VASP lookup succeeded")
+		// TODO: should lookups only return verified peers?
+		out.Id = vasp.Id
+		out.RegisteredDirectory = vasp.RegisteredDirectory
+		out.CommonName = vasp.CommonName
+		out.Endpoint = vasp.TrisaEndpoint
+		out.Certificate = vasp.Certificate
+		out.Name, _ = vasp.Name()
+		out.Country = vasp.Entity.CountryOfRegistration
+		out.VerifiedOn = vasp.VerifiedOn
+		log.Info().Str("id", vasp.Id).Msg("VASP lookup succeeded")
 	} else {
 		log.Warn().Err(out.Error).Msg("could not lookup VASP")
 	}
@@ -196,25 +221,80 @@ func (s *Server) Search(ctx context.Context, in *pb.SearchRequest) (out *pb.Sear
 		}
 	}
 
-	out.Vasps = make([]*pb.VASP, len(vasps))
-	for i := 0; i < len(vasps); i++ {
-		// avoid pointer errors from range
-		out.Vasps[i] = &vasps[i]
-
-		// return only entities, remove certificate info until lookup
-		out.Vasps[i].VaspTRISACertification = nil
+	out.Results = make([]*pb.SearchResult, 0, len(vasps))
+	for _, vasp := range vasps {
+		out.Results = append(out.Results, &pb.SearchResult{
+			Id:                  vasp.Id,
+			RegisteredDirectory: vasp.RegisteredDirectory,
+			CommonName:          vasp.CommonName,
+		})
 	}
 
 	entry := log.With().
 		Strs("name", in.Name).
 		Strs("country", in.Country).
-		Int("results", len(out.Vasps)).
+		Int("results", len(out.Results)).
 		Logger()
 
 	if out.Error != nil {
 		entry.Warn().Err(out.Error).Msg("unsuccessful search")
 	} else {
 		entry.Info().Msg("search succeeded")
+	}
+	return out, nil
+}
+
+// Status returns the status of a VASP including its verification and service status if
+// the directory service is performing health check monitoring.
+func (s *Server) Status(ctx context.Context, in *pb.StatusRequest) (out *pb.StatusReply, err error) {
+	var vasp pb.VASP
+	out = &pb.StatusReply{}
+
+	if in.Id != "" {
+		// TODO: add registered directory to lookup
+		if vasp, err = s.db.Retrieve(in.Id); err != nil {
+			out.Error = &pb.Error{
+				Code:    404,
+				Message: err.Error(),
+			}
+		}
+
+	} else if in.CommonName != "" {
+		// TODO: change lookup to unique common name lookup
+		var vasps []pb.VASP
+		if vasps, err = s.db.Search(map[string]interface{}{"common_name": in.CommonName}); err != nil {
+			out.Error = &pb.Error{
+				Code:    404,
+				Message: err.Error(),
+			}
+		}
+
+		if len(vasps) == 1 {
+			vasp = vasps[0]
+		} else {
+			out.Error = &pb.Error{
+				Code:    404,
+				Message: "not found",
+			}
+		}
+	} else {
+		out.Error = &pb.Error{
+			Code:    400,
+			Message: "no lookup query provided",
+		}
+		return out, nil
+	}
+
+	if out.Error == nil {
+		// TODO: should lookups only return verified peers?
+		out.VerificationStatus = vasp.VerificationStatus
+		out.ServiceStatus = vasp.ServiceStatus
+		out.VerifiedOn = vasp.VerifiedOn
+		out.FirstListed = vasp.FirstListed
+		out.LastUpdated = vasp.LastUpdated
+		log.Info().Str("id", vasp.Id).Msg("VASP status succeeded")
+	} else {
+		log.Warn().Err(out.Error).Msg("could not lookup VASP for status")
 	}
 	return out, nil
 }

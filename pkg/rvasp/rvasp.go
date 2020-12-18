@@ -40,6 +40,8 @@ func New(dsn string) (s *Server, err error) {
 
 // Server implements the GRPC TRISAInterVASP and TRISADemo services.
 type Server struct {
+	pb.UnimplementedTRISADemoServer
+	pb.UnimplementedTRISAIntegrationServer
 	srv  *grpc.Server
 	db   *gorm.DB
 	vasp VASP

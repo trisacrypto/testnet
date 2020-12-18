@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/trisacrypto/testnet/pkg/trisads/pb"
@@ -73,13 +73,19 @@ func (s *ldbStore) Close() error {
 	return nil
 }
 
+func printJSON(v interface{}) {
+	data, _ := json.MarshalIndent(v, "", "  ")
+	fmt.Println(string(data))
+}
+
 // Create a VASP into the directory. This method requires the VASP to have a unique
 // name and ignores any ID fields that are set on the VASP, instead assigning new IDs.
-func (s *ldbStore) Create(v pb.VASP) (id uint64, err error) {
+func (s *ldbStore) Create(v pb.VASP) (id string, err error) {
 	// Create the name to check the uniqueness constraint
-	name := strings.TrimSpace(strings.ToLower(v.VaspEntity.VaspFullLegalName))
+	name := strings.TrimSpace(strings.ToLower(v.CommonName))
 	if name == "" {
-		return 0, ErrIncompleteRecord
+		printJSON(v)
+		return "", ErrIncompleteRecord
 	}
 
 	// Update management timestamps
@@ -94,30 +100,28 @@ func (s *ldbStore) Create(v pb.VASP) (id uint64, err error) {
 
 	// Check the uniqueness constraint
 	if _, ok := s.names[name]; ok {
-		return 0, ErrDuplicateEntity
+		printJSON(v)
+		return "", ErrDuplicateEntity
 	}
-
-	// Insert sets the IDs of the entity even if they are already set
-	s.checkIDs(&v, true)
 
 	var data []byte
 	key := s.vaspKey(v.Id)
 	if data, err = proto.Marshal(&v); err != nil {
-		return 0, err
+		return "", err
 	}
 
 	if err = s.db.Put(key, data, nil); err != nil {
-		return 0, err
+		return "", err
 	}
 
 	// Update indices after successful insert
 	s.names[name] = v.Id
-	s.countries.add(v.Id, v.VaspEntity.VaspCountry)
+	s.countries.add(v.Id, v.Entity.CountryOfRegistration)
 	return v.Id, nil
 }
 
 // Retrieve a VASP record by id; returns an error if the record does not exist.
-func (s *ldbStore) Retrieve(id uint64) (v pb.VASP, err error) {
+func (s *ldbStore) Retrieve(id string) (v pb.VASP, err error) {
 	var val []byte
 	key := s.vaspKey(id)
 	if val, err = s.db.Get(key, nil); err != nil {
@@ -137,7 +141,7 @@ func (s *ldbStore) Retrieve(id uint64) (v pb.VASP, err error) {
 // Update the VASP entry by the VASP ID (required). This method simply overwrites the
 // entire VASP record and does not update individual fields.
 func (s *ldbStore) Update(v pb.VASP) (err error) {
-	if v.Id == 0 {
+	if v.Id == "" {
 		return ErrIncompleteRecord
 	}
 
@@ -152,9 +156,6 @@ func (s *ldbStore) Update(v pb.VASP) (err error) {
 	s.Lock()
 	defer s.Unlock()
 
-	// Check to ensure all subrecords have unique identifiers if not already set
-	s.checkIDs(&v, false)
-
 	var val []byte
 	if val, err = proto.Marshal(&v); err != nil {
 		return err
@@ -166,21 +167,21 @@ func (s *ldbStore) Update(v pb.VASP) (err error) {
 	}
 
 	// Update indices if necessary
-	if v.VaspEntity.VaspFullLegalName != o.VaspEntity.VaspFullLegalName {
-		delete(s.names, o.VaspEntity.VaspFullLegalName)
-		s.names[v.VaspEntity.VaspFullLegalName] = v.Id
+	if v.CommonName != o.CommonName {
+		delete(s.names, o.CommonName)
+		s.names[v.CommonName] = v.Id
 	}
 
-	if v.VaspEntity.VaspCountry != o.VaspEntity.VaspCountry {
-		s.countries.rm(o.Id, o.VaspEntity.VaspCountry)
-		s.countries.add(v.Id, v.VaspEntity.VaspCountry)
+	if v.Entity.CountryOfRegistration != o.Entity.CountryOfRegistration {
+		s.countries.rm(v.Id, o.Entity.CountryOfRegistration)
+		s.countries.add(v.Id, v.Entity.CountryOfRegistration)
 	}
 
 	return nil
 }
 
 // Destroy a record, removing it completely from the database and indices.
-func (s *ldbStore) Destroy(id uint64) (err error) {
+func (s *ldbStore) Destroy(id string) (err error) {
 	key := s.vaspKey(id)
 
 	// Lookup the record in order to remove data from indices
@@ -202,8 +203,8 @@ func (s *ldbStore) Destroy(id uint64) (err error) {
 	defer s.Unlock()
 
 	// Remove the records from the indices
-	delete(s.names, record.VaspEntity.VaspFullLegalName)
-	s.countries.rm(id, record.VaspEntity.VaspCountry)
+	delete(s.names, record.CommonName)
+	s.countries.rm(record.Id, record.Entity.CountryOfRegistration)
 	return nil
 }
 
@@ -214,7 +215,7 @@ func (s *ldbStore) Destroy(id uint64) (err error) {
 // or list of countries for case-insensitive exact matches.
 func (s *ldbStore) Search(query map[string]interface{}) (vasps []pb.VASP, err error) {
 	// A set of records that match the query and need to be fetched
-	records := make(map[uint64]struct{})
+	records := make(map[string]struct{})
 
 	s.RLock()
 	// Lookup by name
@@ -222,7 +223,7 @@ func (s *ldbStore) Search(query map[string]interface{}) (vasps []pb.VASP, err er
 	if ok {
 		log.WithField("name", names).Debug("search name query")
 		for _, name := range names {
-			if id := s.names[name]; id > 0 {
+			if id := s.names[name]; id != "" {
 				records[id] = struct{}{}
 			}
 		}
@@ -258,60 +259,17 @@ func (s *ldbStore) Search(query map[string]interface{}) (vasps []pb.VASP, err er
 }
 
 // creates a []byte key from the vasp id using a prefix to act as a leveldb bucket
-func (s *ldbStore) vaspKey(id uint64) (key []byte) {
-	pre := len(preVASPS)
-	key = make([]byte, pre+binary.MaxVarintLen64)
-	copy(key, preVASPS)
-	binary.PutUvarint(key[pre:], id)
+func (s *ldbStore) vaspKey(id string) (key []byte) {
+	buf := []byte(id)
+	key = make([]byte, 0, len(preVASPS)+len(buf))
+	key = append(key, preVASPS...)
+	key = append(key, buf...)
 	return key
 }
 
-// updates the ids of internal objects using the primary key sequence
-func (s *ldbStore) checkIDs(v *pb.VASP, insert bool) {
-	if insert || v.Id == 0 {
-		s.sequence++
-		v.Id = s.sequence
-	}
-
-	if v.VaspEntity != nil {
-		if insert || v.VaspEntity.Id == 0 {
-			s.sequence++
-			v.VaspEntity.Id = s.sequence
-		}
-	}
-
-	if v.VaspTRISACertification != nil {
-		if insert || v.VaspTRISACertification.Id == 0 {
-			s.sequence++
-			v.VaspTRISACertification.Id = s.sequence
-		}
-
-		if v.VaspTRISACertification.SubjectName != nil {
-			if insert || v.VaspTRISACertification.SubjectName.Id == 0 {
-				s.sequence++
-				v.VaspTRISACertification.SubjectName.Id = s.sequence
-			}
-		}
-
-		if v.VaspTRISACertification.IssuerName != nil {
-			if insert || v.VaspTRISACertification.IssuerName.Id == 0 {
-				s.sequence++
-				v.VaspTRISACertification.IssuerName.Id = s.sequence
-			}
-		}
-
-		if v.VaspTRISACertification.PublicKeyInfo != nil {
-			if insert || v.VaspTRISACertification.PublicKeyInfo.Id == 0 {
-				s.sequence++
-				v.VaspTRISACertification.PublicKeyInfo.Id = s.sequence
-			}
-		}
-	}
-}
-
 // Helper indices for quick lookups and cheap constraints
-type uniqueIndex map[string]uint64
-type containerIndex map[string][]uint64
+type uniqueIndex map[string]string
+type containerIndex map[string][]string
 
 // sync all indices with the underlying database
 func (s *ldbStore) sync() (err error) {
@@ -444,7 +402,7 @@ func (s *ldbStore) synccountries() (err error) {
 	return nil
 }
 
-func (c containerIndex) add(id uint64, country string) {
+func (c containerIndex) add(id string, country string) {
 	if country == "" {
 		return
 	}
@@ -454,7 +412,7 @@ func (c containerIndex) add(id uint64, country string) {
 
 	arr, ok := c[country]
 	if !ok {
-		arr = make([]uint64, 0, 10)
+		arr = make([]string, 0, 10)
 		arr = append(arr, id)
 		c[country] = arr
 		return
@@ -466,14 +424,14 @@ func (c containerIndex) add(id uint64, country string) {
 		return
 	}
 
-	arr = append(arr, 0)
+	arr = append(arr, "")
 	copy(arr[i+1:], arr[i:])
 	arr[i] = id
 
 	c[country] = arr
 }
 
-func (c containerIndex) rm(id uint64, country string) {
+func (c containerIndex) rm(id string, country string) {
 	// make country search case insensitive
 	country = strings.ToLower(country)
 
@@ -485,7 +443,7 @@ func (c containerIndex) rm(id uint64, country string) {
 	i := sort.Search(len(arr), func(i int) bool { return arr[i] >= id })
 	if i < len(arr) && arr[i] == id {
 		copy(arr[i:], arr[i+1:])
-		arr[len(arr)-1] = 0
+		arr[len(arr)-1] = ""
 		arr = arr[:len(arr)-1]
 		c[country] = arr
 	}
