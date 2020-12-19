@@ -3,6 +3,7 @@ package trisads
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"math/rand"
 	"strings"
@@ -64,25 +65,40 @@ func (s *Server) VerifyContactEmail(vasp *pb.VASP) (err error) {
 	return nil
 }
 
-// SendVerificationEmail is a shortcut for iComply verification in which we simply send
+// ReviewRequestEmail is a shortcut for iComply verification in which we simply send
 // an email to the TRISA admins and have them manually verify registrations.
-func (s *Server) SendVerificationEmail(vasp *pb.VASP) (err error) {
-	// Create verification token for admin
+func (s *Server) ReviewRequestEmail(vasp *pb.VASP) (err error) {
+	// Create verification token for admin and update database
 	// TODO: replace with actual authentication
-	vasp.AdminVerificationToken = CreateToken(16)
+	vasp.AdminVerificationToken = CreateToken(48)
+	if err = s.db.Update(vasp); err != nil {
+		return fmt.Errorf("could not save admin verification token: %s", err)
+	}
 
 	var data []byte
 	if data, err = json.MarshalIndent(vasp, "", "  "); err != nil {
 		return err
 	}
-	plainTextContent := string(data)
-	htmlContent := "<pre>" + plainTextContent + "</pre>"
 
-	return s.sendEmail(
-		"TRISA Admins", s.conf.AdminEmail,
-		"TRISA TestNet Verification Request",
-		plainTextContent, htmlContent,
-	)
+	ctx := reviewRequestContext{
+		VID:     vasp.Id,
+		Request: string(data),
+		Token:   vasp.AdminVerificationToken,
+	}
+
+	var text, html string
+	if text, err = execTemplateString(reviewRequestPlainText, ctx); err != nil {
+		return err
+	}
+	if html, err = execTemplateString(reviewRequestHTML, ctx); err != nil {
+		return err
+	}
+
+	if err = s.sendEmail("TRISA Admins", s.conf.AdminEmail, reviewRequestSubject, text, html); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Server) sendEmail(recipient, emailaddr, subject, text, html string) (err error) {
@@ -166,6 +182,63 @@ the programming language of your choice.</p>
 <a href="https://vaspdirectory.net/">vaspdirectory.net</a> site to simplify the
 verification process. We're sorry about the inconvenience of this method at the early
 stage of the TRISA Test Net.</p>
+
+<p>Best Regards,<br />
+The TRISA Directory Service</p>`))
+
+type reviewRequestContext struct {
+	VID     string
+	Token   string
+	Request string
+}
+
+var reviewRequestSubject = "Please Review TRISA TestNET VASP Registration Request"
+
+// VerifyContact Plain Text Content Template
+var reviewRequestPlainText = template.Must(template.New("reviewRequestPlainText").Parse(`
+Hello TRISA Admin,
+
+We have received a new registration request from a VASP that needs to be reviewed. The
+requestor has verified their email address and received a PKCS12 password to decrypt a
+certificate that will be generated if you approve this request. The request JSON is:
+
+{{ .Request }}
+
+To verify or reject the registration request, use the following metadata with the
+trisads verify command:
+
+ID: {{ .VID }}
+Token: {{ .Token }}
+
+Note that we're working to create a URL endpoint for the vaspdirectory.net site to
+simplify the verification process. We're sorry about the inconvenience of this method at
+the early stage of the TRISA Test Net.
+
+Best Regards,
+The TRISA Directory Service`))
+
+// VerifyContact HTML Content Template
+var reviewRequestHTML = template.Must(template.New("reviewRequestHTML").Parse(`
+<p>Hello TRISA Admin,</p>
+
+<p>We have received a new registration request from a VASP that needs to be reviewed.
+The requestor has verified their email address and received a PKCS12 password to decrypt
+a certificate that will be generated if you approve this request. The request JSON is:</p>
+
+<pre>{{ .Request }}</pre>
+
+<p>To verify or reject the registration request, use the following metadata with the
+<code>trisads verify</code> command:</p>
+
+<ul>
+	<li>ID: <strong>{{ .VID }}</strong></li>
+	<li>Token: <strong>{{ .Token }}</strong></li>
+</ul>
+
+<p>Note that we're working to create a URL endpoint for the
+<a href="https://vaspdirectory.net/">vaspdirectory.net</a> site to simplify the
+verification process. We're sorry about the inconvenience of this method at the early
+stage of the TRISA TestNet.</p>
 
 <p>Best Regards,<br />
 The TRISA Directory Service</p>`))

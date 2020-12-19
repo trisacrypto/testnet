@@ -20,6 +20,7 @@ type Settings struct {
 	AdminEmail      string          `envconfig:"TRISADS_ADMIN_EMAIL" default:"admin@trisa.io"`
 	LogLevel        LogLevelDecoder `envconfig:"TRISADS_LOG_LEVEL" default:"info"`
 	DirectoryID     string          `envconfig:"TRISADS_DIRECTORY_ID" default:"vaspdirectory.net"`
+	SecretKey       string          `envconfig:"TRISADS_SECRET_KEY" required:"true"`
 }
 
 // Config creates a new settings object, loading environment variables and defaults.

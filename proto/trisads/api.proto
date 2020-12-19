@@ -11,6 +11,7 @@ service TRISADirectory {
     rpc Lookup(LookupRequest) returns (LookupReply) {}
     rpc Search(SearchRequest) returns (SearchReply) {}
     rpc Status(StatusRequest) returns (StatusReply) {}
+    rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailReply) {}
 }
 
 
@@ -146,7 +147,6 @@ message StatusRequest {
     string common_name = 3;
 }
 
-
 message StatusReply {
     // If no error is specified, the status request was successful.
     Error error = 1;
@@ -157,4 +157,21 @@ message StatusReply {
     string verified_on = 4;  // Should be an RFC 3339 Timestamp
     string first_listed = 5; // Should be an RFC 3339 Timestamp
     string last_updated = 6; // Should be an RFC 3339 Timestamp
+}
+
+message VerifyEmailRequest {
+    string id = 1;
+    string token = 2;
+}
+
+message VerifyEmailReply {
+    // If no error is specified, the verify email request was successful
+    Error error = 1;
+
+    // The verification status of the VASP entity.
+    VerificationState status = 2;
+    string message = 3;
+
+    // Used to decrypt the emailed certificates in PKCS 12 format
+    string pkcs12password = 4;
 }

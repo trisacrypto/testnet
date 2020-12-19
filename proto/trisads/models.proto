@@ -68,6 +68,10 @@ message VASP {
     // Temporary: verification token for light weight authentication for verification
     // TODO: replace with admin API that uses authentication
     string admin_verification_token = 20;
+
+    // Maintains the status of a Sectigo certificate request.
+    // NOTE: this field contains an encrypted PKCS12 password, which should not be replicated
+    CertificateRequest certificate_request = 21;
 }
 
 // At least one of the following contact information is required for the VASP to be
@@ -187,6 +191,29 @@ message PublicKeyInfo {
     int64 keySize = 6;
     repeated string keyUsage = 7;
     bytes signature = 8;
+}
+
+message CertificateRequest {
+    // Sectigo create single certificate batch metadata
+    int64 batch_id = 1;
+    int64 order_number = 2;
+    string creation_date = 3;
+    string profile = 4;
+    string batch_name = 5;
+    string status = 6;
+    bool active = 7;
+    string reject_reason = 8;
+
+    // Currently there is no choice but to store the PKCS12 password on the server
+    // because the certificate issuance command is separated in time by human review,
+    // which means it cannot be ephemerally kept in memory during the certificate
+    // generation request handoff. Moreover, the value cannot be hashed since it must
+    // be sent in plaintext via the Sectigo API. To mitigate issues with the storage of
+    // this data, it is encrypted so that only a directory service with the correct
+    // secret key (e.g. the directory service process that created the request) can read
+    // the original value. However, if possible, this value should not be replicated.
+    bytes pkcs12password = 9;
+    bytes pkcs12signature = 10;
 }
 
 enum BusinessCategory {

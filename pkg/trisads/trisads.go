@@ -2,6 +2,7 @@ package trisads
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -176,11 +177,6 @@ func (s *Server) Register(ctx context.Context, in *pb.RegisterRequest) (out *pb.
 	out.Status = vasp.VerificationStatus
 	out.Message = "verification code sent to contact emails, please check spam folder if not arrived"
 
-	// TODO: remove this, it's only for testing
-	if err = s.db.Destroy(vasp.Id); err != nil {
-		return nil, err
-	}
-
 	return out, nil
 }
 
@@ -290,6 +286,7 @@ func (s *Server) Status(ctx context.Context, in *pb.StatusRequest) (out *pb.Stat
 	if in.Id != "" {
 		// TODO: add registered directory to lookup
 		if vasp, err = s.db.Retrieve(in.Id); err != nil {
+			log.Error().Err(err).Str("id", in.Id).Msg("could not retrieve vasp")
 			out.Error = &pb.Error{
 				Code:    404,
 				Message: err.Error(),
@@ -300,6 +297,7 @@ func (s *Server) Status(ctx context.Context, in *pb.StatusRequest) (out *pb.Stat
 		// TODO: change lookup to unique common name lookup
 		var vasps []*pb.VASP
 		if vasps, err = s.db.Search(map[string]interface{}{"common_name": in.CommonName}); err != nil {
+			log.Error().Err(err).Str("common_name", in.CommonName).Msg("could not retrieve vasp")
 			out.Error = &pb.Error{
 				Code:    404,
 				Message: err.Error(),
@@ -333,5 +331,124 @@ func (s *Server) Status(ctx context.Context, in *pb.StatusRequest) (out *pb.Stat
 	} else {
 		log.Warn().Err(out.Error).Msg("could not lookup VASP for status")
 	}
+	return out, nil
+}
+
+// VerifyEmail checks the contact tokens for the specified VASP and registers the
+// contact email verification. If successful, this method then sends the verification
+// request to the TRISA Admins for review and generates a PKCS12 password in the RPC
+// response to decrypt the certificate private keys when they're emailed.
+func (s *Server) VerifyEmail(ctx context.Context, in *pb.VerifyEmailRequest) (out *pb.VerifyEmailReply, err error) {
+	out = &pb.VerifyEmailReply{}
+
+	var vasp *pb.VASP
+	if vasp, err = s.db.Retrieve(in.Id); err != nil {
+		log.Error().Err(err).Str("id", in.Id).Msg("could not retrieve vasp")
+		out.Error = &pb.Error{
+			Code:    404,
+			Message: err.Error(),
+		}
+		return out, nil
+	}
+
+	verified := 0
+	found := false
+	contacts := []*pb.Contact{
+		vasp.Contacts.Technical,
+		vasp.Contacts.Administrative,
+		vasp.Contacts.Billing,
+		vasp.Contacts.Legal,
+	}
+	for _, contact := range contacts {
+		if contact == nil {
+			continue
+		}
+		if contact.Token == in.Token {
+			log.Info().Str("email", contact.Email).Msg("contact email verified")
+			contact.Verified = true
+			contact.Token = ""
+			found = true
+		}
+		if contact.Verified {
+			verified++
+		}
+	}
+
+	if !found || verified == 0 {
+		log.Error().Err(err).Str("token", in.Token).Msg("could not find contact with token")
+		out.Error = &pb.Error{
+			Code:    404,
+			Message: "could not find contact with specified token",
+		}
+		return out, nil
+	}
+
+	// Ensures that we only send the verification email to the admins once.
+	if verified > 1 {
+		// Save the updated contact
+		if err = s.db.Update(vasp); err != nil {
+			log.Error().Err(err).Msg("could not update vasp after contact verification")
+			out.Error = &pb.Error{
+				Code:    500,
+				Message: err.Error(),
+			}
+			return out, nil
+		}
+
+		out.Status = vasp.VerificationStatus
+		out.Message = "email successfully verified; verification review already sent to TRISA admins"
+		return out, nil
+	}
+
+	// Note that this status will get updated in the review request email
+	vasp.VerificationStatus = pb.VerificationState_EMAIL_VERIFIED
+
+	// If this is the first verification, generate the PKCS12 password and send verification review email
+	// TODO: make this better
+	if err = s.ReviewRequestEmail(vasp); err != nil {
+		log.Error().Err(err).Msg("could not send verification review email")
+		out.Error = &pb.Error{
+			Code:    500,
+			Message: "could not send verification review email",
+		}
+		return out, nil
+	}
+
+	// Now that the email has been sent out the vasp is pending review
+	vasp.VerificationStatus = pb.VerificationState_PENDING_REVIEW
+
+	// Create and encrypt PKCS12 password
+	password := CreateToken(16)
+	vasp.CertificateRequest = &pb.CertificateRequest{}
+
+	if vasp.CertificateRequest.Pkcs12Password, vasp.CertificateRequest.Pkcs12Signature, err = s.Encrypt(password); err != nil {
+		log.Error().Err(err).Msg("could not encrypt password to store in database")
+		out.Error = &pb.Error{
+			Code:    500,
+			Message: "could not create certificate request password",
+		}
+	}
+
+	// Save the VASP and newly created certificate request
+	if err = s.db.Update(vasp); err != nil {
+		log.Error().Err(err).Msg("could not update vasp after contact verification and pkcs12 password generation")
+		out.Error = &pb.Error{
+			Code:    500,
+			Message: err.Error(),
+		}
+		return out, nil
+	}
+
+	// Perform a check
+	check, err := s.db.Retrieve(vasp.Id)
+	if err != nil {
+		log.Error().Err(err).Msg("could not retrieve VASP to check it")
+	}
+	data, _ := json.MarshalIndent(check, "", "  ")
+	fmt.Println(string(data))
+
+	out.Status = vasp.VerificationStatus
+	out.Message = "email successfully verified and verification review sent to TRISA admins; pkcs12 password to decrypt your emailed certificates attached - do not lose!"
+	out.Pkcs12Password = password
 	return out, nil
 }

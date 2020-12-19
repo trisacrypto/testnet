@@ -21,6 +21,7 @@ type TRISADirectoryClient interface {
 	Lookup(ctx context.Context, in *LookupRequest, opts ...grpc.CallOption) (*LookupReply, error)
 	Search(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*SearchReply, error)
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusReply, error)
+	VerifyEmail(ctx context.Context, in *VerifyEmailRequest, opts ...grpc.CallOption) (*VerifyEmailReply, error)
 }
 
 type tRISADirectoryClient struct {
@@ -67,6 +68,15 @@ func (c *tRISADirectoryClient) Status(ctx context.Context, in *StatusRequest, op
 	return out, nil
 }
 
+func (c *tRISADirectoryClient) VerifyEmail(ctx context.Context, in *VerifyEmailRequest, opts ...grpc.CallOption) (*VerifyEmailReply, error) {
+	out := new(VerifyEmailReply)
+	err := c.cc.Invoke(ctx, "/trisads.TRISADirectory/VerifyEmail", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TRISADirectoryServer is the server API for TRISADirectory service.
 // All implementations must embed UnimplementedTRISADirectoryServer
 // for forward compatibility
@@ -75,6 +85,7 @@ type TRISADirectoryServer interface {
 	Lookup(context.Context, *LookupRequest) (*LookupReply, error)
 	Search(context.Context, *SearchRequest) (*SearchReply, error)
 	Status(context.Context, *StatusRequest) (*StatusReply, error)
+	VerifyEmail(context.Context, *VerifyEmailRequest) (*VerifyEmailReply, error)
 	mustEmbedUnimplementedTRISADirectoryServer()
 }
 
@@ -93,6 +104,9 @@ func (UnimplementedTRISADirectoryServer) Search(context.Context, *SearchRequest)
 }
 func (UnimplementedTRISADirectoryServer) Status(context.Context, *StatusRequest) (*StatusReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
+}
+func (UnimplementedTRISADirectoryServer) VerifyEmail(context.Context, *VerifyEmailRequest) (*VerifyEmailReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifyEmail not implemented")
 }
 func (UnimplementedTRISADirectoryServer) mustEmbedUnimplementedTRISADirectoryServer() {}
 
@@ -179,6 +193,24 @@ func _TRISADirectory_Status_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TRISADirectory_VerifyEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyEmailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TRISADirectoryServer).VerifyEmail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/trisads.TRISADirectory/VerifyEmail",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TRISADirectoryServer).VerifyEmail(ctx, req.(*VerifyEmailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _TRISADirectory_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "trisads.TRISADirectory",
 	HandlerType: (*TRISADirectoryServer)(nil),
@@ -198,6 +230,10 @@ var _TRISADirectory_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Status",
 			Handler:    _TRISADirectory_Status_Handler,
+		},
+		{
+			MethodName: "VerifyEmail",
+			Handler:    _TRISADirectory_VerifyEmail_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

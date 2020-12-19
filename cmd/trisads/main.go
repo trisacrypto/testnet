@@ -68,18 +68,30 @@ func main() {
 			},
 		},
 		{
-			Name:     "verify",
-			Usage:    "mark a VASP entity as verified and create certificates",
+			Name:     "review",
+			Usage:    "submit a VASP registration review response",
 			Category: "admin",
-			Action:   verify,
+			Action:   review,
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "l, list",
 					Usage: "list VASPs that require verification and exit",
 				},
-				cli.Uint64Flag{
-					Name:  "v, vasp",
-					Usage: "the ID of the VASP to mark as verified",
+				cli.StringFlag{
+					Name:  "i, id",
+					Usage: "the ID of the VASP to submit the review for",
+				},
+				cli.StringFlag{
+					Name:  "t, token",
+					Usage: "the administrative token sent in the review request email",
+				},
+				cli.BoolFlag{
+					Name:  "r, reject",
+					Usage: "reject the registration request",
+				},
+				cli.BoolFlag{
+					Name:  "a, approve",
+					Usage: "approve the registration request",
 				},
 			},
 		},
@@ -155,6 +167,23 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:     "verify",
+			Usage:    "verify your email address with the token",
+			Category: "client",
+			Action:   verifyEmail,
+			Before:   initClient,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "i, id",
+					Usage: "id of the VASP your contact information is attached to",
+				},
+				cli.StringFlag{
+					Name:  "t, token",
+					Usage: "token that was emailed to you for verification",
+				},
+			},
+		},
 	}
 
 	app.Run(os.Args)
@@ -209,8 +238,8 @@ func load(c *cli.Context) (err error) {
 	return nil
 }
 
-// Verify a registered entity and assign keys (server-side CLI)
-func verify(c *cli.Context) (err error) {
+// Submit a review for a registration request
+func review(c *cli.Context) (err error) {
 	return cli.NewExitError("not implemented", 7)
 }
 
@@ -311,6 +340,28 @@ func status(c *cli.Context) (err error) {
 	defer cancel()
 
 	rep, err := client.Status(ctx, req)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return printJSON(rep)
+}
+
+// Send email verification code to the directory serivce
+func verifyEmail(c *cli.Context) (err error) {
+	req := &pb.VerifyEmailRequest{
+		Id:    c.String("id"),
+		Token: c.String("token"),
+	}
+
+	if req.Id == "" || req.Token == "" {
+		return cli.NewExitError("specify both id and token", 1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rep, err := client.VerifyEmail(ctx, req)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
