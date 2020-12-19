@@ -52,7 +52,7 @@ func Load(db Store, path string) (err error) {
 		}
 
 		// TODO: ensure that ID generation is correct
-		vasp := pb.VASP{
+		vasp := &pb.VASP{
 			Id:                  uuid.New().String(),
 			RegisteredDirectory: "vaspdirectory.net",
 			Entity: &ivms101.LegalPerson{

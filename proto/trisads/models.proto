@@ -35,6 +35,8 @@ message VASP {
     Certificate certificate = 5;
 
     // Domain name of the TRISA endpoint used as the common name for the certificate.
+    // This field must be unique per VASP as it identifies the Certificate and is used
+    // directly in lookups.
     string common_name = 6;
 
     // Travel Rule Implementation Endpoint - where other TRISA peers should connect.
@@ -59,11 +61,18 @@ message VASP {
 
     // The legal entity signature that is used to verify uniqueness or detect changes.
     bytes signature = 18;
+
+    // Version is used for anti-entropy based replication
+    uint64 version = 19;
+
+    // Temporary: verification token for light weight authentication for verification
+    // TODO: replace with admin API that uses authentication
+    string admin_verification_token = 20;
 }
 
 // At least one of the following contact information is required for the VASP to be
 // registered in a TRISA directory. Contact information should be kept private in the
-// directory service and only used for contacts.
+// directory service and only used for email communication or verification.
 message Contacts {
     Contact technical = 1;
     Contact administrative = 2;
@@ -81,8 +90,12 @@ message Contact {
     // Phone number is optional, but it is strongly suggested
     string phone = 3;
 
+    // Token for email verification
+    bool verified = 4;
+    string token = 5;
+
     // Optional KYC data if required for the directory service contact.
-    ivms101.NaturalPerson person = 4;
+    ivms101.NaturalPerson person = 6;
 }
 
 message TRIXOQuestionnaire {

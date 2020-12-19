@@ -62,6 +62,7 @@ message RegisterReply {
 
     // The verification status of the VASP entity.
     VerificationState status = 5;
+    string message = 6;
 }
 
 // Lookup VASP certification information either by their unique ID or by the domain of

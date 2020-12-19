@@ -39,9 +39,9 @@ func Open(uri string) (Store, error) {
 // SQL server, so long as it can interact with VASP identity records.
 type Store interface {
 	Close() error
-	Create(v pb.VASP) (string, error)
-	Retrieve(id string) (pb.VASP, error)
-	Update(v pb.VASP) error
+	Create(v *pb.VASP) (string, error)
+	Retrieve(id string) (*pb.VASP, error)
+	Update(v *pb.VASP) error
 	Destroy(id string) error
-	Search(query map[string]interface{}) ([]pb.VASP, error)
+	Search(query map[string]interface{}) ([]*pb.VASP, error)
 }

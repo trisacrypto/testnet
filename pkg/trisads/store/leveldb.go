@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/trisacrypto/testnet/pkg/trisads/pb"
@@ -73,25 +74,26 @@ func (s *ldbStore) Close() error {
 	return nil
 }
 
-func printJSON(v interface{}) {
-	data, _ := json.MarshalIndent(v, "", "  ")
-	fmt.Println(string(data))
-}
-
 // Create a VASP into the directory. This method requires the VASP to have a unique
 // name and ignores any ID fields that are set on the VASP, instead assigning new IDs.
-func (s *ldbStore) Create(v pb.VASP) (id string, err error) {
+func (s *ldbStore) Create(v *pb.VASP) (id string, err error) {
+	// Create UUID for record
+	// TODO: check uniqueness of the ID
+	v.Id = uuid.New().String()
+
 	// Create the name to check the uniqueness constraint
 	name := strings.TrimSpace(strings.ToLower(v.CommonName))
 	if name == "" {
-		printJSON(v)
 		return "", ErrIncompleteRecord
 	}
 
-	// Update management timestamps
+	// Update management timestamps and record metadata
 	v.LastUpdated = time.Now().Format(time.RFC3339)
 	if v.FirstListed == "" {
 		v.FirstListed = v.LastUpdated
+	}
+	if v.Version == 0 {
+		v.Version = 1
 	}
 
 	// Critical section (optimizing for safety rather than speed)
@@ -100,13 +102,12 @@ func (s *ldbStore) Create(v pb.VASP) (id string, err error) {
 
 	// Check the uniqueness constraint
 	if _, ok := s.names[name]; ok {
-		printJSON(v)
 		return "", ErrDuplicateEntity
 	}
 
 	var data []byte
 	key := s.vaspKey(v.Id)
-	if data, err = proto.Marshal(&v); err != nil {
+	if data, err = proto.Marshal(v); err != nil {
 		return "", err
 	}
 
@@ -121,7 +122,7 @@ func (s *ldbStore) Create(v pb.VASP) (id string, err error) {
 }
 
 // Retrieve a VASP record by id; returns an error if the record does not exist.
-func (s *ldbStore) Retrieve(id string) (v pb.VASP, err error) {
+func (s *ldbStore) Retrieve(id string) (v *pb.VASP, err error) {
 	var val []byte
 	key := s.vaspKey(id)
 	if val, err = s.db.Get(key, nil); err != nil {
@@ -131,7 +132,8 @@ func (s *ldbStore) Retrieve(id string) (v pb.VASP, err error) {
 		return v, err
 	}
 
-	if err = proto.Unmarshal(val, &v); err != nil {
+	v = new(pb.VASP)
+	if err = proto.Unmarshal(val, v); err != nil {
 		return v, err
 	}
 
@@ -140,7 +142,7 @@ func (s *ldbStore) Retrieve(id string) (v pb.VASP, err error) {
 
 // Update the VASP entry by the VASP ID (required). This method simply overwrites the
 // entire VASP record and does not update individual fields.
-func (s *ldbStore) Update(v pb.VASP) (err error) {
+func (s *ldbStore) Update(v *pb.VASP) (err error) {
 	if v.Id == "" {
 		return ErrIncompleteRecord
 	}
@@ -152,12 +154,19 @@ func (s *ldbStore) Update(v pb.VASP) (err error) {
 		return err
 	}
 
+	// Update the record metadata
+	v.Version++
+	v.LastUpdated = time.Now().Format(time.RFC3339)
+	if v.FirstListed == "" {
+		v.FirstListed = v.LastUpdated
+	}
+
 	// Critical section (optimizing for safety rather than speed)
 	s.Lock()
 	defer s.Unlock()
 
 	var val []byte
-	if val, err = proto.Marshal(&v); err != nil {
+	if val, err = proto.Marshal(v); err != nil {
 		return err
 	}
 
@@ -167,6 +176,7 @@ func (s *ldbStore) Update(v pb.VASP) (err error) {
 	}
 
 	// Update indices if necessary
+	// TODO: index needs to be lowercase and trimmed
 	if v.CommonName != o.CommonName {
 		delete(s.names, o.CommonName)
 		s.names[v.CommonName] = v.Id
@@ -213,7 +223,7 @@ func (s *ldbStore) Destroy(id string) (err error) {
 // VASP by name, a case insensitive search is performed if the query exists in
 // any of the VASP entity names. Alternatively a list of names can be given or a country
 // or list of countries for case-insensitive exact matches.
-func (s *ldbStore) Search(query map[string]interface{}) (vasps []pb.VASP, err error) {
+func (s *ldbStore) Search(query map[string]interface{}) (vasps []*pb.VASP, err error) {
 	// A set of records that match the query and need to be fetched
 	records := make(map[string]struct{})
 
@@ -242,9 +252,9 @@ func (s *ldbStore) Search(query map[string]interface{}) (vasps []pb.VASP, err er
 
 	// Perform the lookup of records if there are any
 	if len(records) > 0 {
-		vasps = make([]pb.VASP, 0, len(records))
+		vasps = make([]*pb.VASP, 0, len(records))
 		for id := range records {
-			var vasp pb.VASP
+			var vasp *pb.VASP
 			if vasp, err = s.Retrieve(id); err != nil {
 				if err == ErrEntityNotFound {
 					continue

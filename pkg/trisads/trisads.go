@@ -107,50 +107,87 @@ func (s *Server) Shutdown() (err error) {
 // status of verification can be obtained by using the lookup RPC call.
 func (s *Server) Register(ctx context.Context, in *pb.RegisterRequest) (out *pb.RegisterReply, err error) {
 	out = &pb.RegisterReply{}
-	vasp := pb.VASP{
-		Entity:           in.Entity,
-		Contacts:         in.Contacts,
-		TrisaEndpoint:    in.TrisaEndpoint,
-		CommonName:       in.CommonName,
-		Website:          in.Website,
-		BusinessCategory: in.BusinessCategory,
-		VaspCategory:     in.VaspCategory,
-		EstablishedOn:    in.EstablishedOn,
-		Trixo:            in.Trixo,
+	vasp := &pb.VASP{
+		RegisteredDirectory: s.conf.DirectoryID,
+		Entity:              in.Entity,
+		Contacts:            in.Contacts,
+		TrisaEndpoint:       in.TrisaEndpoint,
+		CommonName:          in.CommonName,
+		Website:             in.Website,
+		BusinessCategory:    in.BusinessCategory,
+		VaspCategory:        in.VaspCategory,
+		EstablishedOn:       in.EstablishedOn,
+		Trixo:               in.Trixo,
+		VerificationStatus:  pb.VerificationState_SUBMITTED,
+		Version:             1,
 	}
 
-	// TODO: validate partial VASP record
+	// Compute the common name from the trisa endpoint if not specified
+	if vasp.CommonName == "" && vasp.TrisaEndpoint != "" {
+		if vasp.CommonName, _, err = net.SplitHostPort(in.TrisaEndpoint); err != nil {
+			log.Warn().Err(err).Msg("could not parse common name from endpoint")
+			out.Error = &pb.Error{
+				Code:    400,
+				Message: err.Error(),
+			}
+			return out, nil
+		}
+	}
 
+	// Validate partial VASP record to ensure that it can be registered.
+	if err = vasp.Validate(true); err != nil {
+		log.Warn().Err(err).Msg("invalid or incomplete VASP registration")
+		out.Error = &pb.Error{
+			Code:    400,
+			Message: err.Error(),
+		}
+		return out, nil
+	}
+
+	// TODO: create legal entity hash to detect a repeat registration without ID
+	// TODO: add signature to leveldb indices
 	if out.Id, err = s.db.Create(vasp); err != nil {
 		log.Warn().Err(err).Msg("could not register VASP")
 		out.Error = &pb.Error{
 			Code:    400,
 			Message: err.Error(),
 		}
-	} else {
-		name, _ := vasp.Name()
-		log.Info().Str("name", name).Str("id", vasp.Id).Msg("registered VASP")
+		return out, nil
 	}
 
-	// TODO: if verify is true: send verification request
-	if err = s.SendVerificationEmail(vasp); err != nil {
-		log.Error().Err(err).Msg("could not send verification email")
+	name, _ := vasp.Name()
+	log.Info().Str("name", name).Str("id", vasp.Id).Msg("registered VASP")
+
+	// Begin verification process by sending emails to all contacts in the VASP record.
+	// TODO: add to processing queue to return sooner/parallelize work
+	if err = s.VerifyContactEmail(vasp); err != nil {
+		log.Error().Err(err).Msg("could not verify contacts")
 		out.Error = &pb.Error{
 			Code:    500,
 			Message: err.Error(),
 		}
-	} else {
-		log.Info().Msg("verification email sent")
+		return out, nil
+	}
+	log.Info().Msg("contact email verifications sent")
+
+	out.Id = vasp.Id
+	out.RegisteredDirectory = vasp.RegisteredDirectory
+	out.CommonName = vasp.CommonName
+	out.Status = vasp.VerificationStatus
+	out.Message = "verification code sent to contact emails, please check spam folder if not arrived"
+
+	// TODO: remove this, it's only for testing
+	if err = s.db.Destroy(vasp.Id); err != nil {
+		return nil, err
 	}
 
-	// TODO: populate register reply fields with status
 	return out, nil
 }
 
 // Lookup a VASP entity by name or ID to get full details including the TRISA certification
 // if it exists and the entity has been verified.
 func (s *Server) Lookup(ctx context.Context, in *pb.LookupRequest) (out *pb.LookupReply, err error) {
-	var vasp pb.VASP
+	var vasp *pb.VASP
 	out = &pb.LookupReply{}
 
 	if in.Id != "" {
@@ -164,7 +201,7 @@ func (s *Server) Lookup(ctx context.Context, in *pb.LookupRequest) (out *pb.Look
 
 	} else if in.CommonName != "" {
 		// TODO: change lookup to unique common name lookup
-		var vasps []pb.VASP
+		var vasps []*pb.VASP
 		if vasps, err = s.db.Search(map[string]interface{}{"common_name": in.CommonName}); err != nil {
 			out.Error = &pb.Error{
 				Code:    404,
@@ -213,7 +250,7 @@ func (s *Server) Search(ctx context.Context, in *pb.SearchRequest) (out *pb.Sear
 	query["name"] = in.Name
 	query["country"] = in.Country
 
-	var vasps []pb.VASP
+	var vasps []*pb.VASP
 	if vasps, err = s.db.Search(query); err != nil {
 		out.Error = &pb.Error{
 			Code:    400,
@@ -247,7 +284,7 @@ func (s *Server) Search(ctx context.Context, in *pb.SearchRequest) (out *pb.Sear
 // Status returns the status of a VASP including its verification and service status if
 // the directory service is performing health check monitoring.
 func (s *Server) Status(ctx context.Context, in *pb.StatusRequest) (out *pb.StatusReply, err error) {
-	var vasp pb.VASP
+	var vasp *pb.VASP
 	out = &pb.StatusReply{}
 
 	if in.Id != "" {
@@ -261,7 +298,7 @@ func (s *Server) Status(ctx context.Context, in *pb.StatusRequest) (out *pb.Stat
 
 	} else if in.CommonName != "" {
 		// TODO: change lookup to unique common name lookup
-		var vasps []pb.VASP
+		var vasps []*pb.VASP
 		if vasps, err = s.db.Search(map[string]interface{}{"common_name": in.CommonName}); err != nil {
 			out.Error = &pb.Error{
 				Code:    404,

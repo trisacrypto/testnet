@@ -3,6 +3,7 @@ package pb
 import (
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/trisacrypto/testnet/pkg/ivms101"
@@ -114,8 +115,29 @@ func (v *VASP) Validate(partial bool) (err error) {
 		return errors.New("no contact specified on the VASP entity")
 	}
 
+	if v.Contacts.Technical != nil && v.Contacts.Technical.Email == "" {
+		return errors.New("missing technical contact email")
+	}
+
+	if v.Contacts.Billing != nil && v.Contacts.Billing.Email == "" {
+		return errors.New("missing billing contact email")
+	}
+
+	if v.Contacts.Administrative != nil && v.Contacts.Administrative.Email == "" {
+		return errors.New("missing administrative contact email")
+	}
+
+	if v.Contacts.Legal != nil && v.Contacts.Legal.Email == "" {
+		return errors.New("missing legal contact email")
+	}
+
 	if v.CommonName == "" || v.TrisaEndpoint == "" {
 		return errors.New("no TRISA endpoint or domain common name")
+	}
+
+	host, port, err := net.SplitHostPort(v.TrisaEndpoint)
+	if err != nil || host == "" || port == "" {
+		return errors.New("could not resolve trisa endpoint host:port")
 	}
 
 	if v.VerificationStatus == VerificationState_VERIFIED && v.VerifiedOn == "" {
