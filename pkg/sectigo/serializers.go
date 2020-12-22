@@ -5,6 +5,15 @@ import (
 	"strings"
 )
 
+// Batch Status Constants
+const (
+	BatchStatusFailed           = "FAILED"
+	BatchStatusRejected         = "REJECTED"
+	BatchStatusProcessing       = "PROCESSING"
+	BatchStatusNotAcceptable    = "NOT_ACCEPTABLE"
+	BatchStatusReadyForDownload = "READY_FOR_DOWNLOAD"
+)
+
 // AuthenticationRequest to POST data to the authenticateEP
 type AuthenticationRequest struct {
 	Username string `json:"username"`

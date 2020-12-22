@@ -114,7 +114,12 @@ func main() {
 			Name:   "authorities",
 			Usage:  "view the current users authorities by ecosystem",
 			Action: authorities,
-			Flags:  []cli.Flag{},
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "b, balances",
+					Usage: "also fetch balance for each authority",
+				},
+			},
 		},
 		{
 			Name:   "profiles",
@@ -317,7 +322,20 @@ func authorities(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
+	// Print the authority details
 	printJSON(rep)
+
+	if c.Bool("balances") {
+		// Fetch the balances for each authority and print them
+		balances := make(map[int]int)
+		for _, authority := range rep {
+			if balances[authority.ID], err = api.AuthorityAvailableBalance(authority.ID); err != nil {
+				return cli.NewExitError(err, 1)
+			}
+		}
+		printJSON(balances)
+	}
+
 	return nil
 }
 

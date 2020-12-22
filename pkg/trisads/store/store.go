@@ -35,13 +35,27 @@ func Open(uri string) (Store, error) {
 // Store provides an interface for directory storage services to abstract the underlying
 // database provider. The storage methods correspond to directory service requests,
 // which are currently implemented with a simple CRUD and search interface for VASP
-// records. The underlying database can be a simple embedded store or a distributed
-// SQL server, so long as it can interact with VASP identity records.
+// records and certificate requests. The underlying database can be a simple embedded
+// store or a distributed SQL server, so long as it can interact with identity records.
 type Store interface {
 	Close() error
+	DirectoryStore
+	CertificateStore
+}
+
+// DirectoryStore describes how the service interacts with VASP identity records.
+type DirectoryStore interface {
 	Create(v *pb.VASP) (string, error)
 	Retrieve(id string) (*pb.VASP, error)
 	Update(v *pb.VASP) error
 	Destroy(id string) error
 	Search(query map[string]interface{}) ([]*pb.VASP, error)
+}
+
+// CertificateStore describes how the service interacts with Certificate requests.
+type CertificateStore interface {
+	ListCertRequests() ([]*pb.CertificateRequest, error)
+	GetCertRequest(id string) (*pb.CertificateRequest, error)
+	SaveCertRequest(r *pb.CertificateRequest) error
+	DeleteCertRequest(id string) error
 }

@@ -385,6 +385,37 @@ func (s *Sectigo) UserAuthorities() (authorities []*AuthorityResponse, err error
 	return authorities, nil
 }
 
+// AuthorityAvailableBalance returns balance available for the specified user/authority
+// User must be authenticated.
+func (s *Sectigo) AuthorityAvailableBalance(id int) (balance int, err error) {
+	// perform preflight check for authenticated endpoint
+	if err = s.preflight(); err != nil {
+		return 0, err
+	}
+
+	// create request
+	var req *http.Request
+	if req, err = s.newRequest(http.MethodGet, urlFor(authorityUserBalanceAvailableEP, id), nil); err != nil {
+		return 0, err
+	}
+
+	var rep *http.Response
+	if rep, err = s.client.Do(req); err != nil {
+		return 0, err
+	}
+	defer rep.Body.Close()
+
+	if err = s.checkStatus(rep); err != nil {
+		return 0, err
+	}
+
+	if err = json.NewDecoder(rep.Body).Decode(&balance); err != nil {
+		return 0, err
+	}
+	return balance, nil
+
+}
+
 // Profiles returns a list of all profiles available to the user.
 // User must be authenticated.
 func (s *Sectigo) Profiles() (profiles []*ProfileResponse, err error) {

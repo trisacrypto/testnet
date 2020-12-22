@@ -3,6 +3,7 @@ package trisads
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog"
@@ -21,6 +22,8 @@ type Settings struct {
 	LogLevel        LogLevelDecoder `envconfig:"TRISADS_LOG_LEVEL" default:"info"`
 	DirectoryID     string          `envconfig:"TRISADS_DIRECTORY_ID" default:"vaspdirectory.net"`
 	SecretKey       string          `envconfig:"TRISADS_SECRET_KEY" required:"true"`
+	CertManInterval time.Duration   `envconfig:"TRISADS_CERTMAN_INTERVAL" default:"10m"`
+	CertManStorage  string          `envconfig:"TRISADS_CERTS_STORE" required:"false"`
 }
 
 // Config creates a new settings object, loading environment variables and defaults.

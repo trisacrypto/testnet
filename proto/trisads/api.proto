@@ -5,6 +5,7 @@ option go_package = "github.com/trisacrypto/testnet/pkg/trisads/pb";
 
 import "ivms101/ivms101.proto";
 import "trisads/models.proto";
+import "trisads/ca.proto";
 
 service TRISADirectory {
     rpc Register(RegisterRequest) returns (RegisterReply) {}

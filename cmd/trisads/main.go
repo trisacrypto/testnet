@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	client pb.TRISADirectoryClient
+	client      pb.TRISADirectoryClient
+	adminClient pb.DirectoryAdministrationClient
 )
 
 func main() {
@@ -72,11 +73,8 @@ func main() {
 			Usage:    "submit a VASP registration review response",
 			Category: "admin",
 			Action:   review,
+			Before:   initClient,
 			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:  "l, list",
-					Usage: "list VASPs that require verification and exit",
-				},
 				cli.StringFlag{
 					Name:  "i, id",
 					Usage: "the ID of the VASP to submit the review for",
@@ -86,12 +84,16 @@ func main() {
 					Usage: "the administrative token sent in the review request email",
 				},
 				cli.BoolFlag{
-					Name:  "r, reject",
+					Name:  "R, reject",
 					Usage: "reject the registration request",
 				},
 				cli.BoolFlag{
-					Name:  "a, approve",
-					Usage: "approve the registration request",
+					Name:  "a, accept",
+					Usage: "accept the registration request",
+				},
+				cli.StringFlag{
+					Name:  "m, reason",
+					Usage: "provide a reason to reject the request",
 				},
 			},
 		},
@@ -240,7 +242,34 @@ func load(c *cli.Context) (err error) {
 
 // Submit a review for a registration request
 func review(c *cli.Context) (err error) {
-	return cli.NewExitError("not implemented", 7)
+	if (!c.Bool("accept") && !c.Bool("reject")) || (c.Bool("accept") && c.Bool("reject")) {
+		return cli.NewExitError("specify either accept or reject", 1)
+	}
+
+	req := &pb.ReviewRequest{
+		Id:                     c.String("id"),
+		AdminVerificationToken: c.String("token"),
+		Accept:                 c.Bool("accept") && !c.Bool("reject"),
+		RejectReason:           c.String("reason"),
+	}
+
+	if req.Id == "" || req.AdminVerificationToken == "" {
+		return cli.NewExitError("specify both id and token", 1)
+	}
+
+	if !req.Accept && req.RejectReason == "" {
+		return cli.NewExitError("must specify a reject reason if rejecting", 1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	rep, err := adminClient.Review(ctx, req)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return printJSON(rep)
 }
 
 // Register an entity using the API from a CLI client
@@ -384,6 +413,7 @@ func initClient(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 	client = pb.NewTRISADirectoryClient(cc)
+	adminClient = pb.NewDirectoryAdministrationClient(cc)
 	return nil
 }
 

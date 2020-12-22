@@ -2,12 +2,12 @@ package trisads
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/sendgrid/sendgrid-go"
@@ -46,6 +46,11 @@ func New(conf *Settings) (s *Server, err error) {
 		return nil, err
 	}
 
+	// Ensure the certificate storage can be reached
+	if _, err = s.getCertStorage(); err != nil {
+		return nil, err
+	}
+
 	// Create the SendGrid API client
 	s.email = sendgrid.NewSendClient(conf.SendGridAPIKey)
 
@@ -56,6 +61,7 @@ func New(conf *Settings) (s *Server, err error) {
 // Server implements the GRPC TRISADirectoryService.
 type Server struct {
 	pb.UnimplementedTRISADirectoryServer
+	pb.UnimplementedDirectoryAdministrationServer
 	db    store.Store
 	srv   *grpc.Server
 	conf  *Settings
@@ -68,6 +74,7 @@ func (s *Server) Serve() (err error) {
 	// Initialize the gRPC server
 	s.srv = grpc.NewServer()
 	pb.RegisterTRISADirectoryServer(s.srv, s)
+	pb.RegisterDirectoryAdministrationServer(s.srv, s)
 
 	// Catch OS signals for graceful shutdowns
 	quit := make(chan os.Signal, 1)
@@ -76,6 +83,9 @@ func (s *Server) Serve() (err error) {
 		<-quit
 		s.Shutdown()
 	}()
+
+	// Start the certificate manager go routine process
+	go s.CertManager()
 
 	// Listen for TCP requests on the specified address and port
 	var sock net.Listener
@@ -384,6 +394,7 @@ func (s *Server) VerifyEmail(ctx context.Context, in *pb.VerifyEmailRequest) (ou
 	}
 
 	// Ensures that we only send the verification email to the admins once.
+	// NOTE: we will only generate the password on the first email verification.
 	if verified > 1 {
 		// Save the updated contact
 		if err = s.db.Update(vasp); err != nil {
@@ -419,9 +430,14 @@ func (s *Server) VerifyEmail(ctx context.Context, in *pb.VerifyEmailRequest) (ou
 
 	// Create and encrypt PKCS12 password
 	password := CreateToken(16)
-	vasp.CertificateRequest = &pb.CertificateRequest{}
+	certRequest := &pb.CertificateRequest{
+		Id:         uuid.New().String(),
+		Vasp:       vasp.Id,
+		CommonName: vasp.CommonName,
+		Status:     pb.CertificateRequestState_INITIALIZED,
+	}
 
-	if vasp.CertificateRequest.Pkcs12Password, vasp.CertificateRequest.Pkcs12Signature, err = s.Encrypt(password); err != nil {
+	if certRequest.Pkcs12Password, certRequest.Pkcs12Signature, err = s.Encrypt(password); err != nil {
 		log.Error().Err(err).Msg("could not encrypt password to store in database")
 		out.Error = &pb.Error{
 			Code:    500,
@@ -431,21 +447,21 @@ func (s *Server) VerifyEmail(ctx context.Context, in *pb.VerifyEmailRequest) (ou
 
 	// Save the VASP and newly created certificate request
 	if err = s.db.Update(vasp); err != nil {
-		log.Error().Err(err).Msg("could not update vasp after contact verification and pkcs12 password generation")
+		log.Error().Err(err).Msg("could not update vasp after certificate request creation")
 		out.Error = &pb.Error{
 			Code:    500,
 			Message: err.Error(),
 		}
 		return out, nil
 	}
-
-	// Perform a check
-	check, err := s.db.Retrieve(vasp.Id)
-	if err != nil {
-		log.Error().Err(err).Msg("could not retrieve VASP to check it")
+	if err = s.db.SaveCertRequest(certRequest); err != nil {
+		log.Error().Err(err).Msg("could save certificate request for VASP")
+		out.Error = &pb.Error{
+			Code:    500,
+			Message: err.Error(),
+		}
+		return out, nil
 	}
-	data, _ := json.MarshalIndent(check, "", "  ")
-	fmt.Println(string(data))
 
 	out.Status = vasp.VerificationStatus
 	out.Message = "email successfully verified and verification review sent to TRISA admins; pkcs12 password to decrypt your emailed certificates attached - do not lose!"
