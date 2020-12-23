@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: trisads
-        image: trisa/trisads:1c0e54b
+        image: trisa/trisads:4bbb599
         ports:
         - containerPort: 443
           protocol: TCP
@@ -26,6 +26,8 @@ spec:
         volumeMounts:
         - name: dsdata
           mountPath: /data
+        - name: dscerts
+          mountPath: /certs
         resources: {}
         env:
         - name: TRISADS_BIND_ADDR
@@ -38,6 +40,8 @@ spec:
           value: admin@trisa.io
         - name: TRISADS_LOG_LEVEL
           value: info
+        - name: TRISADS_DIRECTORY_ID
+          value: vaspdirectory.net
         - name: SECTIGO_USERNAME
           valueFrom:
             secretKeyRef:
@@ -53,9 +57,25 @@ spec:
             secretKeyRef:
               name: sendgrid-apikey
               key: apikey
+        - name: TRISADS_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trisads-secret
+              key: passphrase
+        - name: TRISADS_CERTMAN_INTERVAL
+          value: 2m
+        - name: TRISADS_CERTS_STORE
+          value: /certs
   volumeClaimTemplates:
   - metadata:
       name: dsdata
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 4Gi
+  - metadata:
+      name: dscerts
     spec:
       accessModes: ["ReadWriteOnce"]
       resources:

@@ -32,7 +32,7 @@ func main() {
 		cli.StringFlag{
 			Name:   "e, endpoint",
 			Usage:  "the url to connect the directory service client",
-			Value:  "vaspdirectory.net:443",
+			Value:  "api.vaspdirectory.net:443",
 			EnvVar: "TRISA_DIRECTORY_URL",
 		},
 		cli.BoolFlag{
