@@ -1,6 +1,9 @@
 package iso3166
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func init() {
 	// Build the mappings for the lookup functions to work.
@@ -67,7 +70,7 @@ var data = []*AlphaCode{
 	{"Cocos Islands", "CC", "CCK", "166"},
 	{"Colombia", "CO", "COL", "170"},
 	{"Comoros", "KM", "COM", "174"},
-	{"The Democratic Republic of the Congo", "CD", "COD", "180"},
+	{"Democratic Republic of the Congo", "CD", "COD", "180"},
 	{"Congo", "CG", "COG", "178"},
 	{"Cook Islands", "CK", "COK", "184"},
 	{"Costa Rica", "CR", "CRI", "188"},
@@ -135,8 +138,8 @@ var data = []*AlphaCode{
 	{"Kazakhstan", "KZ", "KAZ", "398"},
 	{"Kenya", "KE", "KEN", "404"},
 	{"Kiribati", "KI", "KIR", "296"},
-	{"The Democratic People's Republic of Korea", "KP", "PRK", "408"},
-	{"The Republic of Korea", "KR", "KOR", "410"},
+	{"Democratic People's Republic of Korea", "KP", "PRK", "408"},
+	{"Republic of Korea", "KR", "KOR", "410"},
 	{"Kuwait", "KW", "KWT", "414"},
 	{"Kyrgyzstan", "KG", "KGZ", "417"},
 	{"Lao People's Democratic Republic", "LA", "LAO", "418"},
@@ -186,7 +189,7 @@ var data = []*AlphaCode{
 	{"Oman", "OM", "OMN", "512"},
 	{"Pakistan", "PK", "PAK", "586"},
 	{"Palau", "PW", "PLW", "585"},
-	{"Palestine, State of", "PS", "PSE", "275"},
+	{"Palestine", "PS", "PSE", "275"},
 	{"Panama", "PA", "PAN", "591"},
 	{"Papua New Guinea", "PG", "PNG", "598"},
 	{"Paraguay", "PY", "PRY", "600"},
@@ -252,14 +255,14 @@ var data = []*AlphaCode{
 	{"Ukraine", "UA", "UKR", "804"},
 	{"United Arab Emirates", "AE", "ARE", "784"},
 	{"United Kingdom", "GB", "GBR", "826"},
-	{"United States Minor Outlying Islands", "UM", "UMI", "581"},
-	{"United States", "US", "USA", "840"},
+	{"United States of America", "US", "USA", "840"},
 	{"Uruguay", "UY", "URY", "858"},
 	{"Uzbekistan", "UZ", "UZB", "860"},
 	{"Vanuatu", "VU", "VUT", "548"},
 	{"Venezuela", "VE", "VEN", "862"},
 	{"Viet Nam", "VN", "VNM", "704"},
 	{"British Virgin Islands", "VG", "VGB", "092"},
+	{"U.S. Minor Outlying Islands", "UM", "UMI", "581"},
 	{"U.S. Virgin Islands", "VI", "VIR", "850"},
 	{"Wallis and Futuna", "WF", "WLF", "876"},
 	{"Western Sahara", "EH", "ESH", "732"},
@@ -292,13 +295,13 @@ func Find(s string) (_ AlphaCode, err error) {
 	var code *AlphaCode
 
 	if len(s) == 2 {
-		if code, ok = alpha2[s]; ok {
+		if code, ok = alpha2[strings.ToUpper(s)]; ok {
 			return *code, nil
 		}
 	}
 
 	if len(s) == 3 {
-		if code, ok = alpha3[s]; ok {
+		if code, ok = alpha3[strings.ToUpper(s)]; ok {
 			return *code, nil
 		}
 
@@ -307,9 +310,41 @@ func Find(s string) (_ AlphaCode, err error) {
 		}
 	}
 
+	// Attempt a fast case-sensitive lookup for exact names to improve performance
 	if code, ok = countries[s]; ok {
 		return *code, nil
 	}
 
+	// Perform a slow case-insensitive and startswith search of the records
+	s = strings.ToUpper(s)
+	if strings.HasPrefix(s, "THE") {
+		s = strings.Replace(s, "THE", "", 1)
+	}
+
+	results := make([]*AlphaCode, 0, 1)
+	for country, code := range countries {
+		country = strings.ToUpper(country)
+		if strings.HasPrefix(country, s) {
+			results = append(results, code)
+		}
+	}
+
+	if len(results) == 1 {
+		return *results[0], nil
+	}
+
+	if len(results) > 1 {
+		return AlphaCode{}, fmt.Errorf("%q is ambiguous, multiple countries matched", s)
+	}
+
 	return AlphaCode{}, fmt.Errorf("could not find alpha code for %q", s)
+}
+
+// List all country codes that are stored in the module
+func List() (codes []*AlphaCode) {
+	codes = make([]*AlphaCode, 0, len(countries))
+	for _, code := range countries {
+		codes = append(codes, code)
+	}
+	return codes
 }

@@ -1,19 +1,15 @@
 package store
 
 import (
-	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/trisacrypto/testnet/pkg/trisads/pb"
@@ -36,6 +32,14 @@ func OpenLevelDB(uri string) (Store, error) {
 		return nil, err
 	}
 
+	// Perform a reindex if the local indices are null or empty
+	if len(store.names) == 0 || len(store.countries) == 0 {
+		log.Info().Msg("reindexing to recover from empty indices")
+		if err = store.Reindex(); err != nil {
+			return nil, err
+		}
+	}
+
 	return store, nil
 }
 
@@ -53,7 +57,7 @@ var (
 	keyAutoSequence = []byte("sequence::pks")
 	keyNameIndex    = []byte("index::names")
 	keyCountryIndex = []byte("index::countries")
-	preVASPS        = []byte("vasps::")
+	preVASPs        = []byte("vasps::")
 	preCertReqs     = []byte("certreqs::")
 )
 
@@ -61,10 +65,14 @@ var (
 type ldbStore struct {
 	sync.RWMutex
 	db        *leveldb.DB
-	sequence  uint64         // autoincrement sequence for ID values
+	pkseq     sequence       // autoincrement sequence for ID values
 	names     uniqueIndex    // case insensitive name index
 	countries containerIndex // lookup vasps in a specific country
 }
+
+//===========================================================================
+// Store Implementation
+//===========================================================================
 
 // Close the database, allowing no further interactions. This method also synchronizes
 // the indices to ensure that they are saved between sessions.
@@ -76,6 +84,10 @@ func (s *ldbStore) Close() error {
 	return nil
 }
 
+//===========================================================================
+// DirectoryStore Implementation
+//===========================================================================
+
 // Create a VASP into the directory. This method requires the VASP to have a unique
 // name and ignores any ID fields that are set on the VASP, instead assigning new IDs.
 func (s *ldbStore) Create(v *pb.VASP) (id string, err error) {
@@ -83,9 +95,9 @@ func (s *ldbStore) Create(v *pb.VASP) (id string, err error) {
 	// TODO: check uniqueness of the ID
 	v.Id = uuid.New().String()
 
-	// Create the name to check the uniqueness constraint
-	name := strings.TrimSpace(strings.ToLower(v.CommonName))
-	if name == "" {
+	// Ensure a common name exists for the uniqueness constraint
+	// NOTE: other validation should have been performed in advance
+	if name := normalize(v.CommonName); name == "" {
 		return "", ErrIncompleteRecord
 	}
 
@@ -103,7 +115,7 @@ func (s *ldbStore) Create(v *pb.VASP) (id string, err error) {
 	defer s.Unlock()
 
 	// Check the uniqueness constraint
-	if _, ok := s.names[name]; ok {
+	if _, ok := s.names.find(v.CommonName, normalize); ok {
 		return "", ErrDuplicateEntity
 	}
 
@@ -118,8 +130,8 @@ func (s *ldbStore) Create(v *pb.VASP) (id string, err error) {
 	}
 
 	// Update indices after successful insert
-	s.names[name] = v.Id
-	s.countries.add(v.Id, v.Entity.CountryOfRegistration)
+	s.names.add(v.CommonName, v.Id, normalize)
+	s.countries.add(v.Entity.CountryOfRegistration, v.Id, normalizeCountry)
 	return v.Id, nil
 }
 
@@ -146,6 +158,12 @@ func (s *ldbStore) Retrieve(id string) (v *pb.VASP, err error) {
 // entire VASP record and does not update individual fields.
 func (s *ldbStore) Update(v *pb.VASP) (err error) {
 	if v.Id == "" {
+		return ErrIncompleteRecord
+	}
+
+	// Ensure a common name exists for the uniqueness constraint
+	// NOTE: other validation should have been performed in advance
+	if name := normalize(v.CommonName); name == "" {
 		return ErrIncompleteRecord
 	}
 
@@ -178,15 +196,14 @@ func (s *ldbStore) Update(v *pb.VASP) (err error) {
 	}
 
 	// Update indices if necessary
-	// TODO: index needs to be lowercase and trimmed
 	if v.CommonName != o.CommonName {
-		delete(s.names, o.CommonName)
-		s.names[v.CommonName] = v.Id
+		s.names.rm(o.CommonName, normalize)
+		s.names.add(v.CommonName, v.Id, normalize)
 	}
 
 	if v.Entity.CountryOfRegistration != o.Entity.CountryOfRegistration {
-		s.countries.rm(v.Id, o.Entity.CountryOfRegistration)
-		s.countries.add(v.Id, v.Entity.CountryOfRegistration)
+		s.countries.rm(o.Entity.CountryOfRegistration, o.Id, normalizeCountry)
+		s.countries.add(v.Entity.CountryOfRegistration, v.Id, normalizeCountry)
 	}
 
 	return nil
@@ -215,8 +232,8 @@ func (s *ldbStore) Destroy(id string) (err error) {
 	defer s.Unlock()
 
 	// Remove the records from the indices
-	delete(s.names, record.CommonName)
-	s.countries.rm(record.Id, record.Entity.CountryOfRegistration)
+	s.names.rm(record.CommonName, normalize)
+	s.countries.rm(record.Entity.CountryOfRegistration, record.Id, normalizeCountry)
 	return nil
 }
 
@@ -231,9 +248,9 @@ func (s *ldbStore) Search(query map[string]interface{}) (vasps []*pb.VASP, err e
 
 	s.RLock()
 	// Lookup by name
-	names, ok := parseQuery("name", query)
+	names, ok := parseQuery("name", query, normalize)
 	if ok {
-		log.WithField("name", names).Debug("search name query")
+		log.Debug().Strs("name", names).Msg("search name query")
 		for _, name := range names {
 			if id := s.names[name]; id != "" {
 				records[id] = struct{}{}
@@ -242,7 +259,7 @@ func (s *ldbStore) Search(query map[string]interface{}) (vasps []*pb.VASP, err e
 	}
 
 	// Lookup by country
-	countries, ok := parseQuery("country", query)
+	countries, ok := parseQuery("country", query, normalizeCountry)
 	if ok {
 		for _, country := range countries {
 			for _, id := range s.countries[country] {
@@ -269,6 +286,10 @@ func (s *ldbStore) Search(query map[string]interface{}) (vasps []*pb.VASP, err e
 
 	return vasps, nil
 }
+
+//===========================================================================
+// CertificateStore Implementation
+//===========================================================================
 
 // ListCertRequests returns all certificate requests that are currently in the store.
 func (s *ldbStore) ListCertRequests() (reqs []*pb.CertificateRequest, err error) {
@@ -348,6 +369,10 @@ func (s *ldbStore) DeleteCertRequest(id string) (err error) {
 	return nil
 }
 
+//===========================================================================
+// Key Handlers
+//===========================================================================
+
 // creates a []byte key from the vasp id using a prefix to act as a leveldb bucket
 func (s *ldbStore) makeKey(prefix []byte, id string) (key []byte) {
 	buf := []byte(id)
@@ -359,7 +384,7 @@ func (s *ldbStore) makeKey(prefix []byte, id string) (key []byte) {
 
 // creates a []byte key from the vasp id using a prefix to act as a leveldb bucket
 func (s *ldbStore) vaspKey(id string) (key []byte) {
-	return s.makeKey(preVASPS, id)
+	return s.makeKey(preVASPs, id)
 }
 
 // creates a []byte key from the cert request id using a prefix to act as a leveldb bucket
@@ -367,9 +392,54 @@ func (s *ldbStore) careqKey(id string) (key []byte) {
 	return s.makeKey(preCertReqs, id)
 }
 
-// Helper indices for quick lookups and cheap constraints
-type uniqueIndex map[string]string
-type containerIndex map[string][]string
+//===========================================================================
+// Indexer
+//===========================================================================
+
+// Reindex rebuilds the name and country indices for the server and synchronizes them
+// back to disk to ensure they're complete and accurate.
+func (s *ldbStore) Reindex() (err error) {
+	names := make(uniqueIndex)
+	countries := make(containerIndex)
+
+	iter := s.db.NewIterator(util.BytesPrefix(preVASPs), nil)
+	defer iter.Release()
+
+	for iter.Next() {
+		vasp := new(pb.VASP)
+		if err = proto.Unmarshal(iter.Value(), vasp); err != nil {
+			return err
+		}
+
+		names.add(vasp.CommonName, vasp.Id, normalize)
+		countries.add(vasp.Entity.CountryOfRegistration, vasp.Id, normalizeCountry)
+	}
+
+	if err = iter.Error(); err != nil {
+		return err
+	}
+
+	s.Lock()
+	if len(names) > 0 {
+		s.names = names
+	}
+
+	if len(countries) > 0 {
+		s.countries = countries
+	}
+	s.Unlock()
+
+	if err = s.sync(); err != nil {
+		return err
+	}
+
+	log.Debug().Int("names", len(s.names)).Int("countries", len(s.countries)).Msg("reindex complete")
+	return nil
+}
+
+//===========================================================================
+// Indices and Synchronization
+//===========================================================================
 
 // sync all indices with the underlying database
 func (s *ldbStore) sync() (err error) {
@@ -385,23 +455,22 @@ func (s *ldbStore) sync() (err error) {
 		return err
 	}
 
+	log.Debug().Int("names", len(s.names)).Int("countries", len(s.countries)).Msg("indices synchronized")
 	return nil
 }
 
 // sync the autoincrement sequence with the leveldb auto sequence key
 func (s *ldbStore) seqsync() (err error) {
-	var pk uint64
-	val, err := s.db.Get(keyAutoSequence, nil)
-	if err != nil {
+	var pk sequence
+	var data []byte
+	if data, err = s.db.Get(keyAutoSequence, nil); err != nil {
 		// If the auto sequence key is not found, simply leave pk to 0
 		if err != leveldb.ErrNotFound {
 			return err
 		}
 	} else {
-		var n int
-		if pk, n = binary.Uvarint(val); n <= 0 {
-			log.WithField("n", n).Error("could not parse primary key sequence value")
-			return ErrCorruptedSequence
+		if pk, err = pk.Load(data); err != nil {
+			return err
 		}
 	}
 
@@ -410,163 +479,110 @@ func (s *ldbStore) seqsync() (err error) {
 	defer s.Unlock()
 
 	// Local is behind database state, set and return
-	if s.sequence <= pk {
-		s.sequence = pk
+	if s.pkseq <= pk {
+		s.pkseq = pk
+		log.Debug().Uint64("sequence", uint64(s.pkseq)).Msg("updated primary key sequence from cache")
 		return nil
 	}
 
 	//  Update the database with the local state
-	buf := make([]byte, binary.MaxVarintLen64)
-	binary.PutUvarint(buf, s.sequence)
-	if err = s.db.Put(keyAutoSequence, buf, nil); err != nil {
-		log.WithError(err).Error("could not put primary key sequence value")
+	if data, err = s.pkseq.Dump(); err != nil {
+		log.Error().Err(err).Msg("could not put primary key sequence value")
+		return err
+	}
+	if err = s.db.Put(keyAutoSequence, data, nil); err != nil {
+		log.Error().Err(err).Msg("could not put primary key sequence value")
 		return ErrCorruptedSequence
 	}
 
+	log.Debug().Uint64("sequence", uint64(s.pkseq)).Msg("cached primary key sequence to disk")
 	return nil
 }
 
 // sync the names index with the leveldb names key
 func (s *ldbStore) syncnames() (err error) {
+	var val []byte
+
 	// Critical section (optimizing for safety rather than speed)
 	s.Lock()
 	defer s.Unlock()
 
 	if s.names == nil {
+		// Create the index to load it from disk
+		s.names = make(uniqueIndex)
+
 		// fetch the names from the database
-		val, err := s.db.Get(keyNameIndex, nil)
-		if err != nil {
+		if val, err = s.db.Get(keyNameIndex, nil); err != nil {
 			if err == leveldb.ErrNotFound {
-				s.names = make(uniqueIndex)
 				return nil
 			}
+			log.Error().Err(err).Msg("could not fetch names index from database")
 			return err
 		}
 
-		if err = json.Unmarshal(val, &s.names); err != nil {
-			log.WithError(err).Error("could not unmarshal names index")
+		if err = s.names.Load(val); err != nil {
+			log.Error().Err(err).Msg("could not unmarshal names index")
 			return ErrCorruptedIndex
 		}
-
 	}
 
 	// Put the current names back to the database
-	val, err := json.Marshal(s.names)
-	if err != nil {
-		log.WithError(err).Error("could not marshal names index")
-		return ErrCorruptedIndex
+	if len(s.names) > 0 {
+		if val, err = s.names.Dump(); err != nil {
+			log.Error().Err(err).Msg("could not marshal names index")
+			return ErrCorruptedIndex
+		}
+
+		if err = s.db.Put(keyNameIndex, val, nil); err != nil {
+			log.Error().Err(err).Msg("could not put names index")
+			return ErrCorruptedIndex
+		}
 	}
 
-	if err = s.db.Put(keyNameIndex, val, nil); err != nil {
-		log.WithError(err).Error("could not put names index")
-		return ErrCorruptedIndex
-	}
+	log.Debug().Int("size", len(val)).Msg("names index checkpointed")
 	return nil
 }
 
 // sync the countries index with the leveldb countries key
 func (s *ldbStore) synccountries() (err error) {
+	var val []byte
+
 	// Critical section (optimizing for safety rather than speed)
 	s.Lock()
 	defer s.Unlock()
 
 	if s.countries == nil {
+		// Create the countries index an dload from the database
+		s.countries = make(containerIndex)
+
 		// fetch the countries from the database
-		val, err := s.db.Get(keyCountryIndex, nil)
-		if err != nil {
+		if val, err = s.db.Get(keyCountryIndex, nil); err != nil {
 			if err == leveldb.ErrNotFound {
-				s.countries = make(containerIndex)
 				return nil
 			}
+			log.Error().Err(err).Msg("could fetch country index from database")
 			return err
 		}
 
-		if err = json.Unmarshal(val, &s.countries); err != nil {
-			log.WithError(err).Error("could not unmarshall country index")
+		if err = s.countries.Load(val); err != nil {
+			log.Error().Err(err).Msg("could not unmarshall country index")
 			return ErrCorruptedIndex
 		}
 	}
 
-	// Put the current countries back to the database
-	val, err := json.Marshal(s.countries)
-	if err != nil {
-		log.WithError(err).Error("could not marshal country index")
-		return ErrCorruptedIndex
-	}
-
-	if err = s.db.Put(keyCountryIndex, val, nil); err != nil {
-		log.WithError(err).Error("could not put country index")
-		return ErrCorruptedIndex
-	}
-
-	return nil
-}
-
-func (c containerIndex) add(id string, country string) {
-	if country == "" {
-		return
-	}
-
-	// make country search case insensitive
-	country = strings.ToLower(country)
-
-	arr, ok := c[country]
-	if !ok {
-		arr = make([]string, 0, 10)
-		arr = append(arr, id)
-		c[country] = arr
-		return
-	}
-
-	i := sort.Search(len(arr), func(i int) bool { return arr[i] >= id })
-	if i < len(arr) && arr[i] == id {
-		// value is already in the array
-		return
-	}
-
-	arr = append(arr, "")
-	copy(arr[i+1:], arr[i:])
-	arr[i] = id
-
-	c[country] = arr
-}
-
-func (c containerIndex) rm(id string, country string) {
-	// make country search case insensitive
-	country = strings.ToLower(country)
-
-	arr, ok := c[country]
-	if !ok {
-		return
-	}
-
-	i := sort.Search(len(arr), func(i int) bool { return arr[i] >= id })
-	if i < len(arr) && arr[i] == id {
-		copy(arr[i:], arr[i+1:])
-		arr[len(arr)-1] = ""
-		arr = arr[:len(arr)-1]
-		c[country] = arr
-	}
-}
-
-// A helper function to fetch a list of values from a query
-func parseQuery(key string, query map[string]interface{}) ([]string, bool) {
-	val, ok := query[key]
-	if !ok {
-		return nil, false
-	}
-
-	if vals, ok := val.([]string); ok {
-		for i := range vals {
-			vals[i] = strings.ToLower(strings.TrimSpace(vals[i]))
+	if len(s.countries) > 0 {
+		// Put the current countries back to the database
+		if val, err = s.countries.Dump(); err != nil {
+			log.Error().Err(err).Msg("could not marshal country index")
+			return ErrCorruptedIndex
 		}
-		return vals, true
+
+		if err = s.db.Put(keyCountryIndex, val, nil); err != nil {
+			log.Error().Err(err).Msg("could not put country index")
+			return ErrCorruptedIndex
+		}
 	}
 
-	if vals, ok := val.(string); ok {
-		vals = strings.ToLower(strings.TrimSpace(vals))
-		return []string{vals}, true
-	}
-
-	return nil, false
+	log.Debug().Int("size", len(val)).Msg("country index checkpointed")
+	return nil
 }

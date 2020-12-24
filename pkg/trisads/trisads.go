@@ -36,7 +36,7 @@ func New(conf *Settings) (s *Server, err error) {
 	zerolog.SetGlobalLevel(zerolog.Level(conf.LogLevel))
 
 	// Create the server and open the connection to the database
-	s = &Server{conf: conf}
+	s = &Server{conf: conf, echan: make(chan error, 1)}
 	if s.db, err = store.Open(conf.DatabaseDSN); err != nil {
 		return nil, err
 	}
@@ -67,6 +67,7 @@ type Server struct {
 	conf  *Settings
 	certs *sectigo.Sectigo
 	email *sendgrid.Client
+	echan chan error
 }
 
 // Serve GRPC requests on the specified address.
@@ -81,7 +82,7 @@ func (s *Server) Serve() (err error) {
 	signal.Notify(quit, os.Interrupt)
 	go func() {
 		<-quit
-		s.Shutdown()
+		s.echan <- s.Shutdown()
 	}()
 
 	// Start the certificate manager go routine process
@@ -95,11 +96,22 @@ func (s *Server) Serve() (err error) {
 	defer sock.Close()
 
 	// Run the server
-	log.Info().
-		Str("listen", s.conf.BindAddr).
-		Str("version", Version()).
-		Msg("server started")
-	return s.srv.Serve(sock)
+	go func() {
+		log.Info().
+			Str("listen", s.conf.BindAddr).
+			Str("version", Version()).
+			Msg("server started")
+
+		if err := s.srv.Serve(sock); err != nil {
+			s.echan <- err
+		}
+	}()
+
+	// Listen for any errors that might have occurred and wait for all go routines to finish
+	if err = <-s.echan; err != nil {
+		return err
+	}
+	return nil
 }
 
 // Shutdown the TRISA Directory Service gracefully
@@ -107,9 +119,10 @@ func (s *Server) Shutdown() (err error) {
 	log.Info().Msg("gracefully shutting down")
 	s.srv.GracefulStop()
 	if err = s.db.Close(); err != nil {
-		log.Error().Err(err)
+		log.Error().Err(err).Msg("could not shutdown database")
 		return err
 	}
+	log.Debug().Msg("successful shutdown")
 	return nil
 }
 
@@ -206,9 +219,8 @@ func (s *Server) Lookup(ctx context.Context, in *pb.LookupRequest) (out *pb.Look
 		}
 
 	} else if in.CommonName != "" {
-		// TODO: change lookup to unique common name lookup
 		var vasps []*pb.VASP
-		if vasps, err = s.db.Search(map[string]interface{}{"common_name": in.CommonName}); err != nil {
+		if vasps, err = s.db.Search(map[string]interface{}{"name": in.CommonName}); err != nil {
 			out.Error = &pb.Error{
 				Code:    404,
 				Message: err.Error(),
@@ -243,7 +255,11 @@ func (s *Server) Lookup(ctx context.Context, in *pb.LookupRequest) (out *pb.Look
 		out.VerifiedOn = vasp.VerifiedOn
 		log.Info().Str("id", vasp.Id).Msg("VASP lookup succeeded")
 	} else {
-		log.Warn().Err(out.Error).Msg("could not lookup VASP")
+		log.Warn().
+			Err(out.Error).
+			Str("id", in.Id).
+			Str("name", in.CommonName).
+			Msg("could not lookup VASP")
 	}
 	return out, nil
 }

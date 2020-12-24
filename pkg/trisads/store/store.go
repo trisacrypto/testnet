@@ -59,3 +59,10 @@ type CertificateStore interface {
 	SaveCertRequest(r *pb.CertificateRequest) error
 	DeleteCertRequest(id string) error
 }
+
+// Indexer allows external methods to access the index function of the store if it has
+// them. E.g. a leveldb embedded database or other store that uses an in-memory index
+// needs to be an Indexer but not a SQL database.
+type Indexer interface {
+	Reindex() error
+}
