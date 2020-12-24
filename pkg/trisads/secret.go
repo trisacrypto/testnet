@@ -61,12 +61,12 @@ func (s *Server) Encrypt(plaintext string) (ciphertext, signature []byte, err er
 		return nil, nil, err
 	}
 
-	// Concatenate the ciphertext and the nonce to faciliate decryption
+	// Concatenate the ciphertext and the nonce to facilitate decryption
 	ciphertext = append(ciphertext, nonce...)
 	return ciphertext, sig, nil
 }
 
-// Decrypt the ciphertext with the server's secrety key and verify the HMAC.
+// Decrypt the ciphertext with the server's secret key and verify the HMAC.
 func (s *Server) Decrypt(ciphertext, signature []byte) (plaintext string, err error) {
 	if len(ciphertext) == 0 {
 		return "", errors.New("empty cipher text")

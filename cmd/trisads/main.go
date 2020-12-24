@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/trisads"
 	"github.com/trisacrypto/testnet/pkg/trisads/pb"
 	"github.com/trisacrypto/testnet/pkg/trisads/store"
@@ -26,7 +27,7 @@ func main() {
 	app := cli.NewApp()
 
 	app.Name = "trisads"
-	app.Version = trisads.Version()
+	app.Version = pkg.Version()
 	app.Usage = "a gRPC based directory service for TRISA identity lookups"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{

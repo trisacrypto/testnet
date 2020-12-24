@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/sendgrid/sendgrid-go"
+	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/sectigo"
 	"github.com/trisacrypto/testnet/pkg/trisads/pb"
 	"github.com/trisacrypto/testnet/pkg/trisads/store"
@@ -99,7 +100,7 @@ func (s *Server) Serve() (err error) {
 	go func() {
 		log.Info().
 			Str("listen", s.conf.BindAddr).
-			Str("version", Version()).
+			Str("version", pkg.Version()).
 			Msg("server started")
 
 		if err := s.srv.Serve(sock); err != nil {

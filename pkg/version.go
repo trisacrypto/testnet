@@ -1,11 +1,14 @@
-package sectigo
+/*
+Package pkg describes the TRISA TestNet package.
+*/
+package pkg
 
 import "fmt"
 
 // Version component constants for the current build.
 const (
-	VersionMajor = 1
-	VersionMinor = 0
+	VersionMajor = 0
+	VersionMinor = 1
 	VersionPatch = 0
 )
 

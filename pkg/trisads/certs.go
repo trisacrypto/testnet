@@ -28,7 +28,7 @@ import (
 // the TRISA admins since this will prevent the integrator from joining the TestNet.
 //
 // TODO: move completed certificate requests to archive so that the CertManger routine
-// isn't continuosly handling a growing number of requests over time.
+// isn't continuously handling a growing number of requests over time.
 //
 // TODO: notify admins if cert-manager errors since this will block integration.
 func (s *Server) CertManager() {

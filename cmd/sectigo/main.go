@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/sectigo"
 	"github.com/urfave/cli"
 )
@@ -20,7 +21,7 @@ func main() {
 	app := cli.NewApp()
 
 	app.Name = "sectigo"
-	app.Version = sectigo.Version()
+	app.Version = pkg.Version()
 	app.Usage = "CLI helper for Sectigo API access and debugging"
 	app.Before = initAPI
 	app.Flags = []cli.Flag{

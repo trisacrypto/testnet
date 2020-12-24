@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/rvasp"
 	"github.com/trisacrypto/testnet/pkg/rvasp/pb"
 	"github.com/urfave/cli"
@@ -19,7 +20,7 @@ func main() {
 	app := cli.NewApp()
 
 	app.Name = "rvasp"
-	app.Version = rvasp.Version()
+	app.Version = pkg.Version()
 	app.Usage = "a gRPC based directory service for TRISA identity lookups"
 	app.Flags = []cli.Flag{}
 	app.Commands = []cli.Command{

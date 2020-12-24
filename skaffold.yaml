@@ -12,6 +12,10 @@ build:
     context: .
     docker:
       dockerfile: containers/trisads/Dockerfile
+  - image: trisa/testnet-docs
+    context: .
+    docker:
+      dockerfile: containers/docs/Dockerfile
   local:
     push: true
     useDockerCLI: true
@@ -20,6 +24,7 @@ deploy:
     defaultNamespace: trisa
     manifests:
     - manifests/cert-manager.yaml
+    - manifests/docs.yaml
     - manifests/dsweb.yaml
     - manifests/namespaces.yaml
     - manifests/placeholder.yaml
@@ -28,6 +33,7 @@ deploy:
     - manifests/creds/sectigo-creds.yaml
     - manifests/creds/sendgrid-apikey.yaml
     - manifests/creds/traefik-dashboard-auth.yaml
+    - manfiests/creds/trisads-secret.yaml
     - manifests/envoy/configmap.yaml
     - manifests/envoy/deployment.yaml
     - manifests/traefik/dashboard.yaml
