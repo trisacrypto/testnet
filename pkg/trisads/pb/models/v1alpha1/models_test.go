@@ -1,10 +1,10 @@
-package pb_test
+package v1alpha1_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trisacrypto/testnet/pkg/trisads/pb"
+	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
 )
 
 func TestParseEnums(t *testing.T) {

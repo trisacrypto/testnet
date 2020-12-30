@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/trisacrypto/testnet/pkg/iso3166"
 	"github.com/trisacrypto/testnet/pkg/ivms101"
-	"github.com/trisacrypto/testnet/pkg/trisads/pb"
+	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
 )
 
 // Load the database from a CSV fixture specified on disk by the path.

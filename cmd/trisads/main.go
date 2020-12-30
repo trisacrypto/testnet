@@ -11,7 +11,8 @@ import (
 
 	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/trisads"
-	"github.com/trisacrypto/testnet/pkg/trisads/pb"
+	admin "github.com/trisacrypto/testnet/pkg/trisads/pb/admin/v1alpha1"
+	api "github.com/trisacrypto/testnet/pkg/trisads/pb/api/v1alpha1"
 	"github.com/trisacrypto/testnet/pkg/trisads/store"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
@@ -19,8 +20,8 @@ import (
 )
 
 var (
-	client      pb.TRISADirectoryClient
-	adminClient pb.DirectoryAdministrationClient
+	client      api.TRISADirectoryClient
+	adminClient admin.DirectoryAdministrationClient
 )
 
 func main() {
@@ -247,7 +248,7 @@ func review(c *cli.Context) (err error) {
 		return cli.NewExitError("specify either accept or reject", 1)
 	}
 
-	req := &pb.ReviewRequest{
+	req := &admin.ReviewRequest{
 		Id:                     c.String("id"),
 		AdminVerificationToken: c.String("token"),
 		Accept:                 c.Bool("accept") && !c.Bool("reject"),
@@ -285,7 +286,7 @@ func register(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	var req *pb.RegisterRequest
+	var req *api.RegisterRequest
 	if err = json.Unmarshal(data, &req); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -315,7 +316,7 @@ func lookup(c *cli.Context) (err error) {
 		return cli.NewExitError("specify either name or id for lookup, not both", 1)
 	}
 
-	req := &pb.LookupRequest{
+	req := &api.LookupRequest{
 		Id:                  id,
 		RegisteredDirectory: directory,
 		CommonName:          commonName,
@@ -334,7 +335,7 @@ func lookup(c *cli.Context) (err error) {
 
 // Search for VASPs by name or country using the API from a CLI client
 func search(c *cli.Context) (err error) {
-	req := &pb.SearchRequest{
+	req := &api.SearchRequest{
 		Name:    c.StringSlice("name"),
 		Country: c.StringSlice("country"),
 	}
@@ -356,7 +357,7 @@ func search(c *cli.Context) (err error) {
 
 // Check on verification and service status of a VASP
 func status(c *cli.Context) (err error) {
-	req := &pb.StatusRequest{
+	req := &api.StatusRequest{
 		Id:                  c.String("id"),
 		RegisteredDirectory: c.String("directory"),
 		CommonName:          c.String("common-name"),
@@ -379,7 +380,7 @@ func status(c *cli.Context) (err error) {
 
 // Send email verification code to the directory serivce
 func verifyEmail(c *cli.Context) (err error) {
-	req := &pb.VerifyEmailRequest{
+	req := &api.VerifyEmailRequest{
 		Id:    c.String("id"),
 		Token: c.String("token"),
 	}
@@ -413,8 +414,8 @@ func initClient(c *cli.Context) (err error) {
 	if cc, err = grpc.Dial(c.GlobalString("endpoint"), opts...); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	client = pb.NewTRISADirectoryClient(cc)
-	adminClient = pb.NewDirectoryAdministrationClient(cc)
+	client = api.NewTRISADirectoryClient(cc)
+	adminClient = admin.NewDirectoryAdministrationClient(cc)
 	return nil
 }
 

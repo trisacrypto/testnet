@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"github.com/trisacrypto/testnet/pkg/trisads/pb"
+	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
 )
 
 // OpenLevelDB directory Store at the specified path. This is the default storage provider.

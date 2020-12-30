@@ -1,4 +1,4 @@
-package pb
+package v1alpha1
 
 import (
 	"errors"

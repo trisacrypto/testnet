@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/sendgrid/rest"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
-	"github.com/trisacrypto/testnet/pkg/trisads/pb"
+	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
 )
 
 // VerifyContactEmail creates a verification token for each contact in the VASP contact
