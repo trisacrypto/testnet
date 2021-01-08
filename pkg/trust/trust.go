@@ -14,8 +14,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io"
-	"io/ioutil"
 
 	"software.sslmate.com/src/go-pkcs12"
 )
@@ -229,52 +227,7 @@ func (p *Provider) String() string {
 
 	cert, err := x509.ParseCertificate(p.chain.Certificate[0])
 	if err != nil {
-		return "unknown"
+		return ""
 	}
 	return cert.Subject.CommonName
-}
-
-// Read certificates and private key from an io.Reader.
-func (p *Provider) Read(r io.Reader) (err error) {
-	var data []byte
-	if data, err = ioutil.ReadAll(r); err != nil {
-		return err
-	}
-	return p.Decode(data)
-}
-
-// Write certificates and/or private key in PEM encoded format to the specified writer.
-func (p *Provider) Write(w io.Writer) (err error) {
-	var data []byte
-	if data, err = p.Encode(); err != nil {
-		return err
-	}
-	if _, err = w.Write(data); err != nil {
-		return err
-	}
-	return nil
-}
-
-// ReadDecrypt certificates and private key from an io.Reader
-func ReadDecrypt(r io.Reader, password string) (p *Provider, err error) {
-	var data []byte
-	if data, err = ioutil.ReadAll(r); err != nil {
-		return nil, err
-	}
-	if p, err = Decrypt(data, password); err != nil {
-		return nil, err
-	}
-	return p, nil
-}
-
-// WriteEncrypt certificates and private key in PEM encoded format to the writer.
-func (p *Provider) WriteEncrypt(w io.Writer, password string) (err error) {
-	var data []byte
-	if data, err = p.Encrypt(password); err != nil {
-		return err
-	}
-	if _, err = w.Write(data); err != nil {
-		return err
-	}
-	return nil
 }
