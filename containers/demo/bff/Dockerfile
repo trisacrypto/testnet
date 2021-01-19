@@ -1,17 +1,29 @@
 FROM python:3.8
 
-WORKDIR /
-RUN mkdir /flaskr
+LABEL maintainer="TRISA <admin@trisa.io>"
+LABEL description="Backend for Frontend (BFF) for rVASP Demo"
 
-COPY requirements.txt .
+# Install rvaspy library
+WORKDIR /usr/src/lib
+COPY lib/rvaspy .
+RUN pip install -e .
 
+# Install the Flask app
+WORKDIR /usr/src/app/
+
+# Dependencies
+COPY web/demo/bff/requirements.txt .
 RUN pip install -r requirements.txt
 
+COPY web/demo/bff/flaskr .
+
+# Setup the environment
 ENV FLASK_APP flaskr
 ENV FLASK_ENV development
 
-COPY flaskr/ /flaskr
-
+# Initialize the database
 RUN [ "flask", "init-db" ]
-ENTRYPOINT [ "flask", "run", "--host=0.0.0.0"]
-#ENTRYPOINT [ "waitress-serve", "--port=80", "--call", "flaskr:create_app" ]
+
+# Run the Flask app via gunicorn
+ENTRYPOINT ["./gunicorn_flaskr.sh"]
+
