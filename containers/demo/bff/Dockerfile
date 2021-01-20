@@ -10,15 +10,16 @@ RUN pip install -e .
 
 # Install the Flask app
 WORKDIR /usr/src/app/
+RUN mkdir flaskr
 
 # Dependencies
 COPY web/demo/bff/requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY web/demo/bff/flaskr .
+COPY web/demo/bff/flaskr flaskr/
 
 # Setup the environment
-ENV FLASK_APP flaskr
+ENV FLASK_APP /usr/src/app/flaskr
 ENV FLASK_ENV development
 
 # Initialize the database
