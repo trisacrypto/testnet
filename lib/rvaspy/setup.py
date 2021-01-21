@@ -60,7 +60,7 @@ CLASSIFIERS  = (
 PROJECT      = os.path.abspath(os.path.dirname(__file__))
 REQUIRE_PATH = "requirements.txt"
 VERSION_PATH = os.path.join(PACKAGE, "version.py")
-PKG_DESCRIBE = os.path.join("..", "README.md")
+PKG_DESCRIBE = "README.md"
 
 ## Directories to ignore in find_packages
 EXCLUDES     = (

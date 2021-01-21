@@ -14,7 +14,7 @@ from flaskr.models.transaction import Transaction
 from flaskr.models.transaction_request import TransactionRequest
 from flaskr.models.vasp_context import VaspContext
 from flaskr.models.vasp_log_message import VaspLogMessage
-from flaskr.rvaspy.rvaspy import RVASP
+from rvaspy import RVASP
 from flaskr.simulator.transaction_handler import TransactionHandler
 
 

@@ -16,6 +16,14 @@ build:
     context: .
     docker:
       dockerfile: containers/docs/Dockerfile
+  - image: trisa/demo-bff
+    context: .
+    docker:
+      dockerfile: containers/demo/bff/Dockerfile
+  - image: tirsa/demo-npm
+    context: .
+    docker:
+      dockerfile: containers/demo/npm/Dockerfile
   local:
     push: true
     useDockerCLI: true
