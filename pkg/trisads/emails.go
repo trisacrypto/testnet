@@ -142,7 +142,7 @@ func (s *Server) DeliverCertificatesEmail(vasp *pb.VASP, path string) (err error
 	ctx := &deliverCertsContext{
 		VASP:         vasp.Id,
 		CommonName:   vasp.CommonName,
-		SerialNumber: hex.EncodeToString(vasp.Certificate.SerialNumber),
+		SerialNumber: hex.EncodeToString(vasp.IdentityCertificate.SerialNumber),
 		Endpoint:     vasp.TrisaEndpoint,
 	}
 

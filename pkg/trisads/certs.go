@@ -1,14 +1,12 @@
 package trisads
 
 import (
-	"archive/zip"
 	"bytes"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -16,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/trisacrypto/testnet/pkg/sectigo"
 	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
-	"software.sslmate.com/src/go-pkcs12"
+	"github.com/trisacrypto/testnet/pkg/trust"
 )
 
 // CertManager is a go routine that periodically checks on the status of certificate
@@ -286,7 +284,7 @@ func (s *Server) downloadCertificateRequest(r *pb.CertificateRequest) {
 		return
 	}
 
-	if vasp.Certificate, err = extractCertificate(path, pkcs12password); err != nil {
+	if vasp.IdentityCertificate, err = extractCertificate(path, pkcs12password); err != nil {
 		log.Error().Err(err).Msg("could not extract certificate")
 		return
 	}
@@ -311,41 +309,24 @@ func (s *Server) downloadCertificateRequest(r *pb.CertificateRequest) {
 	}
 
 	log.Info().
-		Str("serial_number", hex.EncodeToString(vasp.Certificate.SerialNumber)).
+		Str("serial_number", hex.EncodeToString(vasp.IdentityCertificate.SerialNumber)).
 		Msg("certificates extracted and delivered")
 }
 
 func extractCertificate(path, pkcs12password string) (pub *pb.Certificate, err error) {
-	var archive *zip.ReadCloser
-	if archive, err = zip.OpenReader(path); err != nil {
+	var archive *trust.Serializer
+	if archive, err = trust.NewSerializer(true, pkcs12password, trust.CompressionZIP); err != nil {
 		return nil, err
 	}
-	defer archive.Close()
 
-	// Validate archive
-	if len(archive.File) == 0 {
-		return nil, fmt.Errorf("downloaded ZIP file contained no certs")
-	}
-	if len(archive.File) > 1 {
-		return nil, fmt.Errorf("unhandled case, too many files in ZIP - cannot match with VASP")
+	var provider *trust.Provider
+	if provider, err = archive.ReadFile(path); err != nil {
+		return nil, err
 	}
 
-	// Open and parse the certificate file
-	var contents io.ReadCloser
-	if contents, err = archive.File[0].Open(); err != nil {
-		return nil, fmt.Errorf("could not read certificate from archive: %s", err)
-	}
-	defer contents.Close()
-
-	buf := bytes.NewBuffer(nil)
-	if _, err = io.Copy(buf, contents); err != nil {
-		return nil, fmt.Errorf("could not read certificate from archive: %s", err)
-	}
-
-	// TODO: do we extract the entire trust chain or just the certificate?
 	var cert *x509.Certificate
-	if _, cert, _, err = pkcs12.DecodeChain(buf.Bytes(), pkcs12password); err != nil {
-		return nil, fmt.Errorf("could not decode pkcs12 chain: %s", err)
+	if cert, err = provider.GetLeafCertificate(); err != nil {
+		return nil, err
 	}
 
 	pub = &pb.Certificate{
@@ -381,11 +362,22 @@ func extractCertificate(path, pkcs12password string) (pub *pb.Certificate, err e
 		Revoked:   false,
 	}
 
-	buf = bytes.NewBuffer(nil)
+	// Write the public certificate into the directory service data store
+	buf := bytes.NewBuffer(nil)
 	if err = pem.Encode(buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
 		return nil, fmt.Errorf("could not PEM encode certificate: %s", err)
 	}
 	pub.Data = buf.Bytes()
+
+	// Write the entire provider chain into the directory service data store
+	if archive, err = trust.NewSerializer(false, "", trust.CompressionGZIP); err != nil {
+		return nil, err
+	}
+
+	// Ensure only the public keys are written to the directory service
+	if pub.Chain, err = archive.Compress(provider.Public()); err != nil {
+		return nil, err
+	}
 
 	return pub, nil
 }

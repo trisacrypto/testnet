@@ -252,7 +252,7 @@ func (s *Server) Lookup(ctx context.Context, in *api.LookupRequest) (out *api.Lo
 		out.RegisteredDirectory = vasp.RegisteredDirectory
 		out.CommonName = vasp.CommonName
 		out.Endpoint = vasp.TrisaEndpoint
-		out.Certificate = vasp.Certificate
+		out.Certificate = vasp.IdentityCertificate
 		out.Name, _ = vasp.Name()
 		out.Country = vasp.Entity.CountryOfRegistration
 		out.VerifiedOn = vasp.VerifiedOn

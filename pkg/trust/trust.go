@@ -205,6 +205,19 @@ func (p *Provider) GetKeyPair() (_ tls.Certificate, err error) {
 	return tls.X509KeyPair(certs.Bytes(), key)
 }
 
+// GetLeafCertificate returns the parsed x509 leaf certificate if it exists, returning
+// an error if there are no certificates or if there is a parse error.
+func (p *Provider) GetLeafCertificate() (*x509.Certificate, error) {
+	if p.chain.Leaf != nil {
+		return p.chain.Leaf, nil
+	}
+
+	if len(p.chain.Certificate) == 0 {
+		return nil, ErrNoCertificates
+	}
+	return x509.ParseCertificate(p.chain.Certificate[0])
+}
+
 // IsPrivate returns true if the Provider contains a non-nil key.
 func (p *Provider) IsPrivate() bool {
 	return p.key != nil
@@ -221,11 +234,7 @@ func (p *Provider) Public() *Provider {
 
 // String returns the common name of the Provider from the leaf certificate.
 func (p *Provider) String() string {
-	if p.chain.Leaf != nil {
-		return p.chain.Leaf.Subject.CommonName
-	}
-
-	cert, err := x509.ParseCertificate(p.chain.Certificate[0])
+	cert, err := p.GetLeafCertificate()
 	if err != nil {
 		return ""
 	}
