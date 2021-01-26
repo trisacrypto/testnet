@@ -16,7 +16,7 @@ import (
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"github.com/trisacrypto/testnet/pkg/trisads/pb"
+	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
 	"github.com/urfave/cli"
 	"google.golang.org/protobuf/proto"
 )

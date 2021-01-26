@@ -1,10 +1,10 @@
-package pb
+package v1
 
 import (
 	fmt "fmt"
 )
 
-//go:generate protoc -I=../../../proto --go_out=. --go_opt=module=github.com/trisacrypto/testnet/pkg/rvasp/pb --go-grpc_out=. --go-grpc_opt=module=github.com/trisacrypto/testnet/pkg/rvasp/pb rvasp/api.proto
+//go:generate protoc -I=../../../../proto --go_out=. --go_opt=module=github.com/trisacrypto/testnet/pkg/rvasp/pb/v1 --go-grpc_out=. --go-grpc_opt=module=github.com/trisacrypto/testnet/pkg/rvasp/pb/v1 rvasp/v1/api.proto
 
 // Error codes for quick reference and lookups
 const (

@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package trisads;
-option go_package = "github.com/trisacrypto/testnet/pkg/trisads/pb";
+package trisads.admin.v1alpha1;
+option go_package = "github.com/trisacrypto/testnet/pkg/trisads/pb/admin/v1alpha1";
 
-import "trisads/api.proto";
-import "trisads/models.proto";
+import "trisads/api/v1alpha1/api.proto";
+import "trisads/models/v1alpha1/models.proto";
 
 // An administrative service that is implemented side-by-side with most directory
 // services to review registration requests and perform remote certificate management.
@@ -34,9 +34,9 @@ message ReviewRequest {
 
 message ReviewReply {
     // If no error is specified, the verify email request was successful
-    Error error = 1;
+    trisads.api.v1alpha1.Error error = 1;
 
     // The verification status of the VASP entity.
-    VerificationState status = 2;
+    trisads.models.v1alpha1.VerificationState status = 2;
     string message = 3;
 }

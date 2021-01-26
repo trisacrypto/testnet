@@ -6,7 +6,9 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	"github.com/trisacrypto/testnet/pkg/trisads/pb"
+	admin "github.com/trisacrypto/testnet/pkg/trisads/pb/admin/v1alpha1"
+	api "github.com/trisacrypto/testnet/pkg/trisads/pb/api/v1alpha1"
+	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
 )
 
 // Review a registration request and either accept or reject it. On accept, the
@@ -14,12 +16,12 @@ import (
 // the certificate manager process watches it until the certificate has been issued. On
 // reject, the VASP and certificate request records are deleted and the reject reason is
 // sent to the technical contact.
-func (s *Server) Review(ctx context.Context, in *pb.ReviewRequest) (out *pb.ReviewReply, err error) {
-	out = &pb.ReviewReply{}
+func (s *Server) Review(ctx context.Context, in *admin.ReviewRequest) (out *admin.ReviewReply, err error) {
+	out = &admin.ReviewReply{}
 
 	// Validate review request
 	if in.Id == "" || in.AdminVerificationToken == "" {
-		out.Error = &pb.Error{
+		out.Error = &api.Error{
 			Code:    400,
 			Message: "provide both the VASP id to review and the admin verification token",
 		}
@@ -28,7 +30,7 @@ func (s *Server) Review(ctx context.Context, in *pb.ReviewRequest) (out *pb.Revi
 	}
 
 	if !in.Accept && in.RejectReason == "" {
-		out.Error = &pb.Error{
+		out.Error = &api.Error{
 			Code:    400,
 			Message: "if rejecting the request, a reason must be supplied",
 		}
@@ -40,7 +42,7 @@ func (s *Server) Review(ctx context.Context, in *pb.ReviewRequest) (out *pb.Revi
 	var vasp *pb.VASP
 	if vasp, err = s.db.Retrieve(in.Id); err != nil {
 		log.Error().Err(err).Str("id", in.Id).Msg("could not retrieve vasp")
-		out.Error = &pb.Error{
+		out.Error = &api.Error{
 			Code:    404,
 			Message: err.Error(),
 		}
@@ -50,7 +52,7 @@ func (s *Server) Review(ctx context.Context, in *pb.ReviewRequest) (out *pb.Revi
 	// Check that the administration verification token is correct
 	if in.AdminVerificationToken != vasp.AdminVerificationToken {
 		log.Error().Err(err).Str("token", in.AdminVerificationToken).Msg("incorrect admin verification token")
-		out.Error = &pb.Error{
+		out.Error = &api.Error{
 			Code:    403,
 			Message: "admin verification token not accepted",
 		}
@@ -61,13 +63,13 @@ func (s *Server) Review(ctx context.Context, in *pb.ReviewRequest) (out *pb.Revi
 	if in.Accept {
 		if out.Message, err = s.acceptRegistration(vasp); err != nil {
 			log.Error().Err(out.Error).Msg("could not accept VASP registration")
-			out.Error = &pb.Error{Code: 500, Message: "could not review VASP registration"}
+			out.Error = &api.Error{Code: 500, Message: "could not review VASP registration"}
 			return out, nil
 		}
 	} else {
 		if out.Message, err = s.rejectRegistration(vasp, in.RejectReason); err != nil {
 			log.Error().Err(out.Error).Msg("could not reject VASP registration")
-			out.Error = &pb.Error{Code: 500, Message: "could not review VASP registration"}
+			out.Error = &api.Error{Code: 500, Message: "could not review VASP registration"}
 			return out, nil
 		}
 	}

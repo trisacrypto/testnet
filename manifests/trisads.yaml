@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: trisads
-        image: trisa/trisads:03d5820
+        image: trisa/trisads:89befbf
         ports:
         - containerPort: 443
           protocol: TCP

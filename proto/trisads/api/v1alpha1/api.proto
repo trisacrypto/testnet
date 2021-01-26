@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package trisads;
-option go_package = "github.com/trisacrypto/testnet/pkg/trisads/pb";
+package trisads.api.v1alpha1;
+option go_package = "github.com/trisacrypto/testnet/pkg/trisads/pb/api/v1alpha1";
 
 import "ivms101/ivms101.proto";
-import "trisads/models.proto";
-import "trisads/ca.proto";
+import "trisads/models/v1alpha1/models.proto";
+import "trisads/models/v1alpha1/ca.proto";
 
 service TRISADirectory {
     rpc Register(RegisterRequest) returns (RegisterReply) {}
@@ -31,7 +31,7 @@ message RegisterRequest {
     ivms101.LegalPerson entity = 1;
 
     // Technical, legal, billing, and administrative contacts for the VASP.
-    Contacts contacts = 2;
+    trisads.models.v1alpha1.Contacts contacts = 2;
 
     // Travel Rule Implementation Endpoint - where other TRISA peers should connect.
     // This should be an addr:port combination, e.g. trisa.vaspbot.net:443
@@ -44,12 +44,12 @@ message RegisterRequest {
 
     // Business Information
     string website = 5;
-    BusinessCategory business_category = 6;
-    VASPCategory vasp_category = 7;
+    trisads.models.v1alpha1.BusinessCategory business_category = 6;
+    trisads.models.v1alpha1.VASPCategory vasp_category = 7;
     string established_on = 8; // Should be a date in YYYY-MM-DD format
 
     // TRIXO Questionnaire
-    TRIXOQuestionnaire trixo = 9;
+    trisads.models.v1alpha1.TRIXOQuestionnaire trixo = 9;
 }
 
 message RegisterReply {
@@ -63,7 +63,7 @@ message RegisterReply {
     string common_name = 4;
 
     // The verification status of the VASP entity.
-    VerificationState status = 5;
+    trisads.models.v1alpha1.VerificationState status = 5;
     string message = 6;
 }
 
@@ -99,7 +99,7 @@ message LookupReply {
     string endpoint = 5;
 
     // The Certificate information if the VASP is available and verified
-    Certificate certificate = 6;
+    trisads.models.v1alpha1.Certificate certificate = 6;
 
     // Other VASP information that faciliates P2P exchanges
     string name = 7;
@@ -153,8 +153,8 @@ message StatusReply {
     Error error = 1;
 
     // Status information
-    VerificationState verification_status = 2;
-    ServiceState service_status = 3;
+    trisads.models.v1alpha1.VerificationState verification_status = 2;
+    trisads.models.v1alpha1.ServiceState service_status = 3;
     string verified_on = 4;  // Should be an RFC 3339 Timestamp
     string first_listed = 5; // Should be an RFC 3339 Timestamp
     string last_updated = 6; // Should be an RFC 3339 Timestamp
@@ -170,7 +170,7 @@ message VerifyEmailReply {
     Error error = 1;
 
     // The verification status of the VASP entity.
-    VerificationState status = 2;
+    trisads.models.v1alpha1.VerificationState status = 2;
     string message = 3;
 
     // Used to decrypt the emailed certificates in PKCS 12 format

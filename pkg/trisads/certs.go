@@ -15,7 +15,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/trisacrypto/testnet/pkg/sectigo"
-	"github.com/trisacrypto/testnet/pkg/trisads/pb"
+	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
 	"software.sslmate.com/src/go-pkcs12"
 )
 

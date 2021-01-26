@@ -12,7 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/trisacrypto/testnet/pkg/rvasp/pb"
+	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"google.golang.org/grpc"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
