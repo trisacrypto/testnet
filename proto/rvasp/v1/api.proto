@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-package rvasp;
-option go_package = "github.com/trisacrypto/testnet/pkg/rvasp/pb";
+package rvasp.v1;
+option go_package = "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1";
 
 // The TRISA Demo service uses a bidirectional stream to allow a websockets service to
 // display messages and commands in real time. Commands implement the same RPCs as the

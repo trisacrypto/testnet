@@ -9,7 +9,7 @@ import (
 
 	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/rvasp"
-	"github.com/trisacrypto/testnet/pkg/rvasp/pb"
+	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
 	"gorm.io/driver/sqlite"
