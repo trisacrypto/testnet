@@ -252,10 +252,18 @@ func (s *Server) Lookup(ctx context.Context, in *api.LookupRequest) (out *api.Lo
 		out.RegisteredDirectory = vasp.RegisteredDirectory
 		out.CommonName = vasp.CommonName
 		out.Endpoint = vasp.TrisaEndpoint
-		out.Certificate = vasp.IdentityCertificate
+		out.IdentityCertificate = vasp.IdentityCertificate
 		out.Name, _ = vasp.Name()
 		out.Country = vasp.Entity.CountryOfRegistration
 		out.VerifiedOn = vasp.VerifiedOn
+
+		// TODO: how do we determine which signing certificate to send?
+		// Currently sending the last certificate in the array so that to update a
+		// signing certificate, a new cert just has to be appended to the slice.
+		if len(vasp.SigningCertificates) > 0 {
+			out.SigningCertificate = vasp.SigningCertificates[len(vasp.SigningCertificates)-1]
+		}
+
 		log.Info().Str("id", vasp.Id).Msg("VASP lookup succeeded")
 	} else {
 		log.Warn().
@@ -283,9 +291,9 @@ func (s *Server) Search(ctx context.Context, in *api.SearchRequest) (out *api.Se
 		}
 	}
 
-	out.Results = make([]*api.SearchResult, 0, len(vasps))
+	out.Results = make([]*api.SearchReply_Result, 0, len(vasps))
 	for _, vasp := range vasps {
-		out.Results = append(out.Results, &api.SearchResult{
+		out.Results = append(out.Results, &api.SearchReply_Result{
 			Id:                  vasp.Id,
 			RegisteredDirectory: vasp.RegisteredDirectory,
 			CommonName:          vasp.CommonName,
