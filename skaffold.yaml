@@ -20,7 +20,7 @@ build:
     context: .
     docker:
       dockerfile: containers/demo/bff/Dockerfile
-  - image: tirsa/demo-npm
+  - image: trisa/demo-npm
     context: .
     docker:
       dockerfile: containers/demo/npm/Dockerfile

@@ -98,13 +98,16 @@ message LookupReply {
     // The endpoint to connect to for the TRISA P2P protocol (addr:port)
     string endpoint = 5;
 
-    // The Certificate information if the VASP is available and verified
-    trisads.models.v1alpha1.Certificate certificate = 6;
+    // Certificate information if the VASP is available and verified. The identity
+    // certificate is used to establish mTLS connections, the signing certificate is
+    // used on a per-transaction basis.
+    trisads.models.v1alpha1.Certificate identity_certificate = 6;
+    trisads.models.v1alpha1.Certificate signing_certificate = 7;
 
     // Other VASP information that faciliates P2P exchanges
-    string name = 7;
-    string country = 8;
-    string verified_on = 9;
+    string name = 8;
+    string country = 9;
+    string verified_on = 10;
 }
 
 // Search requests allow a more flexibly field serach to identify a VASP, these requests
@@ -119,16 +122,16 @@ message SearchRequest {
 }
 
 message SearchReply {
+    message Result {
+        // The uniquely identifying components of the VASP in the directory service
+        string id = 1;
+        string registered_directory = 2;
+        string common_name = 3;
+    }
+
     // If no error is specified, the search was successful, even if no results returned.
     Error error = 1;
-    repeated SearchResult results = 2;
-}
-
-message SearchResult {
-    // The uniquely identifying components of the VASP in the directory service
-    string id = 1;
-    string registered_directory = 2;
-    string common_name = 3;
+    repeated Result results = 2;
 }
 
 // Check on the status of a VASP including its verification status and the service

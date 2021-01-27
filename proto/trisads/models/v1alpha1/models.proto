@@ -38,42 +38,49 @@ message VASP {
     // mTLS connections between TRISA partners. If the VASP has not been verified then
     // the certificate will not be issued. This field is the most recently issued
     // certificate but may or may not be revoked.
-    Certificate certificate = 5;
+    // In the white paper, this is referred to as the Identity EV-Cert.
+    Certificate identity_certificate = 5;
+
+    // Signing-key certificates and public key material used to sign transactions. The
+    // primary use of signing-key certificates is to asymmetrically encrypt and sign
+    // per-transaction symmetric encryption keys. A VASP can maintain any number of
+    // signing certificates, which are idnetified by their signature or serial number.
+    repeated Certificate signing_certificates = 6;
 
     // Domain name of the TRISA endpoint used as the common name for the certificate.
     // This field must be unique per VASP as it identifies the Certificate and is used
     // directly in lookups.
-    string common_name = 6;
+    string common_name = 7;
 
     // Travel Rule Implementation Endpoint - where other TRISA peers should connect.
     // This should be an addr:port combination, e.g. trisa.vaspbot.net:443
-    string trisa_endpoint = 7;
+    string trisa_endpoint = 8;
 
     // Business Information
-    string website = 8;
-    BusinessCategory business_category = 9;
-    VASPCategory vasp_category = 10;
-    string established_on = 11; // Should be a date in YYYY-MM-DD format
+    string website = 9;
+    BusinessCategory business_category = 10;
+    VASPCategory vasp_category = 11;
+    string established_on = 12; // Should be a date in YYYY-MM-DD format
 
     // TRIXO Questionnaire
-    TRIXOQuestionnaire trixo = 12;
+    TRIXOQuestionnaire trixo = 13;
 
     // Directory Service Metadata
-    VerificationState verification_status = 13;
-    ServiceState service_status = 14;
-    string verified_on = 15;  // Should be an RFC 3339 Timestamp
-    string first_listed = 16; // Should be an RFC 3339 Timestamp
-    string last_updated = 17; // Should be an RFC 3339 Timestamp
+    VerificationState verification_status = 14;
+    ServiceState service_status = 15;
+    string verified_on = 16;  // Should be an RFC 3339 Timestamp
+    string first_listed = 17; // Should be an RFC 3339 Timestamp
+    string last_updated = 18; // Should be an RFC 3339 Timestamp
 
     // The legal entity signature that is used to verify uniqueness or detect changes.
-    bytes signature = 18;
+    bytes signature = 19;
 
     // Version is used for anti-entropy based replication
-    uint64 version = 19;
+    uint64 version = 20;
 
     // Temporary: verification token for light weight authentication for verification
     // TODO: replace with admin API that uses authentication
-    string admin_verification_token = 20;
+    string admin_verification_token = 21;
 }
 
 // At least one of the following contact information is required for the VASP to be
