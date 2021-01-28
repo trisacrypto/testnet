@@ -70,7 +70,7 @@ message Certificate {
     bytes data = 11;
 
     // The complete trust chain including the leaf certificate as a gzip compressed
-    // PEM encoded file. This field can be deserialzied into a trust.Provider.
+    // PEM encoded file. This field can be deserialized into a trust.Provider.
     bytes chain = 12;
 }
 
