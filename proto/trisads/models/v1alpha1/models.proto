@@ -197,4 +197,5 @@ enum ServiceState {
     UNHEALTHY = 2;
     DANGER = 3;
     OFFLINE = 4;
+    MAINTENANCE = 5;
 }

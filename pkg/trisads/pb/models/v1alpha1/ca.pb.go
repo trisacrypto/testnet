@@ -297,7 +297,7 @@ type Certificate struct {
 	// The ASN1 encoded full certificate without the trust chain
 	Data []byte `protobuf:"bytes,11,opt,name=data,proto3" json:"data,omitempty"`
 	// The complete trust chain including the leaf certificate as a gzip compressed
-	// PEM encoded file. This field can be deserialzied into a trust.Provider.
+	// PEM encoded file. This field can be deserialized into a trust.Provider.
 	Chain []byte `protobuf:"bytes,12,opt,name=chain,proto3" json:"chain,omitempty"`
 }
 
