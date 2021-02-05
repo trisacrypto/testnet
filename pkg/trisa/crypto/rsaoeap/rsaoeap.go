@@ -50,5 +50,5 @@ func (c *RSA) Decrypt(ciphertext []byte) (plaintext []byte, err error) {
 
 // EncryptionAlgorithm returns the name of the algorithm for adding to the Transaction.
 func (c *RSA) EncryptionAlgorithm() string {
-	return "RSA-OAEP-512"
+	return "RSA-OAEP-SHA512"
 }

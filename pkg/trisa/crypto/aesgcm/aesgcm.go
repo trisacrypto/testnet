@@ -65,7 +65,7 @@ func (c *AESGCM) Encrypt(plaintext []byte) (ciphertext []byte, err error) {
 
 // Decrypt a message using the struct key, extracting the nonce from the end.
 func (c *AESGCM) Decrypt(ciphertext []byte) (plaintext []byte, err error) {
-	if len(ciphertext) == 0 {
+	if len(ciphertext) < 12 {
 		return nil, errors.New("empty cipher text")
 	}
 
@@ -91,7 +91,16 @@ func (c *AESGCM) Decrypt(ciphertext []byte) (plaintext []byte, err error) {
 
 // EncryptionAlgorithm returns the name of the algorithm for adding to the Transaction.
 func (c *AESGCM) EncryptionAlgorithm() string {
-	return "AES-GCM"
+	switch len(c.key) {
+	case 32:
+		return "AES256-GCM"
+	case 24:
+		return "AES192-GCM"
+	case 16:
+		return "AES128-GCM"
+	default:
+		return "AES-GCM"
+	}
 }
 
 // Sign the specified data (ususally the ciphertext) using the struct secret.
@@ -119,7 +128,7 @@ func (c *AESGCM) Verify(data, signature []byte) (err error) {
 
 // SignatureAlgorithm returns the name of the hmac_algorithm for adding to the Transaction.
 func (c *AESGCM) SignatureAlgorithm() string {
-	return "HMAC"
+	return "HMAC-SHA256"
 }
 
 // EncryptionKey is a read-only getter.
