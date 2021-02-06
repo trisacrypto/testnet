@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package trisa.protocol.v1alpha1;
-option go_package = "github.com/trisacrypto/testnet/pkg/trisa/protocol/v1alpha1";
+option go_package = "github.com/trisacrypto/testnet/pkg/trisa/protocol/v1alpha1;protocol";
 
 import "google/protobuf/any.proto";
 
@@ -87,7 +87,7 @@ message Error {
         INVALID_KEY = 106;
 
         // Could not decode or decrypt private transaction data
-        TRANSACTION_DECODE_FAIL = 107;
+        ENVELOPE_DECODE_FAIL = 107;
         PRIVATE_INFO_DECODE_FAIL = 107;  // Alias: Sygna BVRC Rejected Type
         BVRC005 = 107;                   // Alias: Sygna BVRC Rejected Code
 
@@ -131,6 +131,6 @@ message Error {
     // Any additional data or reasons for the rejection, e.g. a parent error, a diff,
     // a location for redirect, etc. The payload of the additional data should be
     // described by the error code.
-    google.protobuf.Any extra = 4;
+    google.protobuf.Any details = 4;
 }
 

@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package trisads.models.v1alpha1;
-option go_package = "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1";
+option go_package = "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1;models";
 
 import "ivms101/ivms101.proto";
 import "trisads/models/v1alpha1/ca.proto";
