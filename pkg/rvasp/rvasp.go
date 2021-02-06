@@ -11,18 +11,34 @@ import (
 	"os/signal"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/trisacrypto/testnet/pkg"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"google.golang.org/grpc"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
+func init() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+}
+
 // New creates a rVASP server with the specified configuration and prepares
 // it to listen for and serve GRPC requests.
-func New(dsn string) (s *Server, err error) {
-	s = &Server{}
-	if s.db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{}); err != nil {
+func New(conf *Settings) (s *Server, err error) {
+	if conf == nil {
+		if conf, err = Config(); err != nil {
+			return nil, err
+		}
+	}
+
+	// Set the global level
+	zerolog.SetGlobalLevel(zerolog.Level(conf.LogLevel))
+
+	s = &Server{conf: conf, echan: make(chan error, 1)}
+	if s.db, err = gorm.Open(sqlite.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return nil, err
 	}
 
@@ -35,6 +51,10 @@ func New(dsn string) (s *Server, err error) {
 		return nil, fmt.Errorf("could not fetch local VASP info from database: %s", err)
 	}
 
+	if s.conf.Name != s.vasp.Name {
+		return nil, fmt.Errorf("expected name %q but have database name %q", s.conf.Name, s.vasp.Name)
+	}
+
 	return s, nil
 }
 
@@ -42,13 +62,15 @@ func New(dsn string) (s *Server, err error) {
 type Server struct {
 	pb.UnimplementedTRISADemoServer
 	pb.UnimplementedTRISAIntegrationServer
-	srv  *grpc.Server
-	db   *gorm.DB
-	vasp VASP
+	conf  *Settings
+	srv   *grpc.Server
+	db    *gorm.DB
+	vasp  VASP
+	echan chan error
 }
 
 // Serve GRPC requests on the specified address.
-func (s *Server) Serve(addr string) (err error) {
+func (s *Server) Serve() (err error) {
 	// Initialize the gRPC server
 	s.srv = grpc.NewServer()
 	pb.RegisterTRISADemoServer(s.srv, s)
@@ -59,25 +81,41 @@ func (s *Server) Serve(addr string) (err error) {
 	signal.Notify(quit, os.Interrupt)
 	go func() {
 		<-quit
-		s.Shutdown()
+		s.echan <- s.Shutdown()
 	}()
 
 	// Listen for TCP requests on the specified address and port
 	var sock net.Listener
-	if sock, err = net.Listen("tcp", addr); err != nil {
-		return fmt.Errorf("could not listen on %q", addr)
+	if sock, err = net.Listen("tcp", s.conf.BindAddr); err != nil {
+		return fmt.Errorf("could not listen on %q", s.conf.BindAddr)
 	}
 	defer sock.Close()
 
 	// Run the server
-	log.Infof("listening on %s", addr)
-	return s.srv.Serve(sock)
+	go func() {
+		log.Info().
+			Str("listen", s.conf.BindAddr).
+			Str("version", pkg.Version()).
+			Str("name", s.vasp.Name).
+			Msg("server started")
+
+		if err := s.srv.Serve(sock); err != nil {
+			s.echan <- err
+		}
+	}()
+
+	// Listen for any errors that might have occurred and wait for all go routines to finish
+	if err = <-s.echan; err != nil {
+		return err
+	}
+	return nil
 }
 
 // Shutdown the TRISA Directory Service gracefully
 func (s *Server) Shutdown() (err error) {
-	log.Info("gracefully shutting down")
+	log.Info().Msg("gracefully shutting down")
 	s.srv.GracefulStop()
+	log.Debug().Msg("successful shutdown")
 	return nil
 }
 
@@ -97,10 +135,10 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 	if err = LookupAccount(s.db, req.Account).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			rep.Error = pb.Errorf(pb.ErrNotFound, "account not found")
-			log.Info(rep.Error.Error())
+			log.Info().Err(err).Msg("account not found")
 			return rep, nil
 		}
-		log.Error(err.Error())
+		log.Error().Err(err).Msg("could not lookup account")
 		return nil, err
 	}
 
@@ -114,7 +152,7 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 	if !req.NoTransactions {
 		var transactions []Transaction
 		if transactions, err = account.Transactions(s.db); err != nil {
-			log.Error(err.Error())
+			log.Error().Err(err).Msg("could not get transactions")
 			return nil, err
 		}
 
@@ -142,7 +180,10 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 		}
 	}
 
-	log.Infof("account status %s with %d transactions", rep.Email, len(rep.Transactions))
+	log.Info().
+		Str("account", rep.Email).
+		Int("transactions", len(rep.Transactions)).
+		Msg("account status")
 	return rep, nil
 }
 
@@ -162,28 +203,31 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 			// The stream was closed on the client side
 			if err == io.EOF {
 				if client == "" {
-					log.Warn("live updates connection closed before first message")
+					log.Warn().Msg("live updates connection closed before first message")
 				} else {
-					log.Warnf("live updates connection from client %s closed", client)
+					log.Warn().Str("client", client).Msg("live updates connection closed")
 				}
 			}
 
 			// Some other error occurred
-			log.Errorf("connection from client %q dropped: %s", client, err)
+			log.Error().Err(err).Str("client", client).Msg("connection dropped")
 			return nil
 		}
 
 		// If this is the first time we've seen the client, log it
 		if client == "" {
 			client = req.Client
-			log.Infof("client %s connected to live updates", client)
+			log.Info().Str("client", client).Msg("connected to live updates")
 		} else if client != req.Client {
-			log.Warnf("received message from %q but expected it from %q", req.Client, client)
+			log.Warn().Str("request from", req.Client).Str("client stream", client).Msg("unexpected client")
 		}
 
 		// Handle the message
 		messages++
-		log.Infof("received message %d: %s", messages, req)
+		log.Info().
+			Uint64("message", messages).
+			Str("type", req.Type.String()).
+			Msg("received message")
 
 		switch req.Type {
 		case pb.RPC_NORPC:
@@ -195,7 +239,7 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 				Timestamp: time.Now().Format(time.RFC3339),
 			}
 			if err = stream.Send(ack); err != nil {
-				log.Errorf("could not send message to %q: %s", client, err)
+				log.Error().Err(err).Str("client", client).Msg("could not send message")
 				return err
 			}
 		case pb.RPC_ACCOUNT:
@@ -212,13 +256,13 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 			}
 
 			if err = stream.Send(ack); err != nil {
-				log.Errorf("could not send message to %q: %s", client, err)
+				log.Error().Err(err).Str("client", client).Msg("could not send message")
 				return err
 			}
 		case pb.RPC_TRANSFER:
 			// HACK: simulate the TRISA process as a quick stub to unblock the front end
 			if err = s.simulateTRISA(stream, req, client); err != nil {
-				log.Error(err.Error())
+				log.Error().Err(err).Msg("could not simulate TRISA")
 				return err
 			}
 		}
