@@ -16,6 +16,7 @@ const (
 	Unavailable              = Error_UNAVAILABLE
 	ServiceDownTime          = Error_SERVICE_DOWN_TIME
 	Maintenance              = Error_MAINTENANCE
+	Unimplemented            = Error_UNIMPLEMENTED
 	InternalError            = Error_INTERNAL_ERROR
 	Rejected                 = Error_REJECTED
 	UnkownWalletAddress      = Error_UNKNOWN_WALLET_ADDRESS

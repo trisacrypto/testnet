@@ -21,6 +21,9 @@ message Error {
         // The service is currently in maintenance mode and cannot respond.
         MAINTENANCE = 2;
 
+        // The RPC is not currently implemented by the TRISA node.
+        UNIMPLEMENTED = 3;
+
         // Request could not be processed by recipient.
         INTERNAL_ERROR = 49;
         BVRC999 = 49;             // Alias: Sygna BVRC Rejected Code
