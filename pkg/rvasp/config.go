@@ -11,11 +11,13 @@ import (
 // Settings uses envconfig to load required settings from the environment and
 // validate them in preparation for running the rVASP.
 type Settings struct {
-	Name          string          `envconfig:"RVASP_NAME"`
-	BindAddr      string          `envconfig:"RVASP_BIND_ADDR" default:":4434"`
-	TRISABindAddr string          `envconfig:"RVASP_TRISA_BIND_ADDR" default:":4435"`
-	DatabaseDSN   string          `envconfig:"RVASP_DATABASE"`
-	LogLevel      LogLevelDecoder `envconfig:"RVASP_LOG_LEVEL" default:"info"`
+	Name           string          `envconfig:"RVASP_NAME"`
+	BindAddr       string          `envconfig:"RVASP_BIND_ADDR" default:":4434"`
+	TRISABindAddr  string          `envconfig:"RVASP_TRISA_BIND_ADDR" default:":4435"`
+	DatabaseDSN    string          `envconfig:"RVASP_DATABASE"`
+	CertPath       string          `envconfig:"RVASP_CERT_PATH"`
+	TrustChainPath string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`
+	LogLevel       LogLevelDecoder `envconfig:"RVASP_LOG_LEVEL" default:"info"`
 }
 
 // Config creates a new settings object, loading environment variables and defaults.

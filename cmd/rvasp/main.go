@@ -33,7 +33,6 @@ func main() {
 				cli.StringFlag{
 					Name:  "n, name",
 					Usage: "the name of the rVASP (alice, bob, evil, etc.)",
-					Value: "alice",
 				},
 				cli.StringFlag{
 					Name:  "a, addr",
@@ -48,7 +47,6 @@ func main() {
 				cli.StringFlag{
 					Name:  "d, db",
 					Usage: "the dsn to the sqlite3 database to connect to",
-					Value: "fixtures/rvasp/rvasp.db",
 				},
 			},
 		},

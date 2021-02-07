@@ -55,10 +55,15 @@ func New(conf *Settings) (s *Server, err error) {
 		return nil, fmt.Errorf("expected name %q but have database name %q", s.conf.Name, s.vasp.Name)
 	}
 
+	// Create the TRISA peer
+	if s.peer, err = NewPeer(s); err != nil {
+		return nil, fmt.Errorf("could not create TRISA peer: %s", err)
+	}
+
 	return s, nil
 }
 
-// Server implements the GRPC TRISAInterVASP and TRISADemo services.
+// Server implements the GRPC TRISAIntegration and TRISADemo services.
 type Server struct {
 	pb.UnimplementedTRISADemoServer
 	pb.UnimplementedTRISAIntegrationServer
@@ -66,6 +71,7 @@ type Server struct {
 	srv   *grpc.Server
 	db    *gorm.DB
 	vasp  VASP
+	peer  *Peer
 	echan chan error
 }
 
@@ -83,6 +89,11 @@ func (s *Server) Serve() (err error) {
 		<-quit
 		s.echan <- s.Shutdown()
 	}()
+
+	// Run the TRISA peer service on the TRISABindAddr
+	if err = s.peer.Serve(); err != nil {
+		return err
+	}
 
 	// Listen for TCP requests on the specified address and port
 	var sock net.Listener
@@ -111,10 +122,14 @@ func (s *Server) Serve() (err error) {
 	return nil
 }
 
-// Shutdown the TRISA Directory Service gracefully
+// Shutdown the rVASP Service gracefully
 func (s *Server) Shutdown() (err error) {
 	log.Info().Msg("gracefully shutting down")
 	s.srv.GracefulStop()
+	if err = s.peer.Shutdown(); err != nil {
+		log.Error().Err(err).Msg("could not shutdown trisa peer server")
+		return err
+	}
 	log.Debug().Msg("successful shutdown")
 	return nil
 }
