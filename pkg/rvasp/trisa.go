@@ -100,7 +100,11 @@ func (s *Peer) Shutdown() (err error) {
 
 // Transfer enables a quick one-off transaction between peers.
 func (s *Peer) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out *protocol.SecureEnvelope, err error) {
-	return nil, nil
+	return nil, &protocol.Error{
+		Code:    protocol.Unimplemented,
+		Message: "rVASP has not implemented transfers yet",
+		Retry:   false,
+	}
 }
 
 // TransferStream allows for high-throughput transactions.
@@ -122,12 +126,13 @@ func (s *Peer) ConfirmAddress(ctx context.Context, in *protocol.Address) (out *p
 }
 
 // KeyExchange facilitates signing key exchange between VASPs.
-func (s *Peer) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *protocol.SigningKey, err error) {
-	return nil, &protocol.Error{
+func (s *Peer) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *protocol.SigningKey, _ error) {
+	err := &protocol.Error{
 		Code:    protocol.Unimplemented,
-		Message: "rVASP has not implemented key exchnage yet",
+		Message: "rVASP has not implemented key exchange yet",
 		Retry:   false,
 	}
+	return nil, err.Err()
 }
 
 // Status returns a directory health check status as online and requests half an hour checks.
