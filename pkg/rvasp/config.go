@@ -10,6 +10,8 @@ import (
 
 // Settings uses envconfig to load required settings from the environment and
 // validate them in preparation for running the rVASP.
+//
+// TODO: also store separate signing key instead of using the cert key.
 type Settings struct {
 	Name           string          `envconfig:"RVASP_NAME"`
 	BindAddr       string          `envconfig:"RVASP_BIND_ADDR" default:":4434"`

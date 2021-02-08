@@ -37,7 +37,7 @@ func New(conf *Settings) (s *Server, err error) {
 	// Set the global level
 	zerolog.SetGlobalLevel(zerolog.Level(conf.LogLevel))
 
-	s = &Server{conf: conf, echan: make(chan error, 1)}
+	s = &Server{conf: conf, peers: make(map[string]*Peer), echan: make(chan error, 1)}
 	if s.db, err = gorm.Open(sqlite.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return nil, err
 	}
@@ -55,9 +55,9 @@ func New(conf *Settings) (s *Server, err error) {
 		return nil, fmt.Errorf("expected name %q but have database name %q", s.conf.Name, s.vasp.Name)
 	}
 
-	// Create the TRISA peer
-	if s.peer, err = NewPeer(s); err != nil {
-		return nil, fmt.Errorf("could not create TRISA peer: %s", err)
+	// Create the TRISA service
+	if s.trisa, err = NewTRISA(s); err != nil {
+		return nil, fmt.Errorf("could not create TRISA service: %s", err)
 	}
 
 	return s, nil
@@ -71,8 +71,9 @@ type Server struct {
 	srv   *grpc.Server
 	db    *gorm.DB
 	vasp  VASP
-	peer  *Peer
+	trisa *TRISA
 	echan chan error
+	peers map[string]*Peer
 }
 
 // Serve GRPC requests on the specified address.
@@ -90,8 +91,8 @@ func (s *Server) Serve() (err error) {
 		s.echan <- s.Shutdown()
 	}()
 
-	// Run the TRISA peer service on the TRISABindAddr
-	if err = s.peer.Serve(); err != nil {
+	// Run the TRISA service on the TRISABindAddr
+	if err = s.trisa.Serve(); err != nil {
 		return err
 	}
 
@@ -126,8 +127,8 @@ func (s *Server) Serve() (err error) {
 func (s *Server) Shutdown() (err error) {
 	log.Info().Msg("gracefully shutting down")
 	s.srv.GracefulStop()
-	if err = s.peer.Shutdown(); err != nil {
-		log.Error().Err(err).Msg("could not shutdown trisa peer server")
+	if err = s.trisa.Shutdown(); err != nil {
+		log.Error().Err(err).Msg("could not shutdown trisa server")
 		return err
 	}
 	log.Debug().Msg("successful shutdown")

@@ -784,7 +784,7 @@ func transfer(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	if req.Hmac, err = cipher.Sign(payloadData); err != nil {
+	if req.Hmac, err = cipher.Sign(req.Payload); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 

@@ -10,6 +10,7 @@ package trust
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -216,6 +217,32 @@ func (p *Provider) GetLeafCertificate() (*x509.Certificate, error) {
 		return nil, ErrNoCertificates
 	}
 	return x509.ParseCertificate(p.chain.Certificate[0])
+}
+
+// GetKey returns the private key, or nil if this is a public provider.
+func (p *Provider) GetKey() interface{} {
+	return p.key
+}
+
+// GetRSAKeys returns a fully constructed RSA PrivateKey that includes the public key
+// material property. This method errors if the key is not an RSA key or does not exist.
+func (p *Provider) GetRSAKeys() (key *rsa.PrivateKey, err error) {
+	if p.key == nil {
+		return nil, ErrKeyRequired
+	}
+
+	var ok bool
+	if key, ok = p.key.(*rsa.PrivateKey); !ok {
+		return nil, fmt.Errorf("private key is not RSA but is %T", p.key)
+	}
+
+	var cert *x509.Certificate
+	if cert, err = p.GetLeafCertificate(); err != nil {
+		return nil, err
+	}
+
+	key.PublicKey = *cert.PublicKey.(*rsa.PublicKey)
+	return key, nil
 }
 
 // IsPrivate returns true if the Provider contains a non-nil key.

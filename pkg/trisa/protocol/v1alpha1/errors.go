@@ -39,6 +39,7 @@ const (
 	InvalidKey               = Error_INVALID_KEY
 	EnvelopeDecodeFail       = Error_ENVELOPE_DECODE_FAIL
 	PrivateInfoDecodeFail    = Error_PRIVATE_INFO_DECODE_FAIL
+	UnhandledAlgorithm       = Error_UNHANDLED_ALGORITHM
 	BadRequest               = Error_BAD_REQUEST
 	UnparseableIdentity      = Error_UNPARSEABLE_IDENTITY
 	PrivateInfoWrongFormat   = Error_PRIVATE_INFO_WRONG_FORMAT
@@ -90,6 +91,10 @@ func Errorp(err error) (e *Error, ok bool) {
 // Errorf creates a new Error message formated with the specified arguments. If the
 // error code indicates the error should be retried it sets retry to true.
 func Errorf(code Error_Code, format string, a ...interface{}) *Error {
+	if len(a) == 0 {
+		return &Error{Code: code, Message: format}
+	}
+
 	return &Error{
 		Code:    code,
 		Message: fmt.Sprintf(format, a...),

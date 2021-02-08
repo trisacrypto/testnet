@@ -94,6 +94,9 @@ message Error {
         PRIVATE_INFO_DECODE_FAIL = 107;  // Alias: Sygna BVRC Rejected Type
         BVRC005 = 107;                   // Alias: Sygna BVRC Rejected Code
 
+        // The algorithm specified by the encryption or signature is not implemented
+        UNHANDLED_ALGORITHM = 108;
+
         // Errors 150-199 are reserved for repairing exchange information.
         // Generic bad request - usually implies retry when reuqest is fixed.
         BAD_REQUEST = 150;
