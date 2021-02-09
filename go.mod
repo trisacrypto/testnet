@@ -3,6 +3,7 @@ module github.com/trisacrypto/testnet
 go 1.15
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang/protobuf v1.4.1
 	github.com/google/uuid v1.1.2
@@ -12,7 +13,6 @@ require (
 	github.com/sendgrid/sendgrid-go v3.7.2+incompatible
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
 	github.com/shopspring/decimal v1.2.0
-	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/urfave/cli v1.22.5

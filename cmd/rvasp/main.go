@@ -31,16 +31,22 @@ func main() {
 			Action:   serve,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:   "a, addr",
-					Usage:  "the address and port to bind the server on",
-					Value:  ":4434",
-					EnvVar: "RVASP_ADDR",
+					Name:  "n, name",
+					Usage: "the name of the rVASP (alice, bob, evil, etc.)",
 				},
 				cli.StringFlag{
-					Name:   "d, db",
-					Usage:  "the dsn to the sqlite3 database to connect to",
-					Value:  "fixtures/rvasp/rvasp.db",
-					EnvVar: "DATABASE_URL",
+					Name:  "a, addr",
+					Usage: "the address and port to bind the server on",
+					Value: ":4434",
+				},
+				cli.StringFlag{
+					Name:  "t, trisa-addr",
+					Usage: "the address and port to bind the TRISA server on",
+					Value: ":4435",
+				},
+				cli.StringFlag{
+					Name:  "d, db",
+					Usage: "the dsn to the sqlite3 database to connect to",
 				},
 			},
 		},
@@ -115,12 +121,33 @@ func main() {
 
 // Serve the TRISA directory service
 func serve(c *cli.Context) (err error) {
-	var srv *rvasp.Server
-	if srv, err = rvasp.New(c.String("db")); err != nil {
+	var conf *rvasp.Settings
+	if conf, err = rvasp.Config(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	if err = srv.Serve(c.String("addr")); err != nil {
+	if name := c.String("name"); name != "" {
+		conf.Name = name
+	}
+
+	if addr := c.String("addr"); addr != "" {
+		conf.BindAddr = addr
+	}
+
+	if addr := c.String("trisa-addr"); addr != "" {
+		conf.TRISABindAddr = addr
+	}
+
+	if db := c.String("db"); db != "" {
+		conf.DatabaseDSN = db
+	}
+
+	var srv *rvasp.Server
+	if srv, err = rvasp.New(conf); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if err = srv.Serve(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	return nil

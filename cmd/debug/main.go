@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -13,11 +16,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/google/uuid"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/trisacrypto/testnet/pkg/ivms101"
+	rvasp "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
+	"github.com/trisacrypto/testnet/pkg/trisa/crypto/aesgcm"
+	"github.com/trisacrypto/testnet/pkg/trisa/crypto/rsaoeap"
+	"github.com/trisacrypto/testnet/pkg/trisa/mtls"
+	protocol "github.com/trisacrypto/testnet/pkg/trisa/protocol/v1alpha1"
 	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
+	"github.com/trisacrypto/testnet/pkg/trust"
 	"github.com/urfave/cli"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -124,6 +139,165 @@ func main() {
 					Name:   "k, key",
 					Usage:  "secret key to decrypt the cipher text",
 					EnvVar: "TRISADS_SECRET_KEY",
+				},
+			},
+		},
+		{
+			Name:     "transfer",
+			Usage:    "send a generated unary transfer request to VASP",
+			Category: "trisa",
+			Action:   transfer,
+			Before:   initClient,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "e, endpoint",
+					Usage:  "endpoint to send the transfer request to",
+					EnvVar: "TRISA_ENDPOINT",
+					Value:  "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:   "c, certs",
+					Usage:  "path to client certificates",
+					EnvVar: "RVASP_CERT_PATH",
+					Value:  "fixtures/certs/bob.gz",
+				},
+				cli.StringFlag{
+					Name:   "t, trust-chain",
+					Usage:  "path to trust chain pool",
+					EnvVar: "RVASP_TRUST_CHAIN_PATH",
+					Value:  "fixtures/certs/trisa.zip",
+				},
+				cli.StringFlag{
+					Name:   "k, pubkey",
+					Usage:  "path to public key of the beneficiary",
+					EnvVar: "BENEFICIARY_PUBKEY",
+				},
+				cli.StringFlag{
+					Name:  "d, transaction",
+					Usage: "path to JSON data to load transaction data from",
+				},
+				cli.StringFlag{
+					Name:  "i, identity",
+					Usage: "path to JSON data to load identity data from",
+				},
+			},
+		},
+		{
+			Name:     "stream",
+			Usage:    "open a transfer stream and send transfer requests to VASP",
+			Category: "trisa",
+			Action:   transferStream,
+			Before:   initClient,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "e, endpoint",
+					Usage:  "endpoint to send the transfer request to",
+					EnvVar: "TRISA_ENDPOINT",
+					Value:  "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:   "c, certs",
+					Usage:  "path to client certificates",
+					EnvVar: "RVASP_CERT_PATH",
+					Value:  "fixtures/certs/bob.gz",
+				},
+				cli.StringFlag{
+					Name:   "t, trust-chain",
+					Usage:  "path to trust chain pool",
+					EnvVar: "RVASP_TRUST_CHAIN_PATH",
+					Value:  "fixtures/certs/trisa.zip",
+				},
+			},
+		},
+		{
+			Name:     "address",
+			Usage:    "send a confirm adress request to VASP",
+			Category: "trisa",
+			Action:   confirmAddress,
+			Before:   initClient,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "e, endpoint",
+					Usage:  "endpoint to send the transfer request to",
+					EnvVar: "TRISA_ENDPOINT",
+					Value:  "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:   "c, certs",
+					Usage:  "path to client certificates",
+					EnvVar: "RVASP_CERT_PATH",
+					Value:  "fixtures/certs/bob.gz",
+				},
+				cli.StringFlag{
+					Name:   "t, trust-chain",
+					Usage:  "path to trust chain pool",
+					EnvVar: "RVASP_TRUST_CHAIN_PATH",
+					Value:  "fixtures/certs/trisa.zip",
+				},
+			},
+		},
+		{
+			Name:     "keys",
+			Usage:    "Send a key exchange request to the beneficiary VASP",
+			Category: "trisa",
+			Action:   keyExchange,
+			Before:   initClient,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "e, endpoint",
+					Usage:  "endpoint to send the transfer request to",
+					EnvVar: "TRISA_ENDPOINT",
+					Value:  "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:   "c, certs",
+					Usage:  "path to client certificates",
+					EnvVar: "RVASP_CERT_PATH",
+					Value:  "fixtures/certs/bob.gz",
+				},
+				cli.StringFlag{
+					Name:   "t, trust-chain",
+					Usage:  "path to trust chain pool",
+					EnvVar: "RVASP_TRUST_CHAIN_PATH",
+					Value:  "fixtures/certs/trisa.zip",
+				},
+				cli.StringFlag{
+					Name:  "k, key",
+					Usage: "path to signing key to send (required)",
+				},
+			},
+		},
+		{
+			Name:     "status",
+			Usage:    "send a health check request to the VASP",
+			Category: "trisa",
+			Action:   healthCheck,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "e, endpoint",
+					Usage:  "endpoint to send the transfer request to",
+					EnvVar: "TRISA_ENDPOINT",
+					Value:  "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:   "c, certs",
+					Usage:  "path to client certificates",
+					EnvVar: "RVASP_CERT_PATH",
+					Value:  "fixtures/certs/bob.gz",
+				},
+				cli.StringFlag{
+					Name:   "t, trust-chain",
+					Usage:  "path to trust chain pool",
+					EnvVar: "RVASP_TRUST_CHAIN_PATH",
+					Value:  "fixtures/certs/trisa.zip",
+				},
+				cli.UintFlag{
+					Name:  "a, attempts",
+					Usage: "set the number of previous attempts",
+				},
+				cli.DurationFlag{
+					Name:  "l, last-checked",
+					Usage: "set the last checked field as this long ago",
 				},
 			},
 		},
@@ -468,5 +642,292 @@ func validateHMAC(key, data, sig []byte) error {
 	if !bytes.Equal(sig, hmac) {
 		return errors.New("HMAC mismatch")
 	}
+	return nil
+}
+
+var (
+	client protocol.TRISANetworkClient
+)
+
+func initClient(c *cli.Context) (err error) {
+	var (
+		cc    *grpc.ClientConn
+		sz    *trust.Serializer
+		certs *trust.Provider
+		pool  trust.ProviderPool
+	)
+
+	// TODO: can we reuse the serializer for two different file types?
+	if sz, err = trust.NewSerializer(false); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if certs, err = sz.ReadFile(c.String("certs")); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if pool, err = sz.ReadPoolFile(c.String("trust-chain")); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	opts := make([]grpc.DialOption, 0, 1)
+	var opt grpc.DialOption
+	if opt, err = mtls.ClientCreds(c.String("endpoint"), certs, pool); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	opts = append(opts, opt)
+
+	if cc, err = grpc.Dial(c.String("endpoint"), opts...); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	client = protocol.NewTRISANetworkClient(cc)
+	return nil
+}
+
+type transferData struct {
+	Identity    *ivms101.IdentityPayload
+	Transaction *rvasp.Transaction
+}
+
+func transfer(c *cli.Context) (err error) {
+	var key *rsa.PublicKey
+	var data *transferData
+
+	if keyPath := c.String("pubkey"); keyPath != "" {
+		var (
+			sz  *trust.Serializer
+			p   *trust.Provider
+			crt *x509.Certificate
+			ok  bool
+		)
+		if sz, err = trust.NewSerializer(false); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		if p, err = sz.ReadFile(keyPath); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		if crt, err = p.GetLeafCertificate(); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		if key, ok = crt.PublicKey.(*rsa.PublicKey); !ok {
+			return cli.NewExitError("RSA public key required in cert", 1)
+		}
+
+	} else {
+		return cli.NewExitError("specify public key path of beneficiary", 1)
+	}
+
+	data = new(transferData)
+	if transactionPath := c.String("transaction"); transactionPath != "" {
+		var f *os.File
+		if f, err = os.Open(transactionPath); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+
+		var t rvasp.Transaction
+		if err = jsonpb.Unmarshal(f, &t); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+
+		data.Transaction = &t
+
+	} else {
+		return cli.NewExitError("specify path to json transaction data", 1)
+	}
+
+	if identityPath := c.String("identity"); identityPath != "" {
+		var f *os.File
+		if f, err = os.Open(identityPath); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+
+		var t ivms101.IdentityPayload
+		if err = jsonpb.Unmarshal(f, &t); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+
+		data.Identity = &t
+
+	} else {
+		return cli.NewExitError("specify path to json identity data", 1)
+	}
+
+	// Create the transaction data
+	payload := &protocol.Payload{}
+	if payload.Identity, err = ptypes.MarshalAny(data.Identity); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if payload.Transaction, err = ptypes.MarshalAny(data.Transaction); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	var payloadData []byte
+	if payloadData, err = proto.Marshal(payload); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	// Encrypt the transaction data
+	var cipher *aesgcm.AESGCM
+	if cipher, err = aesgcm.New(nil, nil); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	req := &protocol.SecureEnvelope{
+		Id:                  uuid.New().String(),
+		EncryptionAlgorithm: cipher.EncryptionAlgorithm(),
+		HmacAlgorithm:       cipher.SignatureAlgorithm(),
+	}
+
+	if req.Payload, err = cipher.Encrypt(payloadData); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if req.Hmac, err = cipher.Sign(req.Payload); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	// Encrypt the key and hmac secret
+	var symkey *rsaoeap.RSA
+	if symkey, err = rsaoeap.New(key, nil); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if req.EncryptionKey, err = symkey.Encrypt(cipher.EncryptionKey()); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if req.HmacSecret, err = symkey.Encrypt(cipher.HMACSecret()); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	printJSON(req)
+	var rep *protocol.SecureEnvelope
+	if rep, err = client.Transfer(ctx, req); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return printJSON(rep)
+}
+
+func transferStream(c *cli.Context) (err error) {
+	return cli.NewExitError("not implemented yet", 1)
+}
+
+func confirmAddress(c *cli.Context) (err error) {
+	return cli.NewExitError("not implemented yet", 1)
+}
+
+func keyExchange(c *cli.Context) (err error) {
+	var key *x509.Certificate
+	if keyPath := c.String("key"); keyPath != "" {
+		var (
+			sz *trust.Serializer
+			p  *trust.Provider
+		)
+
+		if sz, err = trust.NewSerializer(false); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+
+		if p, err = sz.ReadFile(keyPath); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		if key, err = p.GetLeafCertificate(); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	} else {
+		return cli.NewExitError("specify key path to load keys from", 1)
+	}
+
+	req := &protocol.SigningKey{
+		Version:            int64(key.Version),
+		Signature:          key.Signature,
+		SignatureAlgorithm: key.SignatureAlgorithm.String(),
+		PublicKeyAlgorithm: key.PublicKeyAlgorithm.String(),
+		NotBefore:          key.NotBefore.Format(time.RFC3339),
+		NotAfter:           key.NotAfter.Format(time.RFC3339),
+	}
+
+	if req.Data, err = x509.MarshalPKIXPublicKey(key.PublicKey); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var rep *protocol.SigningKey
+	if rep, err = client.KeyExchange(ctx, req); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return printJSON(rep)
+}
+
+func healthCheck(c *cli.Context) (err error) {
+	var (
+		cc     *grpc.ClientConn
+		client protocol.TRISAHealthClient
+		sz     *trust.Serializer
+		certs  *trust.Provider
+		pool   trust.ProviderPool
+	)
+
+	// TODO: can we reuse the serializer for two different file types?
+	if sz, err = trust.NewSerializer(false); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if certs, err = sz.ReadFile(c.String("certs")); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if pool, err = sz.ReadPoolFile(c.String("trust-chain")); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	opts := make([]grpc.DialOption, 0, 1)
+	var opt grpc.DialOption
+	if opt, err = mtls.ClientCreds(c.String("endpoint"), certs, pool); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	opts = append(opts, opt)
+
+	if cc, err = grpc.Dial(c.String("endpoint"), opts...); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	client = protocol.NewTRISAHealthClient(cc)
+	req := &protocol.HealthCheck{
+		Attempts: uint32(c.Uint("attempts")),
+	}
+
+	if lastCheckedAgo := c.Duration("last-checked"); lastCheckedAgo != 0 {
+		req.LastCheckedAt = time.Now().Add(-1 * lastCheckedAgo).Format(time.RFC3339)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var rep *protocol.ServiceState
+	if rep, err = client.Status(ctx, req); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return printJSON(rep)
+}
+
+// helper function to print JSON response and exit
+func printJSON(v interface{}) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	fmt.Println(string(data))
 	return nil
 }
