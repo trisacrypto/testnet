@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/trisacrypto/testnet/pkg"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
+	"github.com/trisacrypto/testnet/pkg/trisa/peers"
 	"google.golang.org/grpc"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -37,7 +38,7 @@ func New(conf *Settings) (s *Server, err error) {
 	// Set the global level
 	zerolog.SetGlobalLevel(zerolog.Level(conf.LogLevel))
 
-	s = &Server{conf: conf, peers: make(map[string]*Peer), echan: make(chan error, 1)}
+	s = &Server{conf: conf, peers: peers.New(), echan: make(chan error, 1)}
 	if s.db, err = gorm.Open(sqlite.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ type Server struct {
 	vasp  VASP
 	trisa *TRISA
 	echan chan error
-	peers map[string]*Peer
+	peers peers.Peers
 }
 
 // Serve GRPC requests on the specified address.

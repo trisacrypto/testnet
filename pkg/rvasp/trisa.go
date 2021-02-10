@@ -18,6 +18,7 @@ import (
 	"github.com/trisacrypto/testnet/pkg/trisa/crypto/aesgcm"
 	"github.com/trisacrypto/testnet/pkg/trisa/crypto/rsaoeap"
 	"github.com/trisacrypto/testnet/pkg/trisa/mtls"
+	"github.com/trisacrypto/testnet/pkg/trisa/peers"
 	protocol "github.com/trisacrypto/testnet/pkg/trisa/protocol/v1alpha1"
 	"github.com/trisacrypto/testnet/pkg/trust"
 	"google.golang.org/grpc"
@@ -118,8 +119,8 @@ func (s *TRISA) Shutdown() (err error) {
 // Transfer enables a quick one-off transaction between peers.
 func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out *protocol.SecureEnvelope, err error) {
 	// Get the peer from the context
-	var peer *Peer
-	if peer, err = s.parent.peerFromContext(ctx); err != nil {
+	var peer *peers.Peer
+	if peer, err = s.parent.peers.FromContext(ctx); err != nil {
 		log.Error().Err(err).Msg("could not verify peer from context")
 		return nil, &protocol.Error{
 			Code:    protocol.Unverified,
@@ -381,8 +382,8 @@ func (s *TRISA) ConfirmAddress(ctx context.Context, in *protocol.Address) (out *
 
 // KeyExchange facilitates signing key exchange between VASPs.
 func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *protocol.SigningKey, err error) {
-	var peer *Peer
-	if peer, err = s.parent.peerFromContext(ctx); err != nil {
+	var peer *peers.Peer
+	if peer, err = s.parent.peers.FromContext(ctx); err != nil {
 		log.Error().Err(err).Msg("could not verify peer from context")
 		return nil, &protocol.Error{
 			Code:    protocol.Unverified,

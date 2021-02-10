@@ -1,4 +1,4 @@
-package rvasp
+package peers
 
 import (
 	"context"
@@ -11,10 +11,11 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
+// Peers maps the common name from the mTLS certificate to a Peer structure.
+type Peers map[string]*Peer
+
 // Peer contains cached information about connections to other members of the TRISA
 // network and facilitates directory service lookups and information exchanges.
-//
-// TODO: move the Peer to the TRISA library
 type Peer struct {
 	ID                  string
 	RegisteredDirectory string
@@ -25,7 +26,15 @@ type Peer struct {
 	stream              protocol.TRISANetwork_TransferStreamClient
 }
 
-func (s *Server) peerFromContext(ctx context.Context) (_ *Peer, err error) {
+// New creates a new peers cache to look up peers from context.
+func New() Peers {
+	return make(Peers)
+}
+
+// FromContext looks up the TLSInfo from the incoming gRPC connection to get the common
+// name of the Peer from the certificate. If the Peer is already in the cache, it
+// returns the peer information, otherwise it creates and caches the Peer info.
+func (p Peers) FromContext(ctx context.Context) (_ *Peer, err error) {
 	var (
 		ok         bool
 		gp         *peer.Peer
@@ -51,12 +60,12 @@ func (s *Server) peerFromContext(ctx context.Context) (_ *Peer, err error) {
 	}
 
 	// Check if peer is already cached in memory. If not, add the new peer.
-	if _, ok = s.peers[commonName]; !ok {
-		s.peers[commonName] = &Peer{
+	if _, ok = p[commonName]; !ok {
+		p[commonName] = &Peer{
 			CommonName: commonName,
 		}
 
 		// TODO: Do a directory service lookup for the ID and registered ID.
 	}
-	return s.peers[commonName], nil
+	return p[commonName], nil
 }
