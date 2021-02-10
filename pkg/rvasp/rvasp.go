@@ -290,6 +290,23 @@ func (s *Server) simulateTRISA(stream pb.TRISADemo_LiveUpdatesServer, req *pb.Co
 	// Get the transfer from the original command, will panic if nil
 	transfer := req.GetTransfer()
 
+	// Handle Demo UI errors before the account lookup
+	if transfer.OriginatingVasp != s.vasp.Name {
+		rep := &pb.Message{
+			Type:      pb.RPC_TRANSFER,
+			Id:        req.Id,
+			Timestamp: time.Now().Format(time.RFC3339),
+			Category:  pb.MessageCategory_ERROR,
+			Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
+				Error: pb.Errorf(pb.ErrWrongVASP, "message sent to the wrong originator VASP"),
+			}},
+		}
+		if err = stream.Send(rep); err != nil {
+			return fmt.Errorf("could not send transfer reply to %q: %s", client, err)
+		}
+		return nil
+	}
+
 	// Lookup the account associated with the transfer originator
 	var account Account
 	if err = LookupAccount(s.db, transfer.Account).First(&account).Error; err != nil {
@@ -336,6 +353,25 @@ func (s *Server) simulateTRISA(stream pb.TRISADemo_LiveUpdatesServer, req *pb.Co
 		}
 		return fmt.Errorf("could not fetch beneficiary wallet: %s", err)
 	}
+
+	if transfer.CheckBeneficiary {
+		if transfer.Beneficiary != beneficiary.Provider.Name {
+			rep := &pb.Message{
+				Type:      pb.RPC_TRANSFER,
+				Id:        req.Id,
+				Timestamp: time.Now().Format(time.RFC3339),
+				Category:  pb.MessageCategory_ERROR,
+				Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
+					Error: pb.Errorf(pb.ErrWrongVASP, "beneficiary wallet does not match beneficiary vasp"),
+				}},
+			}
+			if err = stream.Send(rep); err != nil {
+				return fmt.Errorf("could not send transfer reply to %q: %s", client, err)
+			}
+			return nil
+		}
+	}
+
 	if err = updater.send(fmt.Sprintf("wallet %s (%s) provided by %s", beneficiary.Address, beneficiary.Email, beneficiary.Provider.Name), pb.MessageCategory_BLOCKCHAIN); err != nil {
 		return err
 	}

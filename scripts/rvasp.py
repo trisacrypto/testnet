@@ -12,6 +12,7 @@ from datetime import datetime
 
 VASPS = {
     "bob": {
+        "common_name": "api.bob.vaspbot.net",
         "legal_person": {
             "name": {
                 "name_identifiers": [{
@@ -43,6 +44,7 @@ VASPS = {
         }
     },
     "alice": {
+        "common_name": "api.alice.vaspbot.net",
         "legal_person": {
             "name": {
                 "name_identifiers": [{
@@ -78,6 +80,7 @@ VASPS = {
         }
     },
     "evil": {
+        "common_name": "api.evil.vaspbot.net",
         "legal_person": {
             "name": {
                 "name_identifiers": [{
@@ -460,19 +463,20 @@ def clean(conn):
 
 def create_vasps(conn, vasp):
     params = []
-    sql = "INSERT INTO vasps (id, name, is_local, ivms101, created_at, updated_at) VALUES (?,?,?,?,?,?)"
+    sql = "INSERT INTO vasps (id, name, legal_name, is_local, ivms101, created_at, updated_at) VALUES (?,?,?,?,?,?,?)"
     cur = conn.cursor()
 
     for i, (name, record) in enumerate(VASPS.items()):
         # TODO: look up VASP ID in Directory Service
         ts = datetime.now()
         is_local = name == vasp
-        name = record["legal_person"]["name"]["name_identifiers"][0]["legal_person_name"]
+        legal_name = record["legal_person"]["name"]["name_identifiers"][0]["legal_person_name"]
+        common_name = record["common_name"]
 
         # Only store IVMS data if this is the local VASP
         # (so that VASPs have to look each other up in the directory service)
         record = json.dumps(record) if is_local else None
-        params.append([i+1, name, is_local, record, ts, ts])
+        params.append([i+1, common_name, legal_name, is_local, record, ts, ts])
 
     cur.executemany(sql, params)
 
