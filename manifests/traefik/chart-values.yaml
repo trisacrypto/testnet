@@ -11,6 +11,9 @@ deployment:
   podAnnotations:
     prometheus.io/port: '8082'
     prometheus.io/scrape: 'true'
+entryPoints:
+  trisa:
+    address: ":4435"
 ports:
   web:
     redirectTo: websecure

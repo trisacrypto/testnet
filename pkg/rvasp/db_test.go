@@ -81,10 +81,10 @@ func TestMigrateDB(t *testing.T) {
 	require.Equal(t, int64(3), count)
 
 	db.Table("transactions").Count(&count)
-	require.Equal(t, int64(1), count)
+	require.Equal(t, int64(0), count)
 
 	db.Table("identities").Count(&count)
-	require.Equal(t, int64(2), count)
+	require.Equal(t, int64(0), count)
 }
 
 func TestAccountHelpers(t *testing.T) {

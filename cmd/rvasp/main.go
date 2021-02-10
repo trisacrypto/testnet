@@ -59,8 +59,8 @@ func main() {
 				cli.StringFlag{
 					Name:   "d, db",
 					Usage:  "the dsn to the sqlite3 database to connect to",
-					Value:  "fixtures/rvasp/rvasp.db",
-					EnvVar: "DATABASE_URL",
+					Value:  "rvasp.db",
+					EnvVar: "RVASP_DATABASE",
 				},
 			},
 		},

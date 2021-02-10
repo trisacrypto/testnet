@@ -16,9 +16,9 @@ RUN apt-get install -y wget gnupg
 RUN apt-get install -y python3
 
 COPY --from=builder /srv/build/rvasp /bin/
-COPY --from=builder /srv/build/fixtures/initdb.py /bin/
+COPY --from=builder /srv/build/scripts/rvasp.py /bin/
 
 RUN mkdir /data
-ENV DATABASE_URL=/data/rvasp.db
+ENV RVASP_DATABASE=/data/rvasp.db
 
 ENTRYPOINT [ "/bin/rvasp", "serve" ]
