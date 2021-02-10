@@ -16,16 +16,20 @@ func TestRSA(t *testing.T) {
 
 	plaintext := []byte("for your eyes only -- classified")
 
+	// Cipher only takes RSA keys
+	_, err = rsaoeap.New("foo")
+	require.Error(t, err)
+
 	// Encrypt using a new cipher with just the public key
 	var cipher crypto.Cipher
-	cipher, err = rsaoeap.New(&priv.PublicKey, nil)
+	cipher, err = rsaoeap.New(&priv.PublicKey)
 
 	ciphertext, err := cipher.Encrypt(plaintext)
 	require.NoError(t, err)
 
 	// Decrypt using a new cipher with both public and private key
 	var decoder crypto.Cipher
-	decoder, err = rsaoeap.New(&priv.PublicKey, priv)
+	decoder, err = rsaoeap.New(priv)
 	require.NoError(t, err)
 
 	decoded, err := decoder.Decrypt(ciphertext)

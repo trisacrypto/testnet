@@ -9,14 +9,12 @@ import (
 	"net"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 	"github.com/trisacrypto/testnet/pkg/ivms101"
 	api "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
-	"github.com/trisacrypto/testnet/pkg/trisa/crypto/aesgcm"
-	"github.com/trisacrypto/testnet/pkg/trisa/crypto/rsaoeap"
+	"github.com/trisacrypto/testnet/pkg/trisa/handler"
 	"github.com/trisacrypto/testnet/pkg/trisa/mtls"
 	"github.com/trisacrypto/testnet/pkg/trisa/peers"
 	protocol "github.com/trisacrypto/testnet/pkg/trisa/protocol/v1alpha1"
@@ -149,55 +147,13 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 	}
 
 	// Decrypt the encryption key and HMAC secret with private signing keys (asymmetric phase)
-	var cipher *rsaoeap.RSA
-	if cipher, err = rsaoeap.New(&s.sign.PublicKey, s.sign); err != nil {
-		log.Error().Err(err).Msg("could not create RSA cipher for asymmetric decryption")
-		return nil, protocol.Errorf(protocol.InternalError, "unable to decrypt keys")
+	var envelope *handler.Envelope
+	if envelope, err = handler.Open(in, s.sign); err != nil {
+		log.Error().Err(err).Msg("could not open secure envelope")
+		return nil, err
 	}
 
-	var encryptionKey, hmacSecret []byte
-	if encryptionKey, err = cipher.Decrypt(in.EncryptionKey); err != nil {
-		log.Error().Err(err).Msg("could not decrypt encryption key")
-		return nil, &protocol.Error{
-			Code:    protocol.InvalidKey,
-			Message: "encryption key signed incorrectly",
-			Retry:   true,
-		}
-	}
-	if hmacSecret, err = cipher.Decrypt(in.HmacSecret); err != nil {
-		log.Error().Err(err).Msg("could not decrypt hmac secret")
-		return nil, &protocol.Error{
-			Code:    protocol.InvalidKey,
-			Message: "hmac secret signed incorrectly",
-			Retry:   true,
-		}
-	}
-
-	// Decrypt the message and verify its signature (symmetric phase)
-	var payloadData []byte
-	var payloadCipher *aesgcm.AESGCM
-	if payloadCipher, err = aesgcm.New(encryptionKey, hmacSecret); err != nil {
-		log.Error().Err(err).Msg("could not create AES-GCM cipher for symmetric decryption")
-		return nil, protocol.Errorf(protocol.InternalError, "unable to decrypt payload")
-	}
-
-	if err = payloadCipher.Verify(in.Payload, in.Hmac); err != nil {
-		log.Error().Err(err).Msg("could not verify hmac signature")
-		return nil, protocol.Errorf(protocol.InvalidSignature, "could not verify HMAC signature")
-	}
-
-	if payloadData, err = payloadCipher.Decrypt(in.Payload); err != nil {
-		log.Error().Err(err).Msg("could not decrypt payload")
-		return nil, protocol.Errorf(protocol.InvalidKey, "could not decrypt payload with key")
-	}
-
-	// Parse the payload into rVASP-appropriate data
-	payload := &protocol.Payload{}
-	if err = proto.Unmarshal(payloadData, payload); err != nil {
-		log.Error().Err(err).Msg("could not unmarshal payload")
-		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal payload")
-	}
-
+	payload := envelope.Payload
 	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
 		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
 		return nil, protocol.Errorf(protocol.UnparseableIdentity, "rVASP requires ivms101.IdentityPayload payload identity type")
@@ -322,41 +278,10 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
-	if payloadData, err = proto.Marshal(payload); err != nil {
-		log.Error().Err(err).Msg("could not dump payload data")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
-
-	out = &protocol.SecureEnvelope{
-		Id:                  in.Id,
-		EncryptionAlgorithm: payloadCipher.EncryptionAlgorithm(),
-		HmacAlgorithm:       payloadCipher.SignatureAlgorithm(),
-	}
-
-	if out.Payload, err = payloadCipher.Encrypt(payloadData); err != nil {
-		log.Error().Err(err).Msg("could not encrypt payload data")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
-
-	if out.Hmac, err = payloadCipher.Sign(out.Payload); err != nil {
-		log.Error().Err(err).Msg("could not sign payload data")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
-
-	// Encrypt secret with public key of the originator
-	if cipher, err = rsaoeap.New(peer.SigningKey, nil); err != nil {
-		log.Error().Err(err).Msg("could not create RSA cipher")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
-
-	if out.EncryptionKey, err = cipher.Encrypt(payloadCipher.EncryptionKey()); err != nil {
-		log.Error().Err(err).Msg("could not encrypt symmetric key")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
-
-	if out.HmacSecret, err = cipher.Encrypt(payloadCipher.HMACSecret()); err != nil {
-		log.Error().Err(err).Msg("could not encrypt hmac secret")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	envelope.Payload = payload
+	if out, err = envelope.Seal(peer.SigningKey); err != nil {
+		log.Error().Err(err).Msg("could not seal envelope to send to originator")
+		return nil, err
 	}
 
 	return out, nil
