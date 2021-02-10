@@ -31,23 +31,21 @@ message Error {
 // Identity maps a wallet address, email, and VASP provider and is used to store
 // originator and beneficiary data as well as the KYC information that is collected
 // during the TRISA protocol exchange in JSON format.
-message Identity {
+message Account {
     string wallet_address = 1;
     string email = 2;
-    string ivms101 = 3;
-    string provider = 4;
+    string provider = 3;
 }
 
-// Describes a simple transaction between an originator and beneficiary and includes
-// identity information that was exchanged during the TRISA protocol.
+// Describes a simple transaction between an originator and beneficiary.
+// TODO: this is a TRISA-specific message, move to TRISA protocol buffers?
 message Transaction {
-    string account = 1;         // email address of the account the transaction is associated with
-    Identity originator = 2;    // IVMS101 identity and wallet of originator and IVMS101 data for provider
-    Identity beneficiary = 3;   // IVMS101 identity and wallet of beneficiary and IVMS101 data for provider
-    float amount = 4;           // amount of the transaction
-    bool debit = 5;             // if true the amount was debited from account, otherwise it was credited
-    bool completed = 6;         // if the transaction has been completed or is still pending
-    string timestamp = 7;       // timestamp of completion on the account provider side
+    Account originator = 1;     // Source described by wallet address or email of originator
+    Account beneficiary = 2;    // Target described by wallet address or email of beneficiary
+    float amount = 3;           // amount of the transaction
+    string timestamp = 4;       // timestamp of completion on the account provider side
+    string envelope = 5;        // envelope ID from TRISA (not included between TRISA peers)
+    string identity = 6;        // identity payload from TRISA (not included between TRISA peers)
 }
 
 // Initiates a transfer from the specified account to the specified wallet address or
