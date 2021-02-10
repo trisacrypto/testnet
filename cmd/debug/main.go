@@ -26,7 +26,7 @@ import (
 	"github.com/trisacrypto/testnet/pkg/ivms101"
 	rvasp "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/testnet/pkg/trisa/crypto/aesgcm"
-	"github.com/trisacrypto/testnet/pkg/trisa/crypto/rsaoeap"
+	"github.com/trisacrypto/testnet/pkg/trisa/handler"
 	"github.com/trisacrypto/testnet/pkg/trisa/mtls"
 	protocol "github.com/trisacrypto/testnet/pkg/trisa/protocol/v1alpha1"
 	pb "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
@@ -763,42 +763,13 @@ func transfer(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	var payloadData []byte
-	if payloadData, err = proto.Marshal(payload); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
 	// Encrypt the transaction data
 	var cipher *aesgcm.AESGCM
 	if cipher, err = aesgcm.New(nil, nil); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-
-	req := &protocol.SecureEnvelope{
-		Id:                  uuid.New().String(),
-		EncryptionAlgorithm: cipher.EncryptionAlgorithm(),
-		HmacAlgorithm:       cipher.SignatureAlgorithm(),
-	}
-
-	if req.Payload, err = cipher.Encrypt(payloadData); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	if req.Hmac, err = cipher.Sign(req.Payload); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	// Encrypt the key and hmac secret
-	var symkey *rsaoeap.RSA
-	if symkey, err = rsaoeap.New(key, nil); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	if req.EncryptionKey, err = symkey.Encrypt(cipher.EncryptionKey()); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	if req.HmacSecret, err = symkey.Encrypt(cipher.HMACSecret()); err != nil {
+	var req *protocol.SecureEnvelope
+	if req, err = handler.Seal(uuid.New().String(), payload, cipher, key); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -811,7 +782,14 @@ func transfer(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	return printJSON(rep)
+	printJSON(rep)
+
+	// TODO: load private key of originator and print response
+	var env *handler.Envelope
+	if env, err = handler.Open(rep, nil); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return printJSON(env)
 }
 
 func transferStream(c *cli.Context) (err error) {

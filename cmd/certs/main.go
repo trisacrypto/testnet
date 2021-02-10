@@ -80,7 +80,7 @@ func main() {
 			Name:     "issue",
 			Usage:    "issue certs signed by the local CA certificates",
 			Category: "CA",
-			Action:   initCA,
+			Action:   issue,
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "c, ca",
@@ -101,7 +101,7 @@ func main() {
 					Usage: "common name for the certificate",
 				},
 				cli.StringFlag{
-					Name:  "o, organization",
+					Name:  "O, organization",
 					Usage: "name of organization to issue certificates for",
 				},
 				cli.StringFlag{
@@ -201,7 +201,7 @@ func initCA(c *cli.Context) (err error) {
 	path := c.String("ca")
 
 	if !force {
-		if _, err = os.Stat(path); err != nil {
+		if _, err = os.Stat(path); err == nil {
 			return cli.NewExitError("certificate file already exists", 1)
 		}
 	}
@@ -369,5 +369,5 @@ func issue(c *cli.Context) (err error) {
 	if err = sz.WriteFile(provider, outpath); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	return cli.NewExitError("not implemented yet", 1)
+	return nil
 }

@@ -24,6 +24,24 @@ build:
     context: .
     docker:
       dockerfile: containers/demo/npm/Dockerfile
+  - image: trisa/rvasp
+    context: .
+    docker:
+      dockerfile: containers/rvasp/Dockerfile
+  - image: trisa/rvasp-alice
+    context: .
+    requires:
+    - image: trisa/rvasp
+      alias: BASE
+    docker:
+      dockerfile: containers/rvasp/alice/Dockerfile
+  - image: trisa/rvasp-bob
+    context: .
+    requires:
+    - image: trisa/rvasp
+      alias: BASE
+    docker:
+      dockerfile: containers/rvasp/bob/Dockerfile
   local:
     push: true
     useDockerCLI: true

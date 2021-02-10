@@ -1,9 +1,12 @@
 package rvasp
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/testnet/pkg/ivms101"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -66,9 +69,12 @@ func (Account) TableName() string {
 	return "accounts"
 }
 
-// Transaction holds exchange information to send money from one account to another.
+// Transaction holds exchange information to send money from one account to another. It
+// also contains the decrypted identity payload that was sent as part of the TRISA
+// protocol and the envelope ID that uniquely identifies the message chain.
 type Transaction struct {
 	gorm.Model
+	Envelope      string          `gorm:"not null"`
 	AccountID     uint            `gorm:"not null"`
 	Account       Account         `gorm:"foreignKey:AccountID"`
 	OriginatorID  uint            `gorm:"column:originator_id;not null"`
@@ -79,6 +85,7 @@ type Transaction struct {
 	Debit         bool            `gorm:"not null"`
 	Completed     bool            `gorm:"not null;default:false"`
 	Timestamp     time.Time       `gorm:"not null"`
+	Identity      string          `gorm:"not null"`
 }
 
 // TableName explicitly defines the name of the table for the model
@@ -86,19 +93,16 @@ func (Transaction) TableName() string {
 	return "transactions"
 }
 
-// Identity holds IVMS 101 data for an originator or a beneficiary that was sent as
+// Identity holds raw data for an originator or a beneficiary that was sent as
 // part of the transaction process. This should not be stored in the wallet since the
 // wallet is a representation of the local VASPs knowledge about customers and bercause
 // the identity information could change between transactions. This intermediate table
 // is designed to more closely mimic data storage as part of a blockchain transaction.
-// The hash is used to assist with deduplicating identities
 type Identity struct {
 	gorm.Model
 	WalletAddress string `gorm:"not null;column:wallet_address"`
-	Wallet        Wallet `gorm:"foreignKey:WalletAddress;references:Address"`
-	IVMS101       string `gorm:"column:ivms101;not null"`
+	Email         string `gorm:"uniqueIndex"`
 	Provider      string `gorm:"not null"`
-	Hash          string `gorm:"not null"`
 }
 
 // TableName explicitly defines the name of the table for the model
@@ -139,6 +143,32 @@ func (a Account) Transactions(db *gorm.DB) (records []Transaction, err error) {
 func (t Transaction) AmountFloat() float32 {
 	bal, _ := t.Amount.Truncate(2).Float64()
 	return float32(bal)
+}
+
+// LoadIdentity returns the ivms101.Person for the VASP.
+func (v VASP) LoadIdentity() (person *ivms101.Person, err error) {
+	if v.IVMS101 == "" {
+		return nil, fmt.Errorf("vasp record %d does not have IVMS101 data", v.ID)
+	}
+
+	person = new(ivms101.Person)
+	if err = jsonpb.UnmarshalString(v.IVMS101, person); err != nil {
+		return nil, fmt.Errorf("could not unmarhsal identity: %s", err)
+	}
+	return person, nil
+}
+
+// LoadIdentity returns the ivms101.Person for the Account.
+func (a Account) LoadIdentity() (person *ivms101.Person, err error) {
+	if a.IVMS101 == "" {
+		return nil, fmt.Errorf("account record %d does not have IVMS101 data", a.ID)
+	}
+
+	person = new(ivms101.Person)
+	if err = jsonpb.UnmarshalString(a.IVMS101, person); err != nil {
+		return nil, fmt.Errorf("could not unmarhsal identity: %s", err)
+	}
+	return person, nil
 }
 
 // LookupAccount by email address or wallet address.

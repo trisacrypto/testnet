@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha512"
 	"errors"
+	"fmt"
 )
 
 // RSA implements the crypto.Cipher interface using RSA public/private key algorithm
@@ -16,12 +17,19 @@ type RSA struct {
 	priv *rsa.PrivateKey
 }
 
-// New creates an RSA Crypto handler with the specified key pair.
-func New(pub *rsa.PublicKey, priv *rsa.PrivateKey) (_ *RSA, err error) {
-	if pub == nil {
-		return nil, errors.New("a public key is required for RSA operations")
+// New creates an RSA Crypto handler with the specified key pair. If the cipher is only
+// being used for encryption, simply pass the public key: New(pub *rsa.PublicKey); If
+// the cipher is being used for decryption, then pass the private key:
+// New(key *rsa.PrivateKey).
+func New(key interface{}) (_ *RSA, err error) {
+	switch t := key.(type) {
+	case *rsa.PublicKey:
+		return &RSA{pub: t, priv: nil}, nil
+	case *rsa.PrivateKey:
+		return &RSA{pub: &t.PublicKey, priv: t}, nil
+	default:
+		return nil, fmt.Errorf("could not create RSA cipher from %T", t)
 	}
-	return &RSA{pub: pub, priv: priv}, nil
 }
 
 // Encrypt the message using the public key.

@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/trisacrypto/testnet/pkg"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
+	"github.com/trisacrypto/testnet/pkg/trisa/peers"
 	"google.golang.org/grpc"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -37,7 +38,7 @@ func New(conf *Settings) (s *Server, err error) {
 	// Set the global level
 	zerolog.SetGlobalLevel(zerolog.Level(conf.LogLevel))
 
-	s = &Server{conf: conf, peers: make(map[string]*Peer), echan: make(chan error, 1)}
+	s = &Server{conf: conf, peers: peers.New(), echan: make(chan error, 1)}
 	if s.db, err = gorm.Open(sqlite.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ type Server struct {
 	vasp  VASP
 	trisa *TRISA
 	echan chan error
-	peers map[string]*Peer
+	peers peers.Peers
 }
 
 // Serve GRPC requests on the specified address.
@@ -175,23 +176,20 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 		rep.Transactions = make([]*pb.Transaction, 0, len(transactions))
 		for _, transaction := range transactions {
 			rep.Transactions = append(rep.Transactions, &pb.Transaction{
-				Account: transaction.Account.Email,
-				Originator: &pb.Identity{
+				Originator: &pb.Account{
 					WalletAddress: transaction.Originator.WalletAddress,
-					Email:         transaction.Originator.Wallet.Email,
-					Ivms101:       transaction.Originator.IVMS101,
+					Email:         transaction.Originator.Email,
 					Provider:      transaction.Originator.Provider,
 				},
-				Beneficiary: &pb.Identity{
+				Beneficiary: &pb.Account{
 					WalletAddress: transaction.Beneficiary.WalletAddress,
-					Email:         transaction.Beneficiary.Wallet.Email,
-					Ivms101:       transaction.Beneficiary.IVMS101,
+					Email:         transaction.Beneficiary.Email,
 					Provider:      transaction.Beneficiary.Provider,
 				},
 				Amount:    transaction.AmountFloat(),
-				Debit:     transaction.Debit,
-				Completed: transaction.Completed,
 				Timestamp: transaction.Timestamp.Format(time.RFC3339),
+				Envelope:  transaction.Envelope,
+				Identity:  transaction.Identity,
 			})
 		}
 	}
@@ -378,22 +376,17 @@ func (s *Server) simulateTRISA(stream pb.TRISADemo_LiveUpdatesServer, req *pb.Co
 		Category:  pb.MessageCategory_LEDGER,
 		Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
 			Transaction: &pb.Transaction{
-				Account: account.Email,
-				Originator: &pb.Identity{
+				Originator: &pb.Account{
 					WalletAddress: account.WalletAddress,
 					Email:         account.Email,
-					Ivms101:       account.IVMS101,
 					Provider:      s.vasp.IVMS101,
 				},
-				Beneficiary: &pb.Identity{
+				Beneficiary: &pb.Account{
 					WalletAddress: beneficiary.Address,
 					Email:         beneficiary.Email,
-					Ivms101:       "[simulated]",
 					Provider:      "[simulated]",
 				},
 				Amount:    transfer.Amount,
-				Debit:     true,
-				Completed: true,
 				Timestamp: time.Now().Format(time.RFC3339),
 			},
 		}},

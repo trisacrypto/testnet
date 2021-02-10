@@ -9,14 +9,19 @@ import (
 	"net"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/rs/zerolog/log"
-	"github.com/trisacrypto/testnet/pkg/trisa/crypto/aesgcm"
-	"github.com/trisacrypto/testnet/pkg/trisa/crypto/rsaoeap"
+	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/testnet/pkg/ivms101"
+	api "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
+	"github.com/trisacrypto/testnet/pkg/trisa/handler"
 	"github.com/trisacrypto/testnet/pkg/trisa/mtls"
+	"github.com/trisacrypto/testnet/pkg/trisa/peers"
 	protocol "github.com/trisacrypto/testnet/pkg/trisa/protocol/v1alpha1"
 	"github.com/trisacrypto/testnet/pkg/trust"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
+	"gorm.io/gorm"
 )
 
 // TRISA implements the GRPC TRISANetwork and TRISAHealth services.
@@ -111,8 +116,9 @@ func (s *TRISA) Shutdown() (err error) {
 
 // Transfer enables a quick one-off transaction between peers.
 func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out *protocol.SecureEnvelope, err error) {
-	var peer *Peer
-	if peer, err = s.parent.peerFromContext(ctx); err != nil {
+	// Get the peer from the context
+	var peer *peers.Peer
+	if peer, err = s.parent.peers.FromContext(ctx); err != nil {
 		log.Error().Err(err).Msg("could not verify peer from context")
 		return nil, &protocol.Error{
 			Code:    protocol.Unverified,
@@ -120,75 +126,6 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 		}
 	}
 	log.Info().Str("peer", peer.CommonName).Msg("unary transfer request received")
-
-	// Check the algorithms to make sure they're supported
-	if in.EncryptionAlgorithm != "AES256-GCM" || in.HmacAlgorithm != "HMAC-SHA256" {
-		log.Warn().
-			Str("encryption", in.EncryptionAlgorithm).
-			Str("hmac", in.HmacAlgorithm).
-			Msg("unsupported cryptographic algorithms")
-		return nil, protocol.Errorf(protocol.UnhandledAlgorithm, "server only supports AES256-GCM and HMAC-SHA256")
-	}
-
-	// Decrypt the encryption key and HMAC secret with private signing keys
-	var cipher *rsaoeap.RSA
-	if cipher, err = rsaoeap.New(&s.sign.PublicKey, s.sign); err != nil {
-		log.Error().Err(err).Msg("could not create RSA cipher for asymmetric decryption")
-		return nil, protocol.Errorf(protocol.InternalError, "unable to decrypt keys")
-	}
-
-	var encryptionKey, hmacSecret []byte
-	if encryptionKey, err = cipher.Decrypt(in.EncryptionKey); err != nil {
-		log.Error().Err(err).Msg("could not decrypt encryption key")
-		return nil, &protocol.Error{
-			Code:    protocol.InvalidKey,
-			Message: "encryption key signed incorrectly",
-			Retry:   true,
-		}
-	}
-	if hmacSecret, err = cipher.Decrypt(in.HmacSecret); err != nil {
-		log.Error().Err(err).Msg("could not decrypt hmac secret")
-		return nil, &protocol.Error{
-			Code:    protocol.InvalidKey,
-			Message: "hmac secret signed incorrectly",
-			Retry:   true,
-		}
-	}
-
-	// Decrypt the message and verify its signature
-	var payloadData []byte
-	var payloadCipher *aesgcm.AESGCM
-	if payloadCipher, err = aesgcm.New(encryptionKey, hmacSecret); err != nil {
-		log.Error().Err(err).Msg("could not create AES-GCM cipher for symmetric decryption")
-		return nil, protocol.Errorf(protocol.InternalError, "unable to decrypt payload")
-	}
-
-	if err = payloadCipher.Verify(in.Payload, in.Hmac); err != nil {
-		log.Error().Err(err).Msg("could not verify hmac signature")
-		return nil, protocol.Errorf(protocol.InvalidSignature, "could not verify HMAC signature")
-	}
-
-	if payloadData, err = payloadCipher.Decrypt(in.Payload); err != nil {
-		log.Error().Err(err).Msg("could not decrypt payload")
-		return nil, protocol.Errorf(protocol.InvalidKey, "could not decrypt payload with key")
-	}
-
-	// Parse the payload into rVASP-appropriate data
-	payload := &protocol.Payload{}
-	if err = proto.Unmarshal(payloadData, payload); err != nil {
-		log.Error().Err(err).Msg("could not unmarshal payload")
-		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal payload")
-	}
-
-	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
-		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
-		return nil, protocol.Errorf(protocol.UnparseableIdentity, "rVASP requires ivms101.IdentityPayload payload identity type")
-	}
-
-	if payload.Transaction.TypeUrl != "type.googleapis.com/rvasp.v1.Transaction" {
-		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
-		return nil, protocol.Errorf(protocol.UnparseableTransaction, "rVASP requires rvasp.v1.Transaction payload transaction type")
-	}
 
 	// Check signing key is available to send an encrypted response
 	if peer.SigningKey == nil {
@@ -200,11 +137,154 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 		}
 	}
 
-	return nil, &protocol.Error{
-		Code:    protocol.Unimplemented,
-		Message: "rVASP has not implemented transfers yet",
-		Retry:   false,
+	// Check the algorithms to make sure they're supported
+	if in.EncryptionAlgorithm != "AES256-GCM" || in.HmacAlgorithm != "HMAC-SHA256" {
+		log.Warn().
+			Str("encryption", in.EncryptionAlgorithm).
+			Str("hmac", in.HmacAlgorithm).
+			Msg("unsupported cryptographic algorithms")
+		return nil, protocol.Errorf(protocol.UnhandledAlgorithm, "server only supports AES256-GCM and HMAC-SHA256")
 	}
+
+	// Decrypt the encryption key and HMAC secret with private signing keys (asymmetric phase)
+	var envelope *handler.Envelope
+	if envelope, err = handler.Open(in, s.sign); err != nil {
+		log.Error().Err(err).Msg("could not open secure envelope")
+		return nil, err
+	}
+
+	payload := envelope.Payload
+	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
+		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
+		return nil, protocol.Errorf(protocol.UnparseableIdentity, "rVASP requires ivms101.IdentityPayload payload identity type")
+	}
+
+	if payload.Transaction.TypeUrl != "type.googleapis.com/rvasp.v1.Transaction" {
+		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
+		return nil, protocol.Errorf(protocol.UnparseableTransaction, "rVASP requires rvasp.v1.Transaction payload transaction type")
+	}
+
+	identity := &ivms101.IdentityPayload{}
+	transaction := &api.Transaction{}
+	if err = ptypes.UnmarshalAny(payload.Identity, identity); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal identity")
+		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal identity")
+	}
+	if err = ptypes.UnmarshalAny(payload.Transaction, transaction); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal transaction")
+		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal transaction")
+	}
+
+	// Lookup the beneficiary in the local VASP database.
+	var accountAddress string
+	if transaction.Beneficiary.WalletAddress != "" {
+		accountAddress = transaction.Beneficiary.WalletAddress
+	} else if transaction.Beneficiary.Email != "" {
+		accountAddress = transaction.Beneficiary.Email
+	} else {
+		log.Warn().Msg("no beneficiary information supplied")
+		return nil, protocol.Errorf(protocol.MissingFields, "beneficiary wallet address or email required in transaction")
+	}
+
+	var account Account
+	if err = LookupAccount(s.parent.db, accountAddress).First(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Warn().Str("account", accountAddress).Msg("unknown beneficiary")
+			return nil, protocol.Errorf(protocol.UnkownBeneficiary, "could not find beneficiary %q", accountAddress)
+		}
+		log.Error().Err(err).Msg("could not lookup beneficiary account")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// Save the pending transaction on the account
+	// TODO: remove pending transactions
+	account.Pending++
+	if err = s.parent.db.Save(&account).Error; err != nil {
+		log.Error().Err(err).Msg("could not save beneficiary account")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// Update the identity with the beneficiary information.
+	identity.BeneficiaryVasp = &ivms101.BeneficiaryVasp{}
+	if identity.BeneficiaryVasp.BeneficiaryVasp, err = s.parent.vasp.LoadIdentity(); err != nil {
+		log.Error().Err(err).Msg("could not load beneficiary vasp")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	identity.Beneficiary = &ivms101.Beneficiary{
+		BeneficiaryPersons: make([]*ivms101.Person, 0, 1),
+		AccountNumbers:     []string{account.WalletAddress},
+	}
+
+	var beneficiary *ivms101.Person
+	if beneficiary, err = account.LoadIdentity(); err != nil {
+		log.Error().Err(err).Msg("could not load beneficiary")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+	identity.Beneficiary.BeneficiaryPersons = append(identity.Beneficiary.BeneficiaryPersons, beneficiary)
+
+	// Update the transactionwith beneficiary information
+	transaction.Beneficiary.WalletAddress = account.WalletAddress
+	transaction.Beneficiary.Email = account.Email
+	transaction.Timestamp = time.Now().Format(time.RFC3339)
+
+	// Save the completed transaction in the database
+	ach := Transaction{
+		Envelope: in.Id,
+		Account:  account,
+		Originator: Identity{
+			WalletAddress: transaction.Originator.WalletAddress,
+			Email:         transaction.Originator.Email,
+		},
+		Beneficiary: Identity{
+			WalletAddress: account.WalletAddress,
+			Email:         account.Email,
+		},
+		Amount:    decimal.NewFromFloat32(transaction.Amount),
+		Debit:     false,
+		Completed: true,
+		Timestamp: time.Now(),
+	}
+
+	var achBytes []byte
+	if achBytes, err = protojson.Marshal(identity); err != nil {
+		log.Error().Err(err).Msg("could not marshal transaction identity")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+	ach.Identity = string(achBytes)
+
+	if err = s.parent.db.Create(&ach).Error; err != nil {
+		log.Error().Err(err).Msg("could not create transaction in database")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// Update the account information
+	account.Balance.Add(decimal.NewFromFloat32(transaction.Amount))
+	account.Completed++
+	account.Pending--
+	if err = s.parent.db.Save(&account).Error; err != nil {
+		log.Error().Err(err).Msg("could not save beneficiary account")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// Encode and encrypt the payload information to return the secure envelope
+	payload = &protocol.Payload{}
+	if payload.Identity, err = ptypes.MarshalAny(identity); err != nil {
+		log.Error().Err(err).Msg("could not dump payload identity")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+	if payload.Transaction, err = ptypes.MarshalAny(transaction); err != nil {
+		log.Error().Err(err).Msg("could not dump payload transaction")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	envelope.Payload = payload
+	if out, err = envelope.Seal(peer.SigningKey); err != nil {
+		log.Error().Err(err).Msg("could not seal envelope to send to originator")
+		return nil, err
+	}
+
+	return out, nil
 }
 
 // TransferStream allows for high-throughput transactions.
@@ -227,8 +307,8 @@ func (s *TRISA) ConfirmAddress(ctx context.Context, in *protocol.Address) (out *
 
 // KeyExchange facilitates signing key exchange between VASPs.
 func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *protocol.SigningKey, err error) {
-	var peer *Peer
-	if peer, err = s.parent.peerFromContext(ctx); err != nil {
+	var peer *peers.Peer
+	if peer, err = s.parent.peers.FromContext(ctx); err != nil {
 		log.Error().Err(err).Msg("could not verify peer from context")
 		return nil, &protocol.Error{
 			Code:    protocol.Unverified,

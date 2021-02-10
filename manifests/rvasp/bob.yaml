@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rvasp-bob
+  namespace: trisa
+  labels:
+    app: rvasp-bob
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rvasp-bob
+  template:
+    metadata:
+      labels:
+        app: rvasp-bob
+    spec:
+      containers:
+      - name: rvasp-bob
+        image: trisa/rvasp-bob:cd5908d-dirty
+        ports:
+        - containerPort: 4434
+          protocol: TCP
+          name: grpc-rvasp
+        - containerPort: 4435
+          protocol: TCP
+          name: grpc-trisa
+        volumeMounts:
+        - name: certs
+          mountPath: "/data/certs"
+          readOnly: true
+        resources: {}
+        env:
+        - name: RVASP_NAME
+          value: "Bob's Discount VASP, PLC"
+        - name: RVASP_BIND_ADDR
+          value: ":4434"
+        - name: RVASP_TRISA_BIND_ADDR
+          value: ":4435"
+        - name: RVASP_DATABASE
+          value: "/data/rvasp.db"
+        - name: RVASP_CERT_PATH
+          value: "/data/certs/api.bob.vaspbot.net.gz"
+        - name: RVASP_TRUST_CHAIN_PATH
+          value: "/data/certs/trisa.zip"
+        - name: RVASP_LOG_LEVEL
+          value: info
+      volumes:
+      - name: certs
+        secret:
+          secretName: bob-certs
+          items:
+          - key: mtls
+            path: api.bob.vaspbot.net.gz
+          - key: chain
+            path: trisa.zip
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rvasp-bob-service
+  namespace: trisa
+spec:
+  type: ClusterIP
+  ports:
+  - name: grpc-rvasp
+    port: 4434
+    protocol: TCP
+    targetPort: grpc-rvasp
+  - name: grpc-trisa
+    port: 4435
+    protocol: TCP
+    targetPort:  grpc-trisa
+  selector:
+    app: rvasp-bob
