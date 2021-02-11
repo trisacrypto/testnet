@@ -58,7 +58,7 @@ class RVASP(object):
         req = AccountRequest(account=account, no_transactions=no_transactions)
         return self._wrap_command(ACCOUNT, req)
 
-    def transfer_request(self, account, beneficiary, amount):
+    def transfer_request(self, account, beneficiary, amount, originating_vasp=None, beneficiary_vasp=None):
         """
         Creates a transfer request command for sending via streaming.
 
@@ -72,6 +72,19 @@ class RVASP(object):
 
         amount : float
             amount to transfer to the beneficiary
+
+        originating_vasp : str
+            identifier for the originating vasp (optional)
+
+        beneficiary_vasp : str
+            identifier for the beneficiary vasp (optional)
+
         """
-        req = TransferRequest(account=account, beneficiary=beneficiary, amount=amount)
+        req = TransferRequest(account=account, beneficiary=beneficiary, amount=amount, originating_vasp=originating_vasp, beneficiary_vasp=beneficiary_vasp)
         return self._wrap_command(TRANSFER, req)
+
+    def norpc_request(self):
+        """
+        Creates a NORPC request command for sending via streaming.  Useful for initiating a GRPC stream to receive log messages.
+        """
+        return self._wrap_command(NORPC, None)
