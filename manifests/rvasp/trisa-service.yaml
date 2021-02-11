@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rvasp-alice-trisa-service
+  namespace: trisa
+  labels:
+    app.kubernetes.io/name: rvasp-alice-trisa-service
+    app.kubernetes.io/part-of: trisa-services
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  loadBalancerIP: 34.72.12.89
+  ports:
+  - name: websecure
+    port: 443
+    targetPort: grpc-trisa
+  selector:
+    app: rvasp-alice
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rvasp-bob-trisa-service
+  namespace: trisa
+  labels:
+    app.kubernetes.io/name: rvasp-bob-trisa-service
+    app.kubernetes.io/part-of: trisa-services
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  loadBalancerIP: 35.192.173.26
+  ports:
+  - name: websecure
+    port: 443
+    targetPort: grpc-trisa
+  selector:
+    app: rvasp-bob

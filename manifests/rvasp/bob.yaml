@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: rvasp-bob
-        image: trisa/rvasp-bob:cd5908d-dirty
+        image: trisa/rvasp-bob:e97f720
         ports:
         - containerPort: 4434
           protocol: TCP
@@ -32,7 +32,7 @@ spec:
         resources: {}
         env:
         - name: RVASP_NAME
-          value: "Bob's Discount VASP, PLC"
+          value: "api.bob.vaspbot.net"
         - name: RVASP_BIND_ADDR
           value: ":4434"
         - name: RVASP_TRISA_BIND_ADDR
@@ -67,9 +67,5 @@ spec:
     port: 4434
     protocol: TCP
     targetPort: grpc-rvasp
-  - name: grpc-trisa
-    port: 4435
-    protocol: TCP
-    targetPort:  grpc-trisa
   selector:
     app: rvasp-bob
