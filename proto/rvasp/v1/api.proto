@@ -51,9 +51,12 @@ message Transaction {
 // Initiates a transfer from the specified account to the specified wallet address or
 // email address for a known wallet at some other rVASP.
 message TransferRequest {
-    string account = 1;         // email address of the account to debit
-    string beneficiary = 2;     // email address or wallet id to look up beneficiary with
-    float amount = 3;           // amount to transfer to the beneficiary (will be truncated to 2 decimal points)
+    string account = 1;           // email address or crypto wallet of the account to debit
+    string beneficiary = 2;       // email address or crypto wallet to look up beneficiary with
+    float amount = 3;             // amount to transfer to the beneficiary (will be truncated to 2 decimal points)
+    string originating_vasp = 4;  // common name of the originating VASP for demo UI error handling (optional)
+    string beneficiary_vasp = 5;  // common name of the beneficiary VASP for demo UI error handling (optional)
+    bool check_beneficiary = 6;   // if set, confirm that the beneficiary wallet belongs to the beneficiary VASP (optional)
 }
 
 // The transfer reply will contain the details of the transaction initiated or completed

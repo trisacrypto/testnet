@@ -18,14 +18,15 @@ import (
 // TODO: modify VASP ID to a GUID
 type VASP struct {
 	gorm.Model
-	Name     string     `gorm:"uniqueIndex;size:255;not null"`
-	URL      *string    `gorm:"null"`
-	Country  *string    `gorm:"null"`
-	Endpoint *string    `gorm:"null"`
-	PubKey   *string    `gorm:"null"`
-	NotAfter *time.Time `gorm:"null"`
-	IsLocal  bool       `gorm:"column:is_local;default:false"`
-	IVMS101  string     `gorm:"column:ivms101"`
+	Name      string     `gorm:"uniqueIndex;size:255;not null"`
+	LegalName *string    `gorm:"column:legal_name;null"`
+	URL       *string    `gorm:"null"`
+	Country   *string    `gorm:"null"`
+	Endpoint  *string    `gorm:"null"`
+	PubKey    *string    `gorm:"null"`
+	NotAfter  *time.Time `gorm:"null"`
+	IsLocal   bool       `gorm:"column:is_local;default:false"`
+	IVMS101   string     `gorm:"column:ivms101"`
 }
 
 // TableName explicitly defines the name of the table for the model

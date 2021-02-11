@@ -9,7 +9,8 @@ import (
 
 // Error codes for quick reference and lookups
 const (
-	ErrNotFound = 404
+	ErrNotFound  = 404
+	ErrWrongVASP = 405
 )
 
 // Errorf is a quick one liner to create error objects
