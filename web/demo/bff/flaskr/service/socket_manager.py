@@ -8,13 +8,13 @@ import json
 from flask import request
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from google.protobuf.json_format import MessageToJson
+from rvaspy import RVASP
 
 from flaskr.db import query_vasp
 from flaskr.models.transaction import Transaction
 from flaskr.models.transaction_request import TransactionRequest
 from flaskr.models.vasp_context import VaspContext
 from flaskr.models.vasp_log_message import VaspLogMessage
-from rvaspy import RVASP
 from flaskr.simulator.transaction_handler import TransactionHandler
 
 
@@ -22,8 +22,10 @@ class SocketManager:
 
     def __init__(self, socketio: SocketIO, transaction_handler: TransactionHandler):
 
-        self.api = RVASP(name="")
-        self.vasp_context = VaspContext("", "")
+        self.originator_api = None
+        self.beneficiary_api = None
+        self.originator_vasp_context = None
+        self.beneficiary_vasp_context = None
 
         @socketio.on('transaction_request')
         def handle_transaction_request(message):
@@ -31,28 +33,49 @@ class SocketManager:
 
             print('Received transaction request ' + message)
 
-            # transfer_request = self.api.transfer_request(transaction_request.originator_wallet_id,
-            #                                              transaction_request.beneficiary_wallet_id,
-            #                                              transaction_request.amount)
-            transfer_request = self.api.transfer_request("alice@alicevasp.us",
-                                                         "robert@bobvasp.co.uk",
-                                                         transaction_request.amount)
+            transfer_request = self.originator_api.transfer_request(transaction_request.originator_wallet_id,
+                                                                    transaction_request.beneficiary_wallet_id,
+                                                                    transaction_request.amount,
+                                                                    transaction_request.originator_vasp_id,
+                                                                    transaction_request.beneficiary_vasp_id)
 
-            for msg in self.api.stub.LiveUpdates(iter([transfer_request])):
-                self.handle_message(msg)
+            print('Sending transfer to vasp ' + self.originator_api.name +
+                  ' request originator:' + transaction_request.originator_wallet_id +
+                  ' beneficiary:' + transaction_request.beneficiary_wallet_id +
+                  ' originating vasp:' + transaction_request.originator_vasp_id +
+                  ' beneficiary vasp:' + transaction_request.beneficiary_vasp_id)
+
+            # subscribe to all updates
+            for msg in self.originator_api.stub.LiveUpdates(iter([transfer_request])):
+                self.handle_message(self.originator_vasp_context, msg)
+            for msg in self.beneficiary_api.stub.LiveUpdates(iter([self.beneficiary_api.norpc_request()])):
+                self.handle_message(self.beneficiary_vasp_context, msg)
 
         @socketio.on('vasp_context')
         def handle_vasp_context(message):
-            self.clear_context_for_session(request.sid)
-
             context = VaspContext.from_json(message)
-            self.vasp_context = context
-            # TODO: handle context errors
+            self.clear_context_for_session(request.sid)
             self.set_context_for_session(context, request.sid)
-
-            # Create GRPC connection to rvasp
             vasp = query_vasp(context.vasp_id)[0]
-            self.api = RVASP(name="client", host=vasp['websocket_address'])
+
+            if context.originator:
+                self.originator_vasp_context = context
+                print("Received originator vasp context " + context.vasp_id + " creating client to " +
+                      vasp['websocket_address'])
+                self.originator_api = RVASP(name=context.vasp_id, host=vasp['websocket_address'])
+
+                # subscribe to all updates
+                for msg in self.originator_api.stub.LiveUpdates(iter([self.originator_api.norpc_request()])):
+                    self.handle_message(context, msg)
+            else:
+                self.beneficiary_vasp_context = context
+                print("Received Beneficiary vasp context " + context.vasp_id + " creating client to " +
+                      vasp['websocket_address'])
+                self.beneficiary_api = RVASP(name=context.vasp_id, host=vasp['websocket_address'])
+
+                # subscribe to all updates
+                for msg in self.beneficiary_api.stub.LiveUpdates(iter([self.beneficiary_api.norpc_request()])):
+                    self.handle_message(context, msg)
 
         @socketio.on('connect')
         def connected():
@@ -64,22 +87,18 @@ class SocketManager:
             # Not really needed with rooms?
             self.clear_context_for_session(request.sid)
 
-    def handle_message(self, msg):
-        print(msg)
+    def handle_message(self, vasp_context: VaspContext, msg):
         if msg.type:
-            print('received msg type')
-            print(msg.type)
             if msg.type == 1:
-                print('received msg type TRANSFER')
-                self.handle_transaction_message(msg)
+                self.handle_transaction_message(vasp_context, msg)
         else:
-            self.handle_log_message(msg)
+            self.handle_log_message(vasp_context, msg)
 
-    def handle_log_message(self, msg):
+    def handle_log_message(self, vasp_context: VaspContext, msg):
         self.broadcast_to_context(
-            self.vasp_context,
+            vasp_context,
             'vasp_log_message',
-            VaspLogMessage(self.vasp_context.vasp_id, msg.timestamp, '',
+            VaspLogMessage(vasp_context.vasp_id, msg.timestamp, '',
                            msg.update, self.map_category_to_color(msg.category))
         )
 
@@ -97,19 +116,19 @@ class SocketManager:
         else:
             return 'ffffff'
 
-    def handle_transaction_message(self, msg):
+    def handle_transaction_message(self, vasp_context: VaspContext, msg):
         self.broadcast_to_context(
-            self.vasp_context,
+            vasp_context,
             'transaction',
             Transaction(
                 msg.transfer.transaction.timestamp,
-                '23hlkjad824',  # TODO: need transaction ID?
+                '23hlkjad824',  # TODO: need transaction ID - Issue #1
                 msg.transfer.transaction.originator.wallet_address,
-                'BOB-GUID',
-                'BobVASP',  # TODO: need basic VASP info?
+                'api.bob.vaspbot.net',
+                msg.transfer.transaction.originator.provider,
                 msg.transfer.transaction.beneficiary.wallet_address,
-                'ALICE-GUID',
-                'AliceVASP',
+                'api.alice.vaspbot.net',
+                msg.transfer.transaction.beneficiary.provider,
                 MessageToJson(msg.transfer)
             ))
 
