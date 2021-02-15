@@ -1,0 +1,32 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: rvasp-alice-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`admin.alice.vaspbot.net`)
+      kind: Rule
+      services:
+        - name: rvasp-alice-service
+          port: 4434
+          scheme: h2c
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: rvasp-bob-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`admin.bob.vaspbot.net`)
+      kind: Rule
+      services:
+        - name: rvasp-bob-service
+          port: 4434
+          scheme: h2c

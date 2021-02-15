@@ -16,6 +16,8 @@ RUN mkdir flaskr
 COPY web/demo/bff/requirements.txt .
 RUN pip install -r requirements.txt
 
+# Application
+COPY web/demo/bff/gunicorn_flaskr.sh .
 COPY web/demo/bff/flaskr flaskr/
 
 # Setup the environment

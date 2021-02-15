@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demoweb-bob
+  namespace: trisa
+  labels:
+    app: demoweb-bob
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demoweb-bob
+  template:
+    metadata:
+      labels:
+        app: demoweb-bob
+    spec:
+      containers:
+      - name: demoweb-bob
+        image: trisa/demo-npm:ed8e197
+        ports:
+        - containerPort: 80
+          protocol: TCP
+          name: http
+        resources: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demobff-bob
+  namespace: trisa
+  labels:
+    app: demobff-bob
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demobff-bob
+  template:
+    metadata:
+      labels:
+        app: demobff-bob
+    spec:
+      containers:
+      - name: demobff-bob
+        image: trisa/demo-bff:ed8e197-dirty
+        ports:
+        - containerPort: 5000
+          protocol: TCP
+          name: http
+        resources: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demoweb-bob-service
+  namespace: trisa
+spec:
+  ports:
+  - port: 80
+    targetPort: http
+    name: http
+  selector:
+    app: demoweb-bob
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demobff-bob-service
+  namespace: trisa
+spec:
+  ports:
+  - port: 5000
+    targetPort: http
+    name: http
+  selector:
+    app: demobff-bob

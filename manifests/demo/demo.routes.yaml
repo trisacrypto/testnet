@@ -1,0 +1,60 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: demoweb-alice-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`alice.vaspbot.net`)
+      kind: Rule
+      services:
+        - name: demoweb-alice-service
+          port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: demobff-alice-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`demo.alice.vaspbot.net`)
+      kind: Rule
+      services:
+        - name: demobff-alice-service
+          port: 5000
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: demoweb-bob-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`bob.vaspbot.net`)
+      kind: Rule
+      services:
+        - name: demoweb-bob-service
+          port: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: demobff-bob-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`demo.bob.vaspbot.net`)
+      kind: Rule
+      services:
+        - name: demobff-bob-service
+          port: 5000
