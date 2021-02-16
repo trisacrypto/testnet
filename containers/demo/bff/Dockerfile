@@ -27,6 +27,5 @@ ENV FLASK_ENV development
 # Initialize the database
 RUN [ "flask", "init-db" ]
 
-# Run the Flask app via gunicorn
-ENTRYPOINT ["./gunicorn_flaskr.sh"]
+ENTRYPOINT ["flask", "run", "--host", "0.0.0.0", "--port", "8000"]
 

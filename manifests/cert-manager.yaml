@@ -66,5 +66,7 @@ spec:
   - "*.test-net.io"
   - "vaspbot.net"
   - "*.vaspbot.net"
+  - "*.alice.vaspbot.net"
+  - "*.bob.vaspbot.net"
   - "vaspdirectory.net"
   - "*.vaspdirectory.net"

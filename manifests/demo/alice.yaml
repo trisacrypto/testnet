@@ -1,32 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: demoweb-alice
-  namespace: trisa
-  labels:
-    app: demoweb-alice
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: demoweb-alice
-  template:
-    metadata:
-      labels:
-        app: demoweb-alice
-    spec:
-      containers:
-      - name: demoweb-alice
-        image: trisa/demo-npm:ed8e197
-        ports:
-        - containerPort: 80
-          protocol: TCP
-          name: http
-        resources: {}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
   name: demobff-alice
   namespace: trisa
   labels:
@@ -43,25 +17,12 @@ spec:
     spec:
       containers:
       - name: demobff-alice
-        image: trisa/demo-bff:ed8e197-dirty
+        image: trisa/demo-bff:3a4e8db
         ports:
-        - containerPort: 5000
+        - containerPort: 8000
           protocol: TCP
           name: http
         resources: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: demoweb-alice-service
-  namespace: trisa
-spec:
-  ports:
-  - port: 80
-    targetPort: http
-    name: http
-  selector:
-    app: demoweb-alice
 ---
 apiVersion: v1
 kind: Service
@@ -70,7 +31,7 @@ metadata:
   namespace: trisa
 spec:
   ports:
-  - port: 5000
+  - port: 8000
     targetPort: http
     name: http
   selector:

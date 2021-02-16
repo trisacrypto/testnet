@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: demobff-bob
+  name: demo-web
   namespace: trisa
   labels:
-    app: demobff-bob
+    app: demo-web
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: demobff-bob
+      app: demo-web
   template:
     metadata:
       labels:
-        app: demobff-bob
+        app: demo-web
     spec:
       containers:
-      - name: demobff-bob
-        image: trisa/demo-bff:3a4e8db
+      - name: demo-web
+        image: trisa/demo-npm:ed8e197
         ports:
-        - containerPort: 8000
+        - containerPort: 80
           protocol: TCP
           name: http
         resources: {}
@@ -27,12 +27,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: demobff-bob-service
+  name: demo-web-service
   namespace: trisa
 spec:
   ports:
-  - port: 8000
+  - port: 80
     targetPort: http
     name: http
   selector:
-    app: demobff-bob
+    app: demo-web
