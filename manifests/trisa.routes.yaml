@@ -35,23 +35,6 @@ spec:
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: vaspbot-placeholder-route
-  namespace: trisa
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`vaspbot.net`)
-      kind: Rule
-      services:
-        - name: vaspbot-placeholder-service
-          port: 80
-  tls:
-    secretName: tls-certs
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: IngressRoute
-metadata:
   name: dsweb-route
   namespace: trisa
 spec:
