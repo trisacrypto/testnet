@@ -1,5 +1,5 @@
 INSERT INTO vasps(vasp_id, display_name, description, private_key, public_key, websocket_address, trisa_ds_id, trisa_ds_name, trisa_protocol_host)
- VALUES('api.bob.vaspbot.net', 'Bob VASP', 'Run of the mill VASP.  Registered in the Trisa Directory Service.', 'private', 'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCAmB2ZjvOkpiwOMQCyMnUhQipXYlGhxI673WHVXWcA0MYsxdksF426UTY+Lx+SvQjIH0B2BS5O9WmiRZcPD8csly0DoOen8QiM8ZIRt8pW98V85GFZjlfWGF2ML0HgxSHE6g+9UfJPH9p6uH5TGKWBBGpzBMx44L4t9zyHJ2lVMwIDAQAB', 'demo.bob.vaspbot.net:443', '1', 'Bobs Friendly VASP', 'http://124.52.4.63:4443');
+ VALUES('api.bob.vaspbot.net', 'Bob VASP', 'Run of the mill VASP.  Registered in the Trisa Directory Service.', 'private', 'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCAmB2ZjvOkpiwOMQCyMnUhQipXYlGhxI673WHVXWcA0MYsxdksF426UTY+Lx+SvQjIH0B2BS5O9WmiRZcPD8csly0DoOen8QiM8ZIRt8pW98V85GFZjlfWGF2ML0HgxSHE6g+9UfJPH9p6uH5TGKWBBGpzBMx44L4t9zyHJ2lVMwIDAQAB', 'admin.bob.vaspbot.net:443', '1', 'Bobs Friendly VASP', 'http://124.52.4.63:4443');
 
 INSERT INTO wallets(wallet_address, vasp_id, wallet_id) VALUES
  ('robert@bobvasp.co.uk', 'api.bob.vaspbot.net', '18nxAxBktHZDrMoJ3N2fk9imLX8xNnYbNh');
@@ -10,7 +10,7 @@ INSERT INTO wallets(wallet_address, vasp_id, wallet_id) VALUES
 
 
 INSERT INTO vasps(vasp_id, display_name, description, private_key, public_key, websocket_address, trisa_ds_id, trisa_ds_name, trisa_protocol_host)
- VALUES('api.alice.vaspbot.net', 'Alice VASP', 'A small VASP.  Registered in the Trisa Directory Service.', 'private', 'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCXxiMdmxtfm3zIU2Fv8c8ctfx1U7r0vmNRsYmlBsC+KUzuu4KLSMFPQooz7zaTP5SmRrXDu2dx29EU3YtndcQRxGOdAJ06uiprEwAidHEAS+dCm+Cm+4iZLwJwG/AuzTdEz5zJXlTsZS5NgXAbBJ/tjPhIvLXNDaa3ZaDXCzOf9QIDAQAB', 'demo.alice.vaspbot.net:443', '2', 'Alices VASP', 'http://46.124.45.3:4444');
+ VALUES('api.alice.vaspbot.net', 'Alice VASP', 'A small VASP.  Registered in the Trisa Directory Service.', 'private', 'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCXxiMdmxtfm3zIU2Fv8c8ctfx1U7r0vmNRsYmlBsC+KUzuu4KLSMFPQooz7zaTP5SmRrXDu2dx29EU3YtndcQRxGOdAJ06uiprEwAidHEAS+dCm+Cm+4iZLwJwG/AuzTdEz5zJXlTsZS5NgXAbBJ/tjPhIvLXNDaa3ZaDXCzOf9QIDAQAB', 'admin.alice.vaspbot.net:443', '2', 'Alices VASP', 'http://46.124.45.3:4444');
 
 INSERT INTO wallets(wallet_address, vasp_id, wallet_id) VALUES
  ('mary@alicevasp.us', 'api.alice.vaspbot.net', '1ASkqdo1hvydosVRvRv2j6eNnWpWLHucMX');
