@@ -15,7 +15,7 @@ import {VaspStreamingService} from "./services/VaspStreamingService";
 
 class App extends Component {
 
-    vaspService = new VaspRestService('http://127.0.0.1:5000')
+    vaspService = new VaspRestService('https://demo.bob.vaspbot.net')
     sessionId = uuidv4();
 
     state = {
@@ -64,7 +64,7 @@ class App extends Component {
             selectedOriginatingVasp: selectedVasp,
             selectedBeneficiaryVasp: null,
             targetVasps: targetVasps,
-            originatingVaspStreamingService: new VaspStreamingService({'vasp_id': selectedVasp.vasp_id, 'context_id': this.sessionId, originator: true}, 'http://127.0.0.1:5000'),
+            originatingVaspStreamingService: new VaspStreamingService({'vasp_id': selectedVasp.vasp_id, 'context_id': this.sessionId, originator: true}, 'https://demo.bob.vaspbot.net'),
             beneficiaryVaspStreamingService: null
         })
     }
@@ -96,7 +96,7 @@ class App extends Component {
         console.log("Selected beneficiary vasp " + JSON.stringify(selectedVasp))
         this.setState({
             selectedBeneficiaryVasp: selectedVasp,
-            beneficiaryVaspStreamingService: new VaspStreamingService({'vasp_id': selectedVasp.vasp_id, 'context_id': this.sessionId, originator: false}, 'http://127.0.0.1:5000')
+            beneficiaryVaspStreamingService: new VaspStreamingService({'vasp_id': selectedVasp.vasp_id, 'context_id': this.sessionId, originator: false}, 'https://demo.bob.vaspbot.net')
         })
     }
 
