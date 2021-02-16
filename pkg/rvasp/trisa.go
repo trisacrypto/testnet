@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -137,6 +138,73 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 		}
 	}
 
+	return s.handleTransaction(ctx, peer, in)
+}
+
+// TransferStream allows for high-throughput transactions.
+func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer) (err error) {
+	// Get the peer from the context
+	ctx := stream.Context()
+	var peer *peers.Peer
+	if peer, err = s.parent.peers.FromContext(ctx); err != nil {
+		log.Error().Err(err).Msg("could not verify peer from context")
+		return &protocol.Error{
+			Code:    protocol.Unverified,
+			Message: err.Error(),
+		}
+	}
+	log.Info().Str("peer", peer.CommonName).Msg("transfer stream opened")
+
+	// Check signing key is available to send an encrypted response
+	if peer.SigningKey == nil {
+		log.Warn().Str("peer", peer.CommonName).Msg("no remote signing key available")
+		return &protocol.Error{
+			Code:    protocol.NoSigningKey,
+			Message: "please retry transfer after key exchange",
+			Retry:   true,
+		}
+	}
+
+	// Handle incoming secure envelopes from client
+	// TODO: add go routines to parallelize handling rather than one transfer at a time
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		var in *protocol.SecureEnvelope
+		if in, err = stream.Recv(); err == io.EOF {
+			log.Info().Str("peer", peer.CommonName).Msg("transfer stream closed")
+		} else if err != nil {
+			log.Warn().Err(err).Msg("recv stream error")
+			return protocol.Errorf(protocol.Unavailable, "stream closed prematurely: %s", err)
+		}
+
+		// Handle the response
+		out, err := s.handleTransaction(ctx, peer, in)
+		if err != nil {
+			// Do not close the stream, send the error in the secure envelope if the
+			// Error is a TRISA coded error.
+			pbErr, ok := err.(*protocol.Error)
+			if !ok {
+				return err
+			}
+			out = &protocol.SecureEnvelope{
+				Error: pbErr,
+			}
+		}
+
+		if err = stream.Send(out); err != nil {
+			log.Error().Err(err).Msg("send stream error")
+			return err
+		}
+		log.Info().Str("peer", peer.CommonName).Str("id", in.Id).Msg("streaming transfer request complete")
+	}
+}
+
+func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *protocol.SecureEnvelope) (out *protocol.SecureEnvelope, err error) {
 	// Check the algorithms to make sure they're supported
 	if in.EncryptionAlgorithm != "AES256-GCM" || in.HmacAlgorithm != "HMAC-SHA256" {
 		log.Warn().
@@ -285,15 +353,6 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 	}
 
 	return out, nil
-}
-
-// TransferStream allows for high-throughput transactions.
-func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer) (err error) {
-	return &protocol.Error{
-		Code:    protocol.Unimplemented,
-		Message: "rVASP has not implemented the transfer stream yet",
-		Retry:   false,
-	}
 }
 
 // ConfirmAddress allows the rVASP to respond to proof-of-control requests.
