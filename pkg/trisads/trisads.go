@@ -308,6 +308,7 @@ func (s *Server) Search(ctx context.Context, in *api.SearchRequest) (out *api.Se
 			Id:                  vasp.Id,
 			RegisteredDirectory: vasp.RegisteredDirectory,
 			CommonName:          vasp.CommonName,
+			Endpoint:            vasp.TrisaEndpoint,
 		})
 	}
 

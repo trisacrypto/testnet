@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/trisacrypto/testnet/pkg/trisads"
 	admin "github.com/trisacrypto/testnet/pkg/trisads/pb/admin/v1alpha1"
 	api "github.com/trisacrypto/testnet/pkg/trisads/pb/api/v1alpha1"
+	models "github.com/trisacrypto/testnet/pkg/trisads/pb/models/v1alpha1"
 	"github.com/trisacrypto/testnet/pkg/trisads/store"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
@@ -142,11 +144,19 @@ func main() {
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
 					Name:  "n, name",
-					Usage: "one or more names of the VASPs to search for",
+					Usage: "one or more names of VASPs to search for",
+				},
+				cli.StringSliceFlag{
+					Name:  "w, web",
+					Usage: "one or more websites of VASPs to search for",
 				},
 				cli.StringSliceFlag{
 					Name:  "c, country",
-					Usage: "one or more countries of the VASPs to search for",
+					Usage: "one or more countries to filter on",
+				},
+				cli.StringSliceFlag{
+					Name:  "C, category",
+					Usage: "one or more categories to filter on",
 				},
 			},
 		},
@@ -336,12 +346,35 @@ func lookup(c *cli.Context) (err error) {
 // Search for VASPs by name or country using the API from a CLI client
 func search(c *cli.Context) (err error) {
 	req := &api.SearchRequest{
-		Name:    c.StringSlice("name"),
-		Country: c.StringSlice("country"),
+		Name:             c.StringSlice("name"),
+		Website:          c.StringSlice("web"),
+		Country:          c.StringSlice("country"),
+		BusinessCategory: make([]models.BusinessCategory, 0, len(c.StringSlice("category"))),
+		VaspCategory:     make([]models.VASPCategory, 0, len(c.StringSlice("category"))),
 	}
 
-	if len(req.Name) == 0 && len(req.Country) == 0 {
+	for _, cat := range c.StringSlice("category") {
+		if enum, ok := models.BusinessCategory_value[cat]; ok {
+			req.BusinessCategory = append(req.BusinessCategory, models.BusinessCategory(enum))
+			continue
+		}
+		if enum, ok := models.VASPCategory_value[cat]; ok {
+			req.VaspCategory = append(req.VaspCategory, models.VASPCategory(enum))
+			continue
+		}
+		return cli.NewExitError(fmt.Errorf("unknown category %q", cat), 1)
+	}
+
+	if len(req.Name) == 0 && len(req.Website) == 0 {
 		return cli.NewExitError("specify search query", 1)
+	}
+
+	for _, web := range req.Website {
+		if u, err := url.Parse(web); err != nil {
+			return cli.NewExitError(fmt.Errorf("%q not a valid URL: %s", web, err), 1)
+		} else if u.Hostname() == "" {
+			return cli.NewExitError(fmt.Errorf("%q not a valid URL: requires scheme e.g. http://", web), 1)
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

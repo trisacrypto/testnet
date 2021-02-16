@@ -35,7 +35,7 @@ func OpenLevelDB(uri string) (Store, error) {
 	// Perform a reindex if the local indices are null or empty. In the case where the
 	// store has no data, this won't be harmful - but in the case where the stored index
 	// has been corrupted, this should repair it.
-	if len(store.names) == 0 || len(store.countries) == 0 {
+	if len(store.names) == 0 || len(store.websites) == 0 || len(store.countries) == 0 || len(store.categories) == 0 {
 		log.Info().Msg("reindexing to recover from empty indices")
 		if err = store.Reindex(); err != nil {
 			return nil, err
