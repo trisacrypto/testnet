@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/binary"
 	"encoding/json"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -49,6 +50,16 @@ func normalizeCountry(s string) string {
 	return code.Alpha2
 }
 
+// Normalize URL parses a URL and only returns the hostname, if an error occurs, then
+// an empty string is returned so the URL doesn't get added to the index.
+func normalizeURL(s string) string {
+	u, err := url.Parse(normalize(s))
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
+}
+
 // Queries are maps that hold an index name (e.g. "name" or "country") and map it to an
 // indexable key in the index. The query can be either a single string or a list of
 // strings; the parse function extracts the appropriate type and returns a list of
@@ -91,6 +102,11 @@ func (c uniqueIndex) add(key, value string, norm normalizer) bool {
 		key = norm(key)
 	}
 
+	// Do not add empty strings to the index
+	if key == "" {
+		return false
+	}
+
 	if _, ok := c[key]; ok {
 		return false
 	}
@@ -103,6 +119,11 @@ func (c uniqueIndex) add(key, value string, norm normalizer) bool {
 func (c uniqueIndex) overwrite(key, value string, norm normalizer) bool {
 	if norm != nil {
 		key = norm(key)
+	}
+
+	// Do not add empty strings to the index
+	if key == "" {
+		return false
 	}
 
 	c[key] = value
@@ -240,6 +261,29 @@ func (c containerIndex) reverse(value string, norm normalizer) ([]string, bool) 
 	}
 
 	return results, len(results) > 0
+}
+
+// Contains determines if the value is contained by the key index
+func (c containerIndex) contains(key string, value string, norm normalizer) bool {
+	// normalize the key to enhance search
+	if norm != nil {
+		key = norm(key)
+	}
+
+	// find the container for the index key
+	arr, ok := c[key]
+	if !ok {
+		return false
+	}
+
+	// perform a binary search to determine if the value is in the array
+	i := sort.Search(len(arr), func(i int) bool { return arr[i] >= value })
+	if i < len(arr) && arr[i] == value {
+		// value is already in the array
+		return true
+	}
+
+	return false
 }
 
 // Dump a container index to a byte representation for storage on disk.

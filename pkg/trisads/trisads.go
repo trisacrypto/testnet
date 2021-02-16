@@ -281,7 +281,18 @@ func (s *Server) Search(ctx context.Context, in *api.SearchRequest) (out *api.Se
 	out = &api.SearchReply{}
 	query := make(map[string]interface{})
 	query["name"] = in.Name
+	query["website"] = in.Website
 	query["country"] = in.Country
+
+	// Build category query
+	categories := make([]string, 0, len(in.BusinessCategory)+len(in.VaspCategory))
+	for _, category := range in.BusinessCategory {
+		categories = append(categories, category.String())
+	}
+	for _, category := range in.VaspCategory {
+		categories = append(categories, category.String())
+	}
+	query["category"] = categories
 
 	var vasps []*pb.VASP
 	if vasps, err = s.db.Search(query); err != nil {
@@ -302,7 +313,9 @@ func (s *Server) Search(ctx context.Context, in *api.SearchRequest) (out *api.Se
 
 	entry := log.With().
 		Strs("name", in.Name).
+		Strs("websites", in.Website).
 		Strs("country", in.Country).
+		Strs("categories", categories).
 		Int("results", len(out.Results)).
 		Logger()
 

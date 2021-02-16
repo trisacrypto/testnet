@@ -56,20 +56,24 @@ var (
 
 // keys and prefixes for leveldb buckets and indices
 var (
-	keyAutoSequence = []byte("sequence::pks")
-	keyNameIndex    = []byte("index::names")
-	keyCountryIndex = []byte("index::countries")
-	preVASPs        = []byte("vasps::")
-	preCertReqs     = []byte("certreqs::")
+	keyAutoSequence  = []byte("sequence::pks")
+	keyNameIndex     = []byte("index::names")
+	keyWebsiteIndex  = []byte("index::websites")
+	keyCountryIndex  = []byte("index::countries")
+	keyCategoryIndex = []byte("index::categories")
+	preVASPs         = []byte("vasps::")
+	preCertReqs      = []byte("certreqs::")
 )
 
 // Implements Store for some basic LevelDB operations and simple protocol buffer storage.
 type ldbStore struct {
 	sync.RWMutex
-	db        *leveldb.DB
-	pkseq     sequence       // autoincrement sequence for ID values
-	names     uniqueIndex    // case insensitive name index
-	countries containerIndex // lookup vasps in a specific country
+	db         *leveldb.DB
+	pkseq      sequence       // autoincrement sequence for ID values
+	names      uniqueIndex    // case insensitive name index
+	websites   uniqueIndex    // website/url index
+	countries  containerIndex // lookup vasps in a specific country
+	categories containerIndex // lookup vasps based on specified categories
 }
 
 //===========================================================================
@@ -132,8 +136,9 @@ func (s *ldbStore) Create(v *pb.VASP) (id string, err error) {
 	}
 
 	// Update indices after successful insert
-	s.names.add(v.CommonName, v.Id, normalize)
-	s.countries.add(v.Entity.CountryOfRegistration, v.Id, normalizeCountry)
+	if err = s.insertIndices(v); err != nil {
+		return "", err
+	}
 	return v.Id, nil
 }
 
@@ -197,17 +202,13 @@ func (s *ldbStore) Update(v *pb.VASP) (err error) {
 		return err
 	}
 
-	// Update indices if necessary
-	if v.CommonName != o.CommonName {
-		s.names.rm(o.CommonName, normalize)
-		s.names.add(v.CommonName, v.Id, normalize)
+	// Update indices to match new record, removing the old indices and updating the
+	// new indices with any changes to ensure the index correctly reflects the state.
+	// TODO: check errors from index removal in case the index must be reset.
+	s.removeIndices(o)
+	if err = s.insertIndices(v); err != nil {
+		return err
 	}
-
-	if v.Entity.CountryOfRegistration != o.Entity.CountryOfRegistration {
-		s.countries.rm(o.Entity.CountryOfRegistration, o.Id, normalizeCountry)
-		s.countries.add(v.Entity.CountryOfRegistration, v.Id, normalizeCountry)
-	}
-
 	return nil
 }
 
@@ -234,8 +235,9 @@ func (s *ldbStore) Destroy(id string) (err error) {
 	defer s.Unlock()
 
 	// Remove the records from the indices
-	s.names.rm(record.CommonName, normalize)
-	s.countries.rm(record.Entity.CountryOfRegistration, record.Id, normalizeCountry)
+	if err = s.removeIndices(record); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -260,15 +262,47 @@ func (s *ldbStore) Search(query map[string]interface{}) (vasps []*pb.VASP, err e
 		}
 	}
 
-	// Lookup by country
-	countries, ok := parseQuery("country", query, normalizeCountry)
+	// Lookup by website
+	websites, ok := parseQuery("website", query, normalizeURL)
 	if ok {
-		for _, country := range countries {
-			for _, id := range s.countries[country] {
+		log.Debug().Strs("website", websites).Msg("search website query")
+		for _, website := range websites {
+			if id := s.websites[website]; id != "" {
 				records[id] = struct{}{}
 			}
 		}
 	}
+
+	// Filter by country
+	// NOTE: if country is not in the index, no records will be returned
+	countries, ok := parseQuery("country", query, normalizeCountry)
+	if ok {
+		for _, country := range countries {
+			for record := range records {
+				if !s.countries.contains(country, record, nil) {
+					// Remove the found VASP since it is not in the country index
+					// NOTE: safe to remove during map iteration: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
+					delete(records, record)
+				}
+			}
+		}
+	}
+
+	// Filter by category
+	// NOTE: if category is not in the index, no records will be returned
+	categories, ok := parseQuery("category", query, normalize)
+	if ok {
+		for _, category := range categories {
+			for record := range records {
+				if !s.categories.contains(category, record, nil) {
+					// Remove the found VASP since it is not in the country index
+					// NOTE: safe to remove during map iteration: https://stackoverflow.com/questions/23229975/is-it-safe-to-remove-selected-keys-from-map-within-a-range-loop
+					delete(records, record)
+				}
+			}
+		}
+	}
+
 	s.RUnlock()
 
 	// Perform the lookup of records if there are any
@@ -402,7 +436,9 @@ func (s *ldbStore) careqKey(id string) (key []byte) {
 // back to disk to ensure they're complete and accurate.
 func (s *ldbStore) Reindex() (err error) {
 	names := make(uniqueIndex)
+	websites := make(uniqueIndex)
 	countries := make(containerIndex)
+	categories := make(containerIndex)
 
 	iter := s.db.NewIterator(util.BytesPrefix(preVASPs), nil)
 	defer iter.Release()
@@ -414,7 +450,14 @@ func (s *ldbStore) Reindex() (err error) {
 		}
 
 		names.add(vasp.CommonName, vasp.Id, normalize)
+		for _, name := range vasp.Entity.Names() {
+			names.add(name, vasp.Id, normalize)
+		}
+
+		websites.add(vasp.Website, vasp.Id, normalizeURL)
 		countries.add(vasp.Entity.CountryOfRegistration, vasp.Id, normalizeCountry)
+		categories.add(vasp.BusinessCategory.String(), vasp.Id, normalize)
+		categories.add(vasp.VaspCategory.String(), vasp.Id, normalize)
 	}
 
 	if err = iter.Error(); err != nil {
@@ -426,8 +469,16 @@ func (s *ldbStore) Reindex() (err error) {
 		s.names = names
 	}
 
+	if len(websites) > 0 {
+		s.websites = websites
+	}
+
 	if len(countries) > 0 {
 		s.countries = countries
+	}
+
+	if len(categories) > 0 {
+		s.categories = categories
 	}
 	s.Unlock()
 
@@ -435,13 +486,48 @@ func (s *ldbStore) Reindex() (err error) {
 		return err
 	}
 
-	log.Debug().Int("names", len(s.names)).Int("countries", len(s.countries)).Msg("reindex complete")
+	log.Debug().
+		Int("names", len(s.names)).
+		Int("websites", len(s.websites)).
+		Int("countries", len(s.countries)).
+		Int("categories", len(s.categories)).
+		Msg("reindex complete")
 	return nil
 }
 
 //===========================================================================
 // Indices and Synchronization
 //===========================================================================
+
+func (s *ldbStore) insertIndices(v *pb.VASP) (err error) {
+	s.names.add(v.CommonName, v.Id, normalize)
+	for _, name := range v.Entity.Names() {
+		s.names.add(name, v.Id, normalize)
+	}
+
+	s.websites.add(v.Website, v.Id, normalizeURL)
+
+	s.countries.add(v.Entity.CountryOfRegistration, v.Id, normalizeCountry)
+
+	s.categories.add(v.BusinessCategory.String(), v.Id, normalize)
+	s.categories.add(v.VaspCategory.String(), v.Id, normalize)
+	return nil
+}
+
+func (s *ldbStore) removeIndices(v *pb.VASP) (err error) {
+	s.names.rm(v.CommonName, normalize)
+	for _, name := range v.Entity.Names() {
+		s.names.rm(name, normalize)
+	}
+
+	s.websites.rm(v.Website, normalizeURL)
+
+	s.countries.rm(v.Entity.CountryOfRegistration, v.Id, normalizeCountry)
+
+	s.categories.rm(v.BusinessCategory.String(), v.Id, normalize)
+	s.categories.rm(v.VaspCategory.String(), v.Id, normalize)
+	return nil
+}
 
 // sync all indices with the underlying database
 func (s *ldbStore) sync() (err error) {
@@ -453,11 +539,24 @@ func (s *ldbStore) sync() (err error) {
 		return err
 	}
 
+	if err = s.syncwebsites(); err != nil {
+		return err
+	}
+
 	if err = s.synccountries(); err != nil {
 		return err
 	}
 
-	log.Debug().Int("names", len(s.names)).Int("countries", len(s.countries)).Msg("indices synchronized")
+	if err = s.synccategories(); err != nil {
+		return err
+	}
+
+	log.Debug().
+		Int("names", len(s.names)).
+		Int("websites", len(s.websites)).
+		Int("countries", len(s.countries)).
+		Int("categories", len(s.categories)).
+		Msg("indices synchronized")
 	return nil
 }
 
@@ -545,6 +644,50 @@ func (s *ldbStore) syncnames() (err error) {
 	return nil
 }
 
+// sync the websites index with the leveldb websites key
+func (s *ldbStore) syncwebsites() (err error) {
+	var val []byte
+
+	// Critical section (optimizing for safety rather than speed)
+	s.Lock()
+	defer s.Unlock()
+
+	if s.websites == nil {
+		// Create the index to load it from disk
+		s.websites = make(uniqueIndex)
+
+		// fetch the websites from the database
+		if val, err = s.db.Get(keyWebsiteIndex, nil); err != nil {
+			if err == leveldb.ErrNotFound {
+				return nil
+			}
+			log.Error().Err(err).Msg("could not fetch websites index from database")
+			return err
+		}
+
+		if err = s.websites.Load(val); err != nil {
+			log.Error().Err(err).Msg("could not unmarshal websites index")
+			return ErrCorruptedIndex
+		}
+	}
+
+	// Put the current websites back to the database
+	if len(s.websites) > 0 {
+		if val, err = s.websites.Dump(); err != nil {
+			log.Error().Err(err).Msg("could not marshal websites index")
+			return ErrCorruptedIndex
+		}
+
+		if err = s.db.Put(keyWebsiteIndex, val, nil); err != nil {
+			log.Error().Err(err).Msg("could not put websites index")
+			return ErrCorruptedIndex
+		}
+	}
+
+	log.Debug().Int("size", len(val)).Msg("websites index checkpointed")
+	return nil
+}
+
 // sync the countries index with the leveldb countries key
 func (s *ldbStore) synccountries() (err error) {
 	var val []byte
@@ -586,5 +729,49 @@ func (s *ldbStore) synccountries() (err error) {
 	}
 
 	log.Debug().Int("size", len(val)).Msg("country index checkpointed")
+	return nil
+}
+
+// sync the categories index with the leveldb categories key
+func (s *ldbStore) synccategories() (err error) {
+	var val []byte
+
+	// Critical section (optimizing for safety rather than speed)
+	s.Lock()
+	defer s.Unlock()
+
+	if s.categories == nil {
+		// Create the categories index an dload from the database
+		s.categories = make(containerIndex)
+
+		// fetch the categories from the database
+		if val, err = s.db.Get(keyCategoryIndex, nil); err != nil {
+			if err == leveldb.ErrNotFound {
+				return nil
+			}
+			log.Error().Err(err).Msg("could fetch categories index from database")
+			return err
+		}
+
+		if err = s.categories.Load(val); err != nil {
+			log.Error().Err(err).Msg("could not unmarshall categories index")
+			return ErrCorruptedIndex
+		}
+	}
+
+	if len(s.categories) > 0 {
+		// Put the current categories back to the database
+		if val, err = s.categories.Dump(); err != nil {
+			log.Error().Err(err).Msg("could not marshal categories index")
+			return ErrCorruptedIndex
+		}
+
+		if err = s.db.Put(keyCategoryIndex, val, nil); err != nil {
+			log.Error().Err(err).Msg("could not put categories index")
+			return ErrCorruptedIndex
+		}
+	}
+
+	log.Debug().Int("size", len(val)).Msg("categories index checkpointed")
 	return nil
 }
