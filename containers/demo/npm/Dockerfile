@@ -8,6 +8,7 @@ ENV PATH node_modules/.bin:$PATH
 RUN npm install --silent
 
 # Build the React app
+ENV GENERATE_SOURCEMAP false
 COPY web/demo/npm/ .
 RUN npm run build
 
