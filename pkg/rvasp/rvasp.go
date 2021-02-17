@@ -137,9 +137,21 @@ func (s *Server) Shutdown() (err error) {
 }
 
 // Transfer accepts a transfer request from a beneficiary and begins the InterVASP
-// protocol to perform identity verification prior to establishing the transactoin in
+// protocol to perform identity verification prior to establishing the transaction in
 // the blockchain between crypto wallet addresses.
 func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb.TransferReply, err error) {
+	// Get originator account and confirm it belongs to this RVASP
+	// Lookup beneficiary wallet and confirm it belongs to a remote RVASP
+	// Conduct a TRISADS lookup if necessary to get the endpoint
+	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
+	// Save the pending transaction and increment the accounts pending field
+	// Create an identity and transaction payload for TRISA exchange
+	// Secure the envelope with the remote beneficiary's signing keys
+	// Conduct the TRISA transaction, handle errors and send back to user
+	// Open the response envelope with local private keys
+	// Verify the contents of the response
+	// Update the completed transaction and save to disk
+
 	return nil, nil
 }
 
@@ -211,7 +223,16 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 		messages uint64
 	)
 
+	ctx := stream.Context()
+
 	for {
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		var req *pb.Command
 		if req, err = stream.Recv(); err != nil {
 			// The stream was closed on the client side
