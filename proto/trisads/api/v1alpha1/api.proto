@@ -114,11 +114,18 @@ message LookupReply {
 // are primarily used to locate a beneficiary VASP in order to begin the TRISA P2P protocol.
 // NOTE: only verified VASPs are returned using the search RPC.
 message SearchRequest {
-    // Search the legal names of the VASP (case insensitive)
+    // Case insensitive search fields that use OR to perform the lookup. The name field
+    // can be the legal, short, or DBA name of the VASP or the common name of
+    // certificate issued to that VASP (though in this case, it is better to use the
+    // Lookup RPC). The website must be a parseable URL to lookup the VASP with.
     repeated string name = 1;
+    repeated string website = 2;
 
-    // Filter the search by a specific country or countries
-    repeated string country = 2;
+    // Search filters to condition the search on. Only VASPs that are in the
+    // country(ies) or category(ies) specified are returned.
+    repeated string country = 7;
+    repeated trisads.models.v1alpha1.BusinessCategory business_category = 8;
+    repeated trisads.models.v1alpha1.VASPCategory vasp_category = 9;
 }
 
 message SearchReply {
@@ -127,6 +134,9 @@ message SearchReply {
         string id = 1;
         string registered_directory = 2;
         string common_name = 3;
+
+        // Address to connect to the remote VASP on to perform a TRISA request
+        string endpoint = 4;
     }
 
     // If no error is specified, the search was successful, even if no results returned.
