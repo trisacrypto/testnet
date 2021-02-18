@@ -15,6 +15,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/trisacrypto/testnet/pkg/ivms101"
 	api "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
+	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/testnet/pkg/trisa/handler"
 	"github.com/trisacrypto/testnet/pkg/trisa/mtls"
 	"github.com/trisacrypto/testnet/pkg/trisa/peers"
@@ -127,10 +128,12 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 		}
 	}
 	log.Info().Str("peer", peer.String()).Msg("unary transfer request received")
+	s.parent.updates.Broadcast(0, fmt.Sprintf("received secure exchange from %s", peer), pb.MessageCategory_TRISAP2P)
 
 	// Check signing key is available to send an encrypted response
 	if peer.SigningKey() == nil {
 		log.Warn().Str("peer", peer.String()).Msg("no remote signing key available")
+		s.parent.updates.Broadcast(0, "no remote signing key available, key exchange required", pb.MessageCategory_TRISAP2P)
 		return nil, &protocol.Error{
 			Code:    protocol.NoSigningKey,
 			Message: "please retry transfer after key exchange",
@@ -154,10 +157,12 @@ func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer
 		}
 	}
 	log.Info().Str("peer", peer.String()).Msg("transfer stream opened")
+	s.parent.updates.Broadcast(0, fmt.Sprintf("transfer stream opened from %s", peer), pb.MessageCategory_TRISAP2P)
 
 	// Check signing key is available to send an encrypted response
 	if peer.SigningKey() == nil {
 		log.Warn().Str("peer", peer.String()).Msg("no remote signing key available")
+		s.parent.updates.Broadcast(0, "no remote signing key available, key exchange required", pb.MessageCategory_TRISAP2P)
 		return &protocol.Error{
 			Code:    protocol.NoSigningKey,
 			Message: "please retry transfer after key exchange",
@@ -211,8 +216,10 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 			Str("encryption", in.EncryptionAlgorithm).
 			Str("hmac", in.HmacAlgorithm).
 			Msg("unsupported cryptographic algorithms")
+		s.parent.updates.Broadcast(0, "server only supports AES256-GCM and HMAC-SHA256", pb.MessageCategory_TRISAP2P)
 		return nil, protocol.Errorf(protocol.UnhandledAlgorithm, "server only supports AES256-GCM and HMAC-SHA256")
 	}
+	s.parent.updates.Broadcast(0, "decrypting with RSA and AES256-GCM; verifying with HMAC-SHA256", pb.MessageCategory_TRISAP2P)
 
 	// Decrypt the encryption key and HMAC secret with private signing keys (asymmetric phase)
 	var envelope *handler.Envelope
@@ -242,6 +249,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		log.Error().Err(err).Msg("could not unmarshal transaction")
 		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal transaction")
 	}
+	s.parent.updates.Broadcast(0, fmt.Sprintf("secure envelope %s opened and payload decrypted and parsed", envelope.ID), pb.MessageCategory_TRISAP2P)
 
 	// Lookup the beneficiary in the local VASP database.
 	var accountAddress string
@@ -338,6 +346,9 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
+	msg := fmt.Sprintf("ready for transaction %04d: %s transfering from %s to %s", ach.ID, ach.Amount, ach.Originator.WalletAddress, ach.Beneficiary.WalletAddress)
+	s.parent.updates.Broadcast(0, msg, pb.MessageCategory_BLOCKCHAIN)
+
 	// Encode and encrypt the payload information to return the secure envelope
 	payload = &protocol.Payload{}
 	if payload.Identity, err = ptypes.MarshalAny(identity); err != nil {
@@ -349,12 +360,15 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
+	s.parent.updates.Broadcast(0, "sealing beneficiary information and returning", pb.MessageCategory_TRISAP2P)
+
 	envelope.Payload = payload
 	if out, err = envelope.Seal(peer.SigningKey()); err != nil {
 		log.Error().Err(err).Msg("could not seal envelope to send to originator")
 		return nil, err
 	}
 
+	s.parent.updates.Broadcast(0, fmt.Sprintf("%04d new account balance: %s", account.ID, account.Balance), pb.MessageCategory_LEDGER)
 	return out, nil
 }
 
@@ -378,6 +392,7 @@ func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *
 		}
 	}
 	log.Info().Str("peer", peer.String()).Msg("key exchange request received")
+	s.parent.updates.Broadcast(0, fmt.Sprintf("key exchange request received from %s", peer), pb.MessageCategory_TRISAP2P)
 
 	// Cache key inside of the in-memory Peer map
 	var pub interface{}
@@ -420,6 +435,7 @@ func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *
 		log.Error().Err(err).Msg("could not marshal PKIX public key")
 		return nil, protocol.Errorf(protocol.InternalError, "could not marshal public key")
 	}
+	s.parent.updates.Broadcast(0, "keys marshaled, returning public keys for signing", pb.MessageCategory_TRISAP2P)
 
 	return out, nil
 }

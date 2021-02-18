@@ -470,8 +470,9 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 				log.Error().Err(err).Msg("could not create client updater")
 				return err
 			}
-
 			log.Info().Str("client", client).Msg("connected to live updates")
+			defer s.updates.Del(client)
+
 		} else if client != req.Client {
 			log.Warn().Str("request from", req.Client).Str("client stream", client).Msg("unexpected client")
 			s.updates.Del(client)
