@@ -533,7 +533,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Handle Demo UI errors before the account lookup
-	if transfer.OriginatingVasp != s.vasp.Name {
+	if transfer.OriginatingVasp != "" && transfer.OriginatingVasp != s.vasp.Name {
 		log.Info().Str("requested", transfer.OriginatingVasp).Str("local", s.vasp.Name).Msg("requested originator does not match local VASP")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrWrongVASP, "message sent to the wrong originator VASP"),
