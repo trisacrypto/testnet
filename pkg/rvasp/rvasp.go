@@ -2,6 +2,8 @@ package rvasp
 
 import (
 	"context"
+	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,11 +13,18 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/shopspring/decimal"
 	"github.com/trisacrypto/testnet/pkg"
+	"github.com/trisacrypto/testnet/pkg/ivms101"
+	api "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
+	"github.com/trisacrypto/testnet/pkg/trisa/handler"
 	"github.com/trisacrypto/testnet/pkg/trisa/peers"
+	protocol "github.com/trisacrypto/testnet/pkg/trisa/protocol/v1alpha1"
 	"google.golang.org/grpc"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -181,16 +190,181 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	// Conduct a TRISADS lookup if necessary to get the endpoint
-	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
-	// Save the pending transaction and increment the accounts pending field
-	// Create an identity and transaction payload for TRISA exchange
-	// Secure the envelope with the remote beneficiary's signing keys
-	// Conduct the TRISA transaction, handle errors and send back to user
-	// Open the response envelope with local private keys
-	// Verify the contents of the response
-	// Update the completed transaction and save to disk
+	var peer *peers.Peer
+	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		log.Error().Err(err).Msg("could not search peer from directory service")
+		return rep, nil
+	}
 
-	return nil, nil
+	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
+	var signKey *rsa.PublicKey
+	if signKey, err = peer.ExchangeKeys(false); err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		log.Error().Err(err).Msg("could not exchange keys with remote peer")
+		return rep, nil
+	}
+
+	// Save the pending transaction and increment the accounts pending field
+	xfer := Transaction{
+		Envelope:  uuid.New().String(),
+		Account:   account,
+		Amount:    decimal.NewFromFloat32(req.Amount),
+		Debit:     true,
+		Completed: false,
+	}
+
+	if err = s.db.Save(&xfer).Error; err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		log.Error().Err(err).Msg("could not save transaction")
+		return rep, nil
+	}
+
+	// Save the pending transaction on the account
+	// TODO: remove pending transactions
+	account.Pending++
+	if err = s.db.Save(&account).Error; err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		log.Error().Err(err).Msg("could not save originator account")
+		return rep, nil
+	}
+
+	// Create an identity and transaction payload for TRISA exchange
+	transaction := &api.Transaction{
+		Originator: &api.Account{
+			WalletAddress: account.WalletAddress,
+			Email:         account.Email,
+			Provider:      s.vasp.Name,
+		},
+		Beneficiary: &api.Account{
+			WalletAddress: beneficiary.Address,
+		},
+		Amount: req.Amount,
+	}
+	identity := &ivms101.IdentityPayload{
+		Originator:      &ivms101.Originator{},
+		OriginatingVasp: &ivms101.OriginatingVasp{},
+	}
+	if identity.OriginatingVasp.OriginatingVasp, err = s.vasp.LoadIdentity(); err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, "could not load originator vasp")
+		log.Error().Err(err).Msg("could not load originator vasp")
+		return rep, nil
+	}
+
+	identity.Originator = &ivms101.Originator{
+		OriginatorPersons: make([]*ivms101.Person, 0, 1),
+		AccountNumbers:    []string{account.WalletAddress},
+	}
+	var originator *ivms101.Person
+	if originator, err = account.LoadIdentity(); err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, "could not load originator identity")
+		log.Error().Err(err).Msg("could not load originator identity")
+		return rep, nil
+	}
+	identity.Originator.OriginatorPersons = append(identity.Originator.OriginatorPersons, originator)
+
+	payload := &protocol.Payload{}
+	if payload.Transaction, err = ptypes.MarshalAny(transaction); err != nil {
+		log.Error().Err(err).Msg("could not dump payload transaction")
+		rep.Error = pb.Errorf(pb.ErrInternal, "could not dump payload transaction")
+		return rep, nil
+	}
+	if payload.Identity, err = ptypes.MarshalAny(identity); err != nil {
+		log.Error().Err(err).Msg("could not dump payload identity")
+		rep.Error = pb.Errorf(pb.ErrInternal, "could not dump payload identity")
+		return rep, nil
+	}
+
+	// Secure the envelope with the remote beneficiary's signing keys
+	var envelope *protocol.SecureEnvelope
+	if envelope, err = handler.New(xfer.Envelope, payload, nil).Seal(signKey); err != nil {
+		log.Error().Err(err).Msg("could not create or sign secure envelope")
+		rep.Error = pb.Errorf(pb.ErrInternal, "could not create or sign secure envelope")
+		return rep, nil
+	}
+
+	// Conduct the TRISA transaction, handle errors and send back to user
+	if envelope, err = peer.Transfer(envelope); err != nil {
+		log.Error().Err(err).Msg("could not perform TRISA exchange")
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		return rep, nil
+	}
+
+	// Open the response envelope with local private keys
+	var opened *handler.Envelope
+	if opened, err = handler.Open(envelope, s.trisa.sign); err != nil {
+		log.Error().Err(err).Msg("could not unseal TRISA response")
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		return rep, nil
+	}
+
+	// Verify the contents of the response
+	payload = opened.Payload
+	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
+		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		return rep, nil
+	}
+
+	if payload.Transaction.TypeUrl != "type.googleapis.com/rvasp.v1.Transaction" {
+		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		return rep, nil
+	}
+
+	identity = &ivms101.IdentityPayload{}
+	transaction = &api.Transaction{}
+	if err = ptypes.UnmarshalAny(payload.Identity, identity); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal identity")
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		return rep, nil
+	}
+	if err = ptypes.UnmarshalAny(payload.Transaction, transaction); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal transaction")
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		return rep, nil
+	}
+
+	// Update the completed transaction and save to disk
+	xfer.Beneficiary = Identity{
+		WalletAddress: transaction.Beneficiary.WalletAddress,
+		Email:         transaction.Beneficiary.Email,
+		Provider:      transaction.Beneficiary.Provider,
+	}
+	xfer.Completed = true
+	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
+
+	// Serialize the identity information as JSON data
+	var data []byte
+	if data, err = json.Marshal(identity); err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, "could not marshal IVMS 101 identity")
+		log.Error().Err(err).Msg("could not save transaction")
+		return rep, nil
+	}
+	xfer.Identity = string(data)
+
+	if err = s.db.Save(&xfer).Error; err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		log.Error().Err(err).Msg("could not save transaction")
+		return rep, nil
+	}
+
+	// Save the pending transaction on the account
+	// TODO: remove pending transactions
+	account.Pending--
+	account.Completed++
+	account.Balance.Sub(xfer.Amount)
+	if err = s.db.Save(&account).Error; err != nil {
+		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+		log.Error().Err(err).Msg("could not save originator account")
+		return rep, nil
+	}
+
+	// Return the transfer response
+	rep.Transaction = transaction
+	rep.Transaction.Envelope = xfer.Envelope
+	rep.Transaction.Identity = xfer.Identity
+	return rep, nil
 }
 
 // AccountStatus is a demo RPC to allow demo clients to fetch their recent transactions.

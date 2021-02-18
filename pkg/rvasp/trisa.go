@@ -294,6 +294,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	// Update the transactionwith beneficiary information
 	transaction.Beneficiary.WalletAddress = account.WalletAddress
 	transaction.Beneficiary.Email = account.Email
+	transaction.Beneficiary.Provider = s.parent.vasp.Name
 	transaction.Timestamp = time.Now().Format(time.RFC3339)
 
 	// Save the completed transaction in the database
@@ -303,10 +304,12 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		Originator: Identity{
 			WalletAddress: transaction.Originator.WalletAddress,
 			Email:         transaction.Originator.Email,
+			Provider:      transaction.Originator.Provider,
 		},
 		Beneficiary: Identity{
 			WalletAddress: account.WalletAddress,
 			Email:         account.Email,
+			Provider:      s.parent.vasp.Name,
 		},
 		Amount:    decimal.NewFromFloat32(transaction.Amount),
 		Debit:     false,
@@ -347,7 +350,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	}
 
 	envelope.Payload = payload
-	if out, err = envelope.Seal(peer.SigningKey); err != nil {
+	if out, err = envelope.Seal(peer.SigningKey()); err != nil {
 		log.Error().Err(err).Msg("could not seal envelope to send to originator")
 		return nil, err
 	}

@@ -31,22 +31,26 @@ func main() {
 			Action:   serve,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "n, name",
-					Usage: "the name of the rVASP (alice, bob, evil, etc.)",
+					Name:   "n, name",
+					Usage:  "the name of the rVASP (alice, bob, evil, etc.)",
+					EnvVar: "RVASP_NAME",
 				},
 				cli.StringFlag{
-					Name:  "a, addr",
-					Usage: "the address and port to bind the server on",
-					Value: ":4434",
+					Name:   "a, addr",
+					Usage:  "the address and port to bind the server on",
+					Value:  ":4434",
+					EnvVar: "RVASP_BIND_ADDR",
 				},
 				cli.StringFlag{
-					Name:  "t, trisa-addr",
-					Usage: "the address and port to bind the TRISA server on",
-					Value: ":4435",
+					Name:   "t, trisa-addr",
+					Usage:  "the address and port to bind the TRISA server on",
+					Value:  ":4435",
+					EnvVar: "RVASP_TRISA_BIND_ADDR",
 				},
 				cli.StringFlag{
-					Name:  "d, db",
-					Usage: "the dsn to the sqlite3 database to connect to",
+					Name:   "d, db",
+					Usage:  "the dsn to the sqlite3 database to connect to",
+					EnvVar: "RVASP_DATABASE",
 				},
 			},
 		},
@@ -71,14 +75,14 @@ func main() {
 			Action:   account,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:   "a, addr",
+					Name:   "e, endpoint",
 					Usage:  "the address and port to connect to the server on",
 					Value:  "localhost:4434",
 					EnvVar: "RVASP_ADDR",
 				},
 				cli.StringFlag{
-					Name:   "e, account",
-					Usage:  "the email address of the account",
+					Name:   "a, account",
+					Usage:  "the wallet or email address of the account",
 					EnvVar: "RVASP_CLIENT_ACCOUNT",
 				},
 				cli.BoolFlag{
@@ -94,13 +98,13 @@ func main() {
 			Action:   transfer,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:   "a, addr",
+					Name:   "e, endpoint",
 					Usage:  "the address and port to connect to the server on",
 					Value:  "localhost:4434",
 					EnvVar: "RVASP_ADDR",
 				},
 				cli.StringFlag{
-					Name:   "e, account",
+					Name:   "a, account",
 					Usage:  "the email address of the account",
 					EnvVar: "RVASP_CLIENT_ACCOUNT",
 				},
@@ -235,7 +239,7 @@ func makeClient(c *cli.Context) (_ pb.TRISAIntegrationClient, err error) {
 	opts = append(opts, grpc.WithInsecure())
 
 	var cc *grpc.ClientConn
-	if cc, err = grpc.Dial(c.String("addr"), opts...); err != nil {
+	if cc, err = grpc.Dial(c.String("endpoint"), opts...); err != nil {
 		return nil, err
 	}
 	return pb.NewTRISAIntegrationClient(cc), nil

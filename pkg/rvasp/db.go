@@ -154,7 +154,7 @@ func (v VASP) LoadIdentity() (person *ivms101.Person, err error) {
 
 	person = new(ivms101.Person)
 	if err = jsonpb.UnmarshalString(v.IVMS101, person); err != nil {
-		return nil, fmt.Errorf("could not unmarhsal identity: %s", err)
+		return nil, fmt.Errorf("could not unmarshal identity: %s", err)
 	}
 	return person, nil
 }
@@ -167,7 +167,7 @@ func (a Account) LoadIdentity() (person *ivms101.Person, err error) {
 
 	person = new(ivms101.Person)
 	if err = jsonpb.UnmarshalString(a.IVMS101, person); err != nil {
-		return nil, fmt.Errorf("could not unmarhsal identity: %s", err)
+		return nil, fmt.Errorf("could not unmarshal identity: %s", err)
 	}
 	return person, nil
 }
