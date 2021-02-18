@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: rvasp-alice
-        image: trisa/rvasp-alice:e97f720
+        image: trisa/rvasp-alice:10d9f87
         ports:
         - containerPort: 4434
           protocol: TCP
@@ -43,6 +43,8 @@ spec:
           value: "/data/certs/api.alice.vaspbot.net.gz"
         - name: RVASP_TRUST_CHAIN_PATH
           value: "/data/certs/trisa.zip"
+        - name: RVASP_DIRECTORY_SERVICE_URL
+          value: "api.vaspdirectory.net:443"
         - name: RVASP_LOG_LEVEL
           value: info
       volumes:
