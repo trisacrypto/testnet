@@ -126,11 +126,11 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 			Message: err.Error(),
 		}
 	}
-	log.Info().Str("peer", peer.CommonName).Msg("unary transfer request received")
+	log.Info().Str("peer", peer.String()).Msg("unary transfer request received")
 
 	// Check signing key is available to send an encrypted response
-	if peer.SigningKey == nil {
-		log.Warn().Str("peer", peer.CommonName).Msg("no remote signing key available")
+	if peer.SigningKey() == nil {
+		log.Warn().Str("peer", peer.String()).Msg("no remote signing key available")
 		return nil, &protocol.Error{
 			Code:    protocol.NoSigningKey,
 			Message: "please retry transfer after key exchange",
@@ -153,11 +153,11 @@ func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer
 			Message: err.Error(),
 		}
 	}
-	log.Info().Str("peer", peer.CommonName).Msg("transfer stream opened")
+	log.Info().Str("peer", peer.String()).Msg("transfer stream opened")
 
 	// Check signing key is available to send an encrypted response
-	if peer.SigningKey == nil {
-		log.Warn().Str("peer", peer.CommonName).Msg("no remote signing key available")
+	if peer.SigningKey() == nil {
+		log.Warn().Str("peer", peer.String()).Msg("no remote signing key available")
 		return &protocol.Error{
 			Code:    protocol.NoSigningKey,
 			Message: "please retry transfer after key exchange",
@@ -176,7 +176,7 @@ func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer
 
 		var in *protocol.SecureEnvelope
 		if in, err = stream.Recv(); err == io.EOF {
-			log.Info().Str("peer", peer.CommonName).Msg("transfer stream closed")
+			log.Info().Str("peer", peer.String()).Msg("transfer stream closed")
 		} else if err != nil {
 			log.Warn().Err(err).Msg("recv stream error")
 			return protocol.Errorf(protocol.Unavailable, "stream closed prematurely: %s", err)
@@ -200,7 +200,7 @@ func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer
 			log.Error().Err(err).Msg("send stream error")
 			return err
 		}
-		log.Info().Str("peer", peer.CommonName).Str("id", in.Id).Msg("streaming transfer request complete")
+		log.Info().Str("peer", peer.String()).Str("id", in.Id).Msg("streaming transfer request complete")
 	}
 }
 
@@ -374,7 +374,7 @@ func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *
 			Message: err.Error(),
 		}
 	}
-	log.Info().Str("peer", peer.CommonName).Msg("key exchange request received")
+	log.Info().Str("peer", peer.String()).Msg("key exchange request received")
 
 	// Cache key inside of the in-memory Peer map
 	var pub interface{}
@@ -387,8 +387,8 @@ func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *
 		return nil, protocol.Errorf(protocol.NoSigningKey, "could not parse signing key")
 	}
 
-	var ok bool
-	if peer.SigningKey, ok = pub.(*rsa.PublicKey); !ok {
+	if err = peer.UpdateSigningKey(pub); err != nil {
+		log.Error().Err(err).Msg("could not update signing key")
 		return nil, protocol.Errorf(protocol.UnhandledAlgorithm, "unsuported signing algorithm")
 	}
 

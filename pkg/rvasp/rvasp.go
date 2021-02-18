@@ -38,7 +38,7 @@ func New(conf *Settings) (s *Server, err error) {
 	// Set the global level
 	zerolog.SetGlobalLevel(zerolog.Level(conf.LogLevel))
 
-	s = &Server{conf: conf, peers: peers.New(), echan: make(chan error, 1)}
+	s = &Server{conf: conf, echan: make(chan error, 1)}
 	if s.db, err = gorm.Open(sqlite.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return nil, err
 	}
@@ -61,6 +61,8 @@ func New(conf *Settings) (s *Server, err error) {
 		return nil, fmt.Errorf("could not create TRISA service: %s", err)
 	}
 
+	// Create the remote peers using the same credentials as the TRISA service
+	s.peers = peers.New(s.trisa.certs, s.trisa.chain, s.conf.DirectoryServiceURL)
 	return s, nil
 }
 
@@ -74,7 +76,7 @@ type Server struct {
 	vasp  VASP
 	trisa *TRISA
 	echan chan error
-	peers peers.Peers
+	peers *peers.Peers
 }
 
 // Serve GRPC requests on the specified address.
@@ -140,8 +142,44 @@ func (s *Server) Shutdown() (err error) {
 // protocol to perform identity verification prior to establishing the transaction in
 // the blockchain between crypto wallet addresses.
 func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb.TransferReply, err error) {
+	rep = &pb.TransferReply{}
+
 	// Get originator account and confirm it belongs to this RVASP
+	var account Account
+	if err = LookupAccount(s.db, req.Account).First(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			rep.Error = pb.Errorf(pb.ErrNotFound, "account not found")
+			log.Info().Str("account", req.Account).Msg("not found")
+			return rep, nil
+		}
+		log.Error().Err(err).Msg("could not lookup account")
+		return nil, err
+	}
+
 	// Lookup beneficiary wallet and confirm it belongs to a remote RVASP
+	var beneficiary Wallet
+	if err = LookupBeneficiary(s.db, req.Beneficiary).First(&beneficiary).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			rep.Error = pb.Errorf(pb.ErrNotFound, "beneficiary not found")
+			log.Info().Str("beneficiary", req.Beneficiary).Msg("not found")
+			return rep, nil
+		}
+		log.Error().Err(err).Msg("could not lookup beneficiary")
+		return nil, err
+	}
+
+	if req.CheckBeneficiary {
+		if req.BeneficiaryVasp != beneficiary.Provider.Name {
+			rep.Error = pb.Errorf(pb.ErrWrongVASP, "beneficiary wallet does not match beneficiary VASP")
+			log.Info().
+				Str("expected", req.BeneficiaryVasp).
+				Str("actual", beneficiary.Provider.Name).
+				Msg("check beneficiary failed")
+			return rep, nil
+		}
+
+	}
+
 	// Conduct a TRISADS lookup if necessary to get the endpoint
 	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
 	// Save the pending transaction and increment the accounts pending field
@@ -376,7 +414,7 @@ func (s *Server) simulateTRISA(stream pb.TRISADemo_LiveUpdatesServer, req *pb.Co
 	}
 
 	if transfer.CheckBeneficiary {
-		if transfer.Beneficiary != beneficiary.Provider.Name {
+		if transfer.BeneficiaryVasp != beneficiary.Provider.Name {
 			rep := &pb.Message{
 				Type:      pb.RPC_TRANSFER,
 				Id:        req.Id,
@@ -453,36 +491,5 @@ func (s *Server) simulateTRISA(stream pb.TRISADemo_LiveUpdatesServer, req *pb.Co
 		return fmt.Errorf("could not send transfer reply to %q: %s", client, err)
 	}
 
-	return nil
-}
-
-// create a stream updater for simulating live update messages
-func newStreamUpdater(stream pb.TRISADemo_LiveUpdatesServer, req *pb.Command, client string) *streamUpdater {
-	return &streamUpdater{
-		stream:    stream,
-		client:    client,
-		requestID: req.Id,
-	}
-}
-
-// streamUpdater holds the context for sending updates based on a single request.
-type streamUpdater struct {
-	stream    pb.TRISADemo_LiveUpdatesServer
-	client    string
-	requestID uint64
-}
-
-func (s *streamUpdater) send(update string, cat pb.MessageCategory) (err error) {
-	msg := &pb.Message{
-		Type:      pb.RPC_NORPC,
-		Id:        s.requestID,
-		Update:    update,
-		Category:  cat,
-		Timestamp: time.Now().Format(time.RFC3339),
-	}
-
-	if err = s.stream.Send(msg); err != nil {
-		return fmt.Errorf("could not send message to %q: %s", s.client, err)
-	}
 	return nil
 }
