@@ -475,7 +475,7 @@ def create_vasps(conn, vasp):
 
         # Only store IVMS data if this is the local VASP
         # (so that VASPs have to look each other up in the directory service)
-        record = json.dumps(record) if is_local else None
+        record = json.dumps({"legal_person": record["legal_person"]}) if is_local else None
         params.append([i+1, common_name, legal_name, is_local, record, ts, ts])
 
     cur.executemany(sql, params)

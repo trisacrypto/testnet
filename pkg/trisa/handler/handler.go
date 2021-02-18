@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/rsa"
 
+	"github.com/google/uuid"
 	"github.com/trisacrypto/testnet/pkg/trisa/crypto"
 	"github.com/trisacrypto/testnet/pkg/trisa/crypto/aesgcm"
 	"github.com/trisacrypto/testnet/pkg/trisa/crypto/rsaoeap"
@@ -16,6 +17,23 @@ type Envelope struct {
 	ID      string
 	Payload *protocol.Payload
 	Cipher  crypto.Crypto
+}
+
+// New creates a new envelope, generating an ID if the ID is empty and creating a new
+// AES-GCM cipher if the cipher is nil.
+func New(id string, payload *protocol.Payload, cipher crypto.Crypto) *Envelope {
+	if id == "" {
+		id = uuid.New().String()
+	}
+
+	if cipher == nil {
+		var err error
+		if cipher, err = aesgcm.New(nil, nil); err != nil {
+			panic(err)
+		}
+	}
+
+	return &Envelope{ID: id, Payload: payload, Cipher: cipher}
 }
 
 // Open a secure envelope using the private signing key paired with the public key that

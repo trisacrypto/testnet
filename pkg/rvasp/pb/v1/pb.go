@@ -11,6 +11,7 @@ import (
 const (
 	ErrNotFound  = 404
 	ErrWrongVASP = 405
+	ErrInternal  = 500
 )
 
 // Errorf is a quick one liner to create error objects

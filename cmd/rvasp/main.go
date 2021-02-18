@@ -31,22 +31,26 @@ func main() {
 			Action:   serve,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "n, name",
-					Usage: "the name of the rVASP (alice, bob, evil, etc.)",
+					Name:   "n, name",
+					Usage:  "the name of the rVASP (alice, bob, evil, etc.)",
+					EnvVar: "RVASP_NAME",
 				},
 				cli.StringFlag{
-					Name:  "a, addr",
-					Usage: "the address and port to bind the server on",
-					Value: ":4434",
+					Name:   "a, addr",
+					Usage:  "the address and port to bind the server on",
+					Value:  ":4434",
+					EnvVar: "RVASP_BIND_ADDR",
 				},
 				cli.StringFlag{
-					Name:  "t, trisa-addr",
-					Usage: "the address and port to bind the TRISA server on",
-					Value: ":4435",
+					Name:   "t, trisa-addr",
+					Usage:  "the address and port to bind the TRISA server on",
+					Value:  ":4435",
+					EnvVar: "RVASP_TRISA_BIND_ADDR",
 				},
 				cli.StringFlag{
-					Name:  "d, db",
-					Usage: "the dsn to the sqlite3 database to connect to",
+					Name:   "d, db",
+					Usage:  "the dsn to the sqlite3 database to connect to",
+					EnvVar: "RVASP_DATABASE",
 				},
 			},
 		},
@@ -71,14 +75,14 @@ func main() {
 			Action:   account,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:   "a, addr",
+					Name:   "e, endpoint",
 					Usage:  "the address and port to connect to the server on",
 					Value:  "localhost:4434",
 					EnvVar: "RVASP_ADDR",
 				},
 				cli.StringFlag{
-					Name:   "e, account",
-					Usage:  "the email address of the account",
+					Name:   "a, account",
+					Usage:  "the wallet or email address of the account",
 					EnvVar: "RVASP_CLIENT_ACCOUNT",
 				},
 				cli.BoolFlag{
@@ -94,13 +98,44 @@ func main() {
 			Action:   transfer,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:   "a, addr",
+					Name:   "e, endpoint",
 					Usage:  "the address and port to connect to the server on",
 					Value:  "localhost:4434",
 					EnvVar: "RVASP_ADDR",
 				},
 				cli.StringFlag{
-					Name:   "e, account",
+					Name:   "a, account",
+					Usage:  "the email address of the account",
+					EnvVar: "RVASP_CLIENT_ACCOUNT",
+				},
+				cli.StringFlag{
+					Name:  "b, beneficiary",
+					Usage: "the email or wallet address of the beneficiary",
+				},
+				cli.Float64Flag{
+					Name:  "d, amount",
+					Usage: "the amount to transfer to the beneficiary",
+				},
+			},
+		},
+		{
+			Name:     "stream",
+			Usage:    "initiate a transfer stream for listening or initiating a transfer",
+			Category: "client",
+			Action:   stream,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "e, endpoint",
+					Usage:  "the address and port to connect to the server on",
+					Value:  "localhost:4434",
+					EnvVar: "RVASP_ADDR",
+				},
+				cli.BoolFlag{
+					Name:  "l, listen",
+					Usage: "only listen for messages, do not send transfer",
+				},
+				cli.StringFlag{
+					Name:   "a, account",
 					Usage:  "the email address of the account",
 					EnvVar: "RVASP_CLIENT_ACCOUNT",
 				},
@@ -229,16 +264,103 @@ func transfer(c *cli.Context) (err error) {
 	return printJSON(rep)
 }
 
+// Client method: transfer funds
+func stream(c *cli.Context) (err error) {
+	var req *pb.TransferRequest
+	if !c.Bool("listen") {
+		req = &pb.TransferRequest{
+			Account:          c.String("account"),
+			Beneficiary:      c.String("beneficiary"),
+			Amount:           float32(c.Float64("amount")),
+			CheckBeneficiary: false,
+		}
+
+		if req.Account == "" {
+			return cli.NewExitError("specify account email", 1)
+		}
+
+		if req.Beneficiary == "" {
+			return cli.NewExitError("specify a beneficiary email or wallet", 1)
+		}
+
+		if req.Amount <= 0.0 {
+			return cli.NewExitError("specify a transfer amount", 1)
+		}
+	}
+
+	client, err := makeDemoClient(c)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	stream, err := client.LiveUpdates(ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	// Send the client connection message
+	if err = stream.Send(&pb.Command{
+		Type:   pb.RPC_NORPC,
+		Client: "testing",
+	}); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if req != nil {
+		if err = stream.Send(&pb.Command{
+			Type:   pb.RPC_TRANSFER,
+			Id:     1,
+			Client: "testing",
+			Request: &pb.Command_Transfer{
+				Transfer: req,
+			},
+		}); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			if err = ctx.Err(); err != nil {
+				return cli.NewExitError(err, 1)
+			}
+			return nil
+		default:
+		}
+
+		msg, err := stream.Recv()
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		printJSON(msg)
+	}
+}
+
 // helper function to create the GRPC client with default options
 func makeClient(c *cli.Context) (_ pb.TRISAIntegrationClient, err error) {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
 
 	var cc *grpc.ClientConn
-	if cc, err = grpc.Dial(c.String("addr"), opts...); err != nil {
+	if cc, err = grpc.Dial(c.String("endpoint"), opts...); err != nil {
 		return nil, err
 	}
 	return pb.NewTRISAIntegrationClient(cc), nil
+}
+
+func makeDemoClient(c *cli.Context) (_ pb.TRISADemoClient, err error) {
+	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithInsecure())
+
+	var cc *grpc.ClientConn
+	if cc, err = grpc.Dial(c.String("endpoint"), opts...); err != nil {
+		return nil, err
+	}
+	return pb.NewTRISADemoClient(cc), nil
 }
 
 // helper function to print JSON response and exit
