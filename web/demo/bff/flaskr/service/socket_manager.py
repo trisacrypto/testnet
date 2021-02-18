@@ -5,6 +5,7 @@
 # for that context.
 import json
 import time
+import uuid
 
 from flask import request
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
@@ -33,6 +34,7 @@ class SocketManager:
         self.beneficiary_api = None
         self.originator_vasp_context = None
         self.beneficiary_vasp_context = None
+        self.client_name = str(uuid.uuid4())
 
         @socketio.on('transaction_request')
         def handle_transaction_request(message):
@@ -55,8 +57,6 @@ class SocketManager:
             # subscribe to all updates
             for msg in self.originator_api.stub.LiveUpdates(iter([transfer_request])):
                 self.handle_message(self.originator_vasp_context, msg)
-            for msg in self.beneficiary_api.stub.LiveUpdates(iter([self.beneficiary_api.norpc_request()])):
-                self.handle_message(self.beneficiary_vasp_context, msg)
 
         @socketio.on('vasp_context')
         def handle_vasp_context(message):
@@ -69,18 +69,15 @@ class SocketManager:
                 self.originator_vasp_context = context
                 print("Received originator vasp context " + context.vasp_id + " creating client to " +
                       vasp['websocket_address'])
-                self.originator_api = RVASP(name=context.vasp_id, host=vasp['websocket_address'])
+                self.originator_api = RVASP(name=self.client_name, host=vasp['websocket_address'])
 
-                # subscribe to all updates
-                for msg in self.originator_api.stub.LiveUpdates(iter([self.originator_api.norpc_request()])):
-                    self.handle_message(context, msg)
             else:
                 self.beneficiary_vasp_context = context
                 print("Received Beneficiary vasp context " + context.vasp_id + " creating client to " +
                       vasp['websocket_address'])
-                self.beneficiary_api = RVASP(name=context.vasp_id, host=vasp['websocket_address'])
+                self.beneficiary_api = RVASP(name=self.client_name, host=vasp['websocket_address'])
 
-                # subscribe to all updates
+                # subscribe to all updates for beneficiary vasp
                 for msg in self.beneficiary_api.stub.LiveUpdates(blocking_listener(self.beneficiary_api)):
                     self.handle_message(context, msg)
 
@@ -91,7 +88,6 @@ class SocketManager:
 
         @socketio.on('disconnect')
         def disconnect():
-            # Not really needed with rooms?
             self.clear_context_for_session(request.sid)
 
     def handle_message(self, vasp_context: VaspContext, msg):
