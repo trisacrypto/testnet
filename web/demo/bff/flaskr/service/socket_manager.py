@@ -4,6 +4,7 @@
 # This allows one user to perform actions across multiple vasps and each UI session receive appropriate data
 # for that context.
 import json
+import time
 
 from flask import request
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
@@ -16,6 +17,12 @@ from flaskr.models.transaction_request import TransactionRequest
 from flaskr.models.vasp_context import VaspContext
 from flaskr.models.vasp_log_message import VaspLogMessage
 from flaskr.simulator.transaction_handler import TransactionHandler
+
+
+def blocking_listener(api, timeout=36, iters=100):
+    yield api.norpc_request()
+    for _ in range(iters):
+        time.sleep(timeout)
 
 
 class SocketManager:
@@ -74,7 +81,7 @@ class SocketManager:
                 self.beneficiary_api = RVASP(name=context.vasp_id, host=vasp['websocket_address'])
 
                 # subscribe to all updates
-                for msg in self.beneficiary_api.stub.LiveUpdates(iter([self.beneficiary_api.norpc_request()])):
+                for msg in self.beneficiary_api.stub.LiveUpdates(blocking_listener(self.beneficiary_api)):
                     self.handle_message(context, msg)
 
         @socketio.on('connect')
