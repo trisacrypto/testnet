@@ -25,6 +25,14 @@ class TrisaDSCard extends Component<TrisaDSCardProps> {
                         <Card title={title} extra={<a href="#" onClick={this.props.onClose}><img src={'close.png'}/></a>}>
                             <Row>
                                 <Col className="card-left-table">
+                                    <h3>Directory Service:</h3>
+                                </Col>
+                                <Col className="card-right-table">
+                                    <a target="_blank" href="https://vaspdirectory.net">https://vaspdirectory.net</a>
+                                </Col>
+                            </Row>
+                            <Row>
+                                <Col className="card-left-table">
                                     <h3>TRISA DS Status:</h3>
                                 </Col>
                                 <Col className="card-right-table">
