@@ -72,6 +72,7 @@ func New(conf *Settings) (s *Server, err error) {
 
 	// Create the remote peers using the same credentials as the TRISA service
 	s.peers = peers.New(s.trisa.certs, s.trisa.chain, s.conf.DirectoryServiceURL)
+	s.updates = NewUpdateManager()
 	return s, nil
 }
 
@@ -79,13 +80,14 @@ func New(conf *Settings) (s *Server, err error) {
 type Server struct {
 	pb.UnimplementedTRISADemoServer
 	pb.UnimplementedTRISAIntegrationServer
-	conf  *Settings
-	srv   *grpc.Server
-	db    *gorm.DB
-	vasp  VASP
-	trisa *TRISA
-	echan chan error
-	peers *peers.Peers
+	conf    *Settings
+	srv     *grpc.Server
+	db      *gorm.DB
+	vasp    VASP
+	trisa   *TRISA
+	echan   chan error
+	peers   *peers.Peers
+	updates *UpdateManager
 }
 
 // Serve GRPC requests on the specified address.
@@ -464,9 +466,16 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 		// If this is the first time we've seen the client, log it
 		if client == "" {
 			client = req.Client
+			if err = s.updates.Add(client, stream); err != nil {
+				log.Error().Err(err).Msg("could not create client updater")
+				return err
+			}
+
 			log.Info().Str("client", client).Msg("connected to live updates")
 		} else if client != req.Client {
 			log.Warn().Str("request from", req.Client).Str("client stream", client).Msg("unexpected client")
+			s.updates.Del(client)
+			return fmt.Errorf("unexpected client %q (connected as %q)", req.Client, client)
 		}
 
 		// Handle the message
@@ -485,7 +494,7 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 				Update:    fmt.Sprintf("command %d acknowledged", req.Id),
 				Timestamp: time.Now().Format(time.RFC3339),
 			}
-			if err = stream.Send(ack); err != nil {
+			if err = s.updates.Send(client, ack); err != nil {
 				log.Error().Err(err).Str("client", client).Msg("could not send message")
 				return err
 			}
@@ -502,168 +511,304 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 				Reply:     &pb.Message_Account{Account: rep},
 			}
 
-			if err = stream.Send(ack); err != nil {
+			if err = s.updates.Send(client, ack); err != nil {
 				log.Error().Err(err).Str("client", client).Msg("could not send message")
 				return err
 			}
 		case pb.RPC_TRANSFER:
-			// HACK: simulate the TRISA process as a quick stub to unblock the front end
-			if err = s.simulateTRISA(stream, req, client); err != nil {
-				log.Error().Err(err).Msg("could not simulate TRISA")
+			if err = s.handleTransaction(client, req); err != nil {
+				log.Error().Err(err).Msg("could not handle transaction")
 				return err
 			}
 		}
 	}
 }
 
-func (s *Server) simulateTRISA(stream pb.TRISADemo_LiveUpdatesServer, req *pb.Command, client string) (err error) {
-	// Create stream updater context for sending live updates back to client
-	updater := newStreamUpdater(stream, req, client)
-
+// NOTE: this adds in some purposeful latency to make the demo easier to see
+func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	// Get the transfer from the original command, will panic if nil
 	transfer := req.GetTransfer()
+	msg := fmt.Sprintf("starting transaction of %0.2f from %s to %s", transfer.Amount, transfer.Account, transfer.Beneficiary)
+	s.updates.Broadcast(req.Id, msg, pb.MessageCategory_LEDGER)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Handle Demo UI errors before the account lookup
 	if transfer.OriginatingVasp != s.vasp.Name {
-		rep := &pb.Message{
-			Type:      pb.RPC_TRANSFER,
-			Id:        req.Id,
-			Timestamp: time.Now().Format(time.RFC3339),
-			Category:  pb.MessageCategory_ERROR,
-			Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
-				Error: pb.Errorf(pb.ErrWrongVASP, "message sent to the wrong originator VASP"),
-			}},
-		}
-		if err = stream.Send(rep); err != nil {
-			return fmt.Errorf("could not send transfer reply to %q: %s", client, err)
-		}
-		return nil
+		log.Info().Str("requested", transfer.OriginatingVasp).Str("local", s.vasp.Name).Msg("requested originator does not match local VASP")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrWrongVASP, "message sent to the wrong originator VASP"),
+		)
 	}
 
 	// Lookup the account associated with the transfer originator
 	var account Account
 	if err = LookupAccount(s.db, transfer.Account).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			rep := &pb.Message{
-				Type:      pb.RPC_TRANSFER,
-				Id:        req.Id,
-				Timestamp: time.Now().Format(time.RFC3339),
-				Category:  pb.MessageCategory_ERROR,
-				Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
-					Error: pb.Errorf(pb.ErrNotFound, "account not found"),
-				}},
-			}
-
-			if err = stream.Send(rep); err != nil {
-				return fmt.Errorf("could not send transfer reply to %q: %s", client, err)
-			}
-			return nil
+			log.Info().Str("account", transfer.Account).Msg("not found")
+			return s.updates.SendTransferError(client, req.Id,
+				pb.Errorf(pb.ErrNotFound, "account not found"),
+			)
 		}
 		return fmt.Errorf("could not fetch account: %s", err)
 	}
-	if err = updater.send(fmt.Sprintf("account %d accessed successfully", account.ID), pb.MessageCategory_LEDGER); err != nil {
-		return err
-	}
+	s.updates.Broadcast(req.Id, fmt.Sprintf("account %04d accessed successfully", account.ID), pb.MessageCategory_LEDGER)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Lookup the wallet of the beneficiary
 	var beneficiary Wallet
 	if err = LookupBeneficiary(s.db, transfer.Beneficiary).First(&beneficiary).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			rep := &pb.Message{
-				Type:      pb.RPC_TRANSFER,
-				Id:        req.Id,
-				Timestamp: time.Now().Format(time.RFC3339),
-				Category:  pb.MessageCategory_ERROR,
-				Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
-					Error: pb.Errorf(pb.ErrNotFound, "beneficiary wallet not found"),
-				}},
-			}
-
-			if err = stream.Send(rep); err != nil {
-				return fmt.Errorf("could not send transfer reply to %q: %s", client, err)
-			}
-			return nil
+			log.Info().Str("beneficiary", transfer.Beneficiary).Msg("not found")
+			return s.updates.SendTransferError(client, req.Id,
+				pb.Errorf(pb.ErrNotFound, "beneficiary wallet not found"),
+			)
 		}
 		return fmt.Errorf("could not fetch beneficiary wallet: %s", err)
 	}
 
 	if transfer.CheckBeneficiary {
 		if transfer.BeneficiaryVasp != beneficiary.Provider.Name {
-			rep := &pb.Message{
-				Type:      pb.RPC_TRANSFER,
-				Id:        req.Id,
-				Timestamp: time.Now().Format(time.RFC3339),
-				Category:  pb.MessageCategory_ERROR,
-				Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
-					Error: pb.Errorf(pb.ErrWrongVASP, "beneficiary wallet does not match beneficiary vasp"),
-				}},
-			}
-			if err = stream.Send(rep); err != nil {
-				return fmt.Errorf("could not send transfer reply to %q: %s", client, err)
-			}
-			return nil
+			log.Info().
+				Str("expected", transfer.BeneficiaryVasp).
+				Str("actual", beneficiary.Provider.Name).
+				Msg("check beneficiary failed")
+			return s.updates.SendTransferError(client, req.Id,
+				pb.Errorf(pb.ErrWrongVASP, "beneficiary wallet does not match beneficiary vasp"),
+			)
 		}
 	}
-
-	if err = updater.send(fmt.Sprintf("wallet %s (%s) provided by %s", beneficiary.Address, beneficiary.Email, beneficiary.Provider.Name), pb.MessageCategory_BLOCKCHAIN); err != nil {
-		return err
-	}
-
-	if err = updater.send("beginning TRISA protocol for identity exchange", pb.MessageCategory_TRISAP2P); err != nil {
-		return err
-	}
-
-	if err = updater.send("VASP public key not cached, looking up TRISA directory service", pb.MessageCategory_TRISADS); err != nil {
-		return err
-	}
-
-	time.Sleep(time.Duration(rand.Int63n(1800)) * time.Millisecond)
-	if err = updater.send("sending handshake request to [endpoint]", pb.MessageCategory_TRISAP2P); err != nil {
-		return err
-	}
-
-	time.Sleep(time.Duration(rand.Int63n(2200)) * time.Millisecond)
-	if err = updater.send("[vasp] verified, secure TRISA connection established", pb.MessageCategory_TRISAP2P); err != nil {
-		return err
-	}
-
-	time.Sleep(time.Duration(rand.Int63n(1800)) * time.Millisecond)
-	if err = updater.send(fmt.Sprintf("identity for beneficiary %q confirmed - beginning transaction", beneficiary.Email), pb.MessageCategory_BLOCKCHAIN); err != nil {
-		return err
-	}
-
-	time.Sleep(time.Duration(rand.Int63n(6200)) * time.Millisecond)
-	if err = updater.send("transaction appended to blockchain, sending hash to [endpoint]", pb.MessageCategory_BLOCKCHAIN); err != nil {
-		return err
-	}
-
+	s.updates.Broadcast(req.Id, fmt.Sprintf("wallet %s provided by %s", beneficiary.Address, beneficiary.Provider.Name), pb.MessageCategory_BLOCKCHAIN)
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	// TODO: lookup peer from cache rather than always doing a directory service lookup
+	var peer *peers.Peer
+	s.updates.Broadcast(req.Id, fmt.Sprintf("search for %s in directory service", beneficiary.Provider.Name), pb.MessageCategory_TRISADS)
+	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
+		log.Error().Err(err).Msg("could not search peer from directory service")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not search peer from directory service"),
+		)
+	}
+	info := peer.Info()
+	s.updates.Broadcast(req.Id, fmt.Sprintf("identified TRISA remote peer %s at %s via directory service", info.ID, info.Endpoint), pb.MessageCategory_TRISADS)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	var signKey *rsa.PublicKey
+	s.updates.Broadcast(req.Id, "exchanging peer signing keys", pb.MessageCategory_TRISAP2P)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+	if signKey, err = peer.ExchangeKeys(true); err != nil {
+		log.Error().Err(err).Msg("could not exchange keys with remote peer")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not exchange keyrs with remote peer"),
+		)
+	}
+
+	// Prepare the transaction
+	// Save the pending transaction and increment the accounts pending field
+	xfer := Transaction{
+		Envelope:  uuid.New().String(),
+		Account:   account,
+		Amount:    decimal.NewFromFloat32(transfer.Amount),
+		Debit:     true,
+		Completed: false,
+	}
+
+	if err = s.db.Save(&xfer).Error; err != nil {
+		log.Error().Err(err).Msg("could not save transaction")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not save transaction"),
+		)
+	}
+
+	// Save the pending transaction on the account
+	// TODO: remove pending transactions
+	account.Pending++
+	if err = s.db.Save(&account).Error; err != nil {
+		log.Error().Err(err).Msg("could not save originator account")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not save originator account"),
+		)
+	}
+
+	s.updates.Broadcast(req.Id, "ready to execute transaction", pb.MessageCategory_BLOCKCHAIN)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	// Create an identity and transaction payload for TRISA exchange
+	// Create an identity and transaction payload for TRISA exchange
+	transaction := &api.Transaction{
+		Originator: &api.Account{
+			WalletAddress: account.WalletAddress,
+			Email:         account.Email,
+			Provider:      s.vasp.Name,
+		},
+		Beneficiary: &api.Account{
+			WalletAddress: beneficiary.Address,
+		},
+		Amount: transfer.Amount,
+	}
+	identity := &ivms101.IdentityPayload{
+		Originator:      &ivms101.Originator{},
+		OriginatingVasp: &ivms101.OriginatingVasp{},
+	}
+	if identity.OriginatingVasp.OriginatingVasp, err = s.vasp.LoadIdentity(); err != nil {
+		log.Error().Err(err).Msg("could not load originator vasp")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not load originator vasp"),
+		)
+	}
+
+	identity.Originator = &ivms101.Originator{
+		OriginatorPersons: make([]*ivms101.Person, 0, 1),
+		AccountNumbers:    []string{account.WalletAddress},
+	}
+	var originator *ivms101.Person
+	if originator, err = account.LoadIdentity(); err != nil {
+		log.Error().Err(err).Msg("could not load originator identity")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not load originator identity"),
+		)
+	}
+	identity.Originator.OriginatorPersons = append(identity.Originator.OriginatorPersons, originator)
+
+	payload := &protocol.Payload{}
+	if payload.Transaction, err = ptypes.MarshalAny(transaction); err != nil {
+		log.Error().Err(err).Msg("could not serialize transaction payload")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not serialize transaction payload"),
+		)
+	}
+	if payload.Identity, err = ptypes.MarshalAny(identity); err != nil {
+		log.Error().Err(err).Msg("could not serialize identity payload")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not serialize identity payload"),
+		)
+	}
+
+	s.updates.Broadcast(req.Id, "transaction and identity payload constructed", pb.MessageCategory_TRISAP2P)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	// Secure the envelope with the remote beneficiary's signing keys
+	var envelope *protocol.SecureEnvelope
+	if envelope, err = handler.New(xfer.Envelope, payload, nil).Seal(signKey); err != nil {
+		log.Error().Err(err).Msg("could not create or sign secure envelope")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not create or sign secure envelope"),
+		)
+	}
+
+	s.updates.Broadcast(req.Id, fmt.Sprintf("secure envelope %s sealed: encrypted with AES-GCM and RSA - sending ...", envelope.Id), pb.MessageCategory_TRISAP2P)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	// Conduct the TRISA transaction, handle errors and send back to user
+	if envelope, err = peer.Transfer(envelope); err != nil {
+		log.Error().Err(err).Msg("could not perform TRISA exchange")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, err.Error()),
+		)
+	}
+
+	s.updates.Broadcast(req.Id, fmt.Sprintf("received %s information exchange reply from %s", envelope.Id, peer.String()), pb.MessageCategory_TRISAP2P)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	// Open the response envelope with local private keys
+	var opened *handler.Envelope
+	if opened, err = handler.Open(envelope, s.trisa.sign); err != nil {
+		log.Error().Err(err).Msg("could not unseal TRISA response")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, err.Error()),
+		)
+	}
+
+	// Verify the contents of the response
+	payload = opened.Payload
+	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
+		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, err.Error()),
+		)
+	}
+
+	if payload.Transaction.TypeUrl != "type.googleapis.com/rvasp.v1.Transaction" {
+		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, err.Error()),
+		)
+	}
+
+	identity = &ivms101.IdentityPayload{}
+	transaction = &api.Transaction{}
+	if err = ptypes.UnmarshalAny(payload.Identity, identity); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal identity")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, err.Error()),
+		)
+	}
+	if err = ptypes.UnmarshalAny(payload.Transaction, transaction); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal transaction")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, err.Error()),
+		)
+	}
+
+	s.updates.Broadcast(req.Id, "successfully decrypted and parsed secure envelope", pb.MessageCategory_TRISAP2P)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	// Update the completed transaction and save to disk
+	xfer.Beneficiary = Identity{
+		WalletAddress: transaction.Beneficiary.WalletAddress,
+		Email:         transaction.Beneficiary.Email,
+		Provider:      transaction.Beneficiary.Provider,
+	}
+	xfer.Completed = true
+	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
+
+	// Serialize the identity information as JSON data
+	var data []byte
+	if data, err = json.Marshal(identity); err != nil {
+		log.Error().Err(err).Msg("could not save transaction")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, "could not marshal IVMS 101 identity"),
+		)
+	}
+	xfer.Identity = string(data)
+
+	if err = s.db.Save(&xfer).Error; err != nil {
+		log.Error().Err(err).Msg("could not save transaction")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, err.Error()),
+		)
+	}
+
+	// Save the pending transaction on the account
+	// TODO: remove pending transactions
+	account.Pending--
+	account.Completed++
+	account.Balance.Sub(xfer.Amount)
+	if err = s.db.Save(&account).Error; err != nil {
+		log.Error().Err(err).Msg("could not save transaction")
+		return s.updates.SendTransferError(client, req.Id,
+			pb.Errorf(pb.ErrInternal, err.Error()),
+		)
+	}
+
+	msg = fmt.Sprintf("transaction %04d complete: %s transfered from %s to %s", xfer.ID, xfer.Amount.String(), xfer.Originator.WalletAddress, xfer.Beneficiary.WalletAddress)
+	s.updates.Broadcast(req.Id, msg, pb.MessageCategory_BLOCKCHAIN)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	s.updates.Broadcast(req.Id, fmt.Sprintf("%04d new account balance: %s", account.ID, account.Balance), pb.MessageCategory_LEDGER)
+	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+
+	transaction.Envelope = xfer.Envelope
+	transaction.Identity = xfer.Identity
 	rep := &pb.Message{
 		Type:      pb.RPC_TRANSFER,
 		Id:        req.Id,
 		Timestamp: time.Now().Format(time.RFC3339),
 		Category:  pb.MessageCategory_LEDGER,
 		Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
-			Transaction: &pb.Transaction{
-				Originator: &pb.Account{
-					WalletAddress: account.WalletAddress,
-					Email:         account.Email,
-					Provider:      s.vasp.IVMS101,
-				},
-				Beneficiary: &pb.Account{
-					WalletAddress: beneficiary.Address,
-					Email:         beneficiary.Email,
-					Provider:      "[simulated]",
-				},
-				Amount:    transfer.Amount,
-				Timestamp: time.Now().Format(time.RFC3339),
-			},
+			Transaction: transaction,
 		}},
 	}
 
-	if err = stream.Send(rep); err != nil {
-		return fmt.Errorf("could not send transfer reply to %q: %s", client, err)
-	}
-
-	return nil
+	return s.updates.Send(client, rep)
 }
