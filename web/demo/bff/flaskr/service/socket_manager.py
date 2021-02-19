@@ -26,15 +26,27 @@ def blocking_listener(api, timeout=36, iters=100):
         time.sleep(timeout)
 
 
+# Store the api and context the given session identifier
+def replace_api_context(api_dict: dict, session_id: str, api: RVASP, context: VaspContext):
+    clear_api_context(api_dict, session_id)
+    api_dict[session_id] = (api, context)
+
+
+def clear_api_context(api_dict: dict, session_id: str):
+    print("clear_api_context " + session_id)
+    if session_id in api_dict.keys():
+        print("clear_api_context deleting and closing channel" + session_id)
+        api, vasp_context = api_dict[session_id]
+        api.channel.close()
+        del api_dict[session_id]
+
+
 class SocketManager:
 
     def __init__(self, socketio: SocketIO, transaction_handler: TransactionHandler):
 
-        self.originator_api = None
-        self.beneficiary_api = None
-        self.originator_vasp_context = None
-        self.beneficiary_vasp_context = None
-        self.client_name = str(uuid.uuid4())
+        # dictionary of pairs of api/context mapped by session identifier
+        self.api_context_dict = {}
 
         @socketio.on('transaction_request')
         def handle_transaction_request(message):
@@ -42,21 +54,23 @@ class SocketManager:
 
             print('Received transaction request ' + message)
 
-            transfer_request = self.originator_api.transfer_request(transaction_request.originator_wallet_id,
-                                                                    transaction_request.beneficiary_wallet_id,
-                                                                    transaction_request.amount,
-                                                                    transaction_request.originator_vasp_id,
-                                                                    transaction_request.beneficiary_vasp_id)
+            api, vasp_context = self.api_context_dict[request.sid]
 
-            print('Sending transfer to vasp ' + self.originator_api.name +
+            transfer_request = api.transfer_request(transaction_request.originator_wallet_id,
+                                                    transaction_request.beneficiary_wallet_id,
+                                                    transaction_request.amount,
+                                                    transaction_request.originator_vasp_id,
+                                                    transaction_request.beneficiary_vasp_id)
+
+            print('Sending transfer to vasp ' + api.name +
                   ' request originator:' + transaction_request.originator_wallet_id +
                   ' beneficiary:' + transaction_request.beneficiary_wallet_id +
                   ' originating vasp:' + transaction_request.originator_vasp_id +
                   ' beneficiary vasp:' + transaction_request.beneficiary_vasp_id)
 
             # subscribe to all updates
-            for msg in self.originator_api.stub.LiveUpdates(iter([transfer_request])):
-                self.handle_message(self.originator_vasp_context, msg)
+            for msg in api.stub.LiveUpdates(iter([transfer_request])):
+                self.handle_message(vasp_context, msg)
 
         @socketio.on('vasp_context')
         def handle_vasp_context(message):
@@ -64,21 +78,18 @@ class SocketManager:
             self.clear_context_for_session(request.sid)
             self.set_context_for_session(context, request.sid)
             vasp = query_vasp(context.vasp_id)[0]
+            api = RVASP(name=str(uuid.uuid4()), host=vasp['websocket_address'])
+            replace_api_context(self.api_context_dict, request.sid, api, context)
 
             if context.originator:
-                self.originator_vasp_context = context
                 print("Received originator vasp context " + context.vasp_id + " creating client to " +
                       vasp['websocket_address'])
-                self.originator_api = RVASP(name=self.client_name, host=vasp['websocket_address'])
-
             else:
-                self.beneficiary_vasp_context = context
                 print("Received Beneficiary vasp context " + context.vasp_id + " creating client to " +
                       vasp['websocket_address'])
-                self.beneficiary_api = RVASP(name=self.client_name, host=vasp['websocket_address'])
 
                 # subscribe to all updates for beneficiary vasp
-                for msg in self.beneficiary_api.stub.LiveUpdates(blocking_listener(self.beneficiary_api)):
+                for msg in api.stub.LiveUpdates(blocking_listener(api)):
                     self.handle_message(context, msg)
 
         @socketio.on('connect')
@@ -88,7 +99,9 @@ class SocketManager:
 
         @socketio.on('disconnect')
         def disconnect():
+            print("Received disconnect " + request.sid)
             self.clear_context_for_session(request.sid)
+            clear_api_context(self.api_context_dict, request.sid)
 
     def handle_message(self, vasp_context: VaspContext, msg):
         if msg.type:
