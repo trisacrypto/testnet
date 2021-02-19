@@ -28,6 +28,10 @@ export class VaspStreamingService {
         this.setupWebsocket()
     }
 
+    close() {
+        this.webSocket.close()
+    }
+
     setupWebsocket() {
         this.webSocket.on('connect', () => {
             console.log('socket connected');
