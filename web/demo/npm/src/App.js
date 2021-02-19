@@ -60,6 +60,12 @@ class App extends Component {
         let targetVasps = this.state.vasps
             .filter(vasp => vasp.vasp_id !== vaspId)
 
+        if (this.state.originatingVaspStreamingService != null) {
+            this.state.originatingVaspStreamingService.close()
+        }
+        if (this.state.beneficiaryVaspStreamingService != null) {
+            this.state.beneficiaryVaspStreamingService.close()
+        }
         this.setState({
             selectedOriginatingVasp: selectedVasp,
             selectedBeneficiaryVasp: null,
@@ -78,6 +84,12 @@ class App extends Component {
     }
 
     onOriginatingVaspCleared = () => {
+        if (this.state.originatingVaspStreamingService != null) {
+            this.state.originatingVaspStreamingService.close()
+        }
+        if (this.state.beneficiaryVaspStreamingService != null) {
+            this.state.beneficiaryVaspStreamingService.close()
+        }
         this.setState({
             selectedOriginatingVasp: null,
             selectedBeneficiaryVasp: null,
@@ -94,6 +106,9 @@ class App extends Component {
             .filter(vasp => vasp.vasp_id === vaspId)[0]
 
         console.log("Selected beneficiary vasp " + JSON.stringify(selectedVasp))
+        if (this.state.beneficiaryVaspStreamingService != null) {
+            this.state.beneficiaryVaspStreamingService.close()
+        }
         this.setState({
             selectedBeneficiaryVasp: selectedVasp,
             beneficiaryVaspStreamingService: new VaspStreamingService({'vasp_id': selectedVasp.vasp_id, 'context_id': this.sessionId, originator: false}, 'https://demo.bob.vaspbot.net')
@@ -101,6 +116,9 @@ class App extends Component {
     }
 
     onBeneficiaryVaspCleared = () => {
+        if (this.state.beneficiaryVaspStreamingService != null) {
+            this.state.beneficiaryVaspStreamingService.close()
+        }
         this.setState({
             selectedBeneficiaryVasp: null,
             beneficiaryVaspStreamingService: null
