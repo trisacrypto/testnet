@@ -1,36 +1,48 @@
 {
   "name": "trisads-web",
-  "version": "1.0.0",
-  "description": "Prototype web user interface for TRISA Directory Service",
-  "main": "src/main.js",
-  "dependencies": {
-    "envify": "^4.1.0",
-    "jquery": "^3.5.1"
-  },
-  "devDependencies": {
-    "@grpc/proto-loader": "^0.3.0",
-    "browserify": "^16.5.2",
-    "browserify-mustache": "0.0.5",
-    "concurrently": "^5.3.0",
-    "google-protobuf": "^3.6.1",
-    "grpc": "^1.15.0",
-    "grpc-web": "^1.0.0",
-    "hogan": "^1.0.2",
-    "lite-server": "^2.5.4",
-    "minifyify": "^7.3.5",
-    "moment": "^2.27.0",
-    "mustache": "^4.0.1",
-    "watchify": "^3.11.1"
-  },
-  "scripts": {
-    "serve": "./node_modules/.bin/concurrently \"./node_modules/.bin/watchify src/main.js --transform browserify-mustache -d -v -o build/bundle.js\" \"./node_modules/.bin/lite-server\"",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "./node_modules/.bin/browserify src/main.js --debug --transform browserify-mustache -t envify -t -p [ minifyify --map bundle.js.map --output build/bundle.map.js ] > build/bundle.js"
-  },
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prototype web user interface for the TRISA Directory Service",
+  "author": "Benjamin Bengfort",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/trisacrypto/testnet"
   },
-  "author": "Benjamin Bengfort",
-  "license": "MIT"
+  "dependencies": {
+    "@testing-library/jest-dom": "^5.11.4",
+    "@testing-library/react": "^11.1.0",
+    "@testing-library/user-event": "^12.1.10",
+    "google-protobuf": "^3.6.1",
+    "grpc": "^1.15.0",
+    "grpc-web": "^1.0.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-scripts": "4.0.3",
+    "web-vitals": "^1.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
 }

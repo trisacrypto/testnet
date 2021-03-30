@@ -1,0 +1,20 @@
+{
+  "short_name": "TRISA DS",
+  "name": "TRISA Directory Service",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "trisa.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#212529",
+  "background_color": "#f8f9fa"
+}
