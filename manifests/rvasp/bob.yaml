@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: rvasp-bob
-        image: trisa/rvasp-bob:10d9f87
+        image: trisa/rvasp-bob:d5e9926
         ports:
         - containerPort: 4434
           protocol: TCP

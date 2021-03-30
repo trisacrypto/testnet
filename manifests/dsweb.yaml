@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: dsweb
-        image: trisa/dsweb:9bc1166
+        image: trisa/dsweb:d5e9926
         ports:
         - containerPort: 80
           protocol: TCP

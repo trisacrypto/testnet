@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: demo-web
-        image: trisa/demo-npm:1fabc32
+        image: trisa/demo-npm:d5e9926
         ports:
         - containerPort: 80
           protocol: TCP

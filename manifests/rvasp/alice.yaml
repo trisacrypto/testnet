@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: rvasp-alice
-        image: trisa/rvasp-alice:10d9f87
+        image: trisa/rvasp-alice:d5e9926
         ports:
         - containerPort: 4434
           protocol: TCP

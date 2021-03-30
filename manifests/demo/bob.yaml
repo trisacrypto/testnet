@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: demobff-bob
-        image: trisa/demo-bff:1fabc32
+        image: trisa/demo-bff:d5e9926
         ports:
         - containerPort: 8000
           protocol: TCP
