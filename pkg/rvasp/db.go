@@ -6,7 +6,7 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/shopspring/decimal"
-	"github.com/trisacrypto/testnet/pkg/ivms101"
+	"github.com/trisacrypto/trisa/pkg/ivms101"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
