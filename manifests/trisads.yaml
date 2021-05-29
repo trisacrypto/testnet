@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: trisads
-        image: trisa/trisads:aed40d6
+        image: trisa/gds:de9902f
         ports:
         - containerPort: 443
           protocol: TCP
@@ -30,18 +30,20 @@ spec:
           mountPath: /certs
         resources: {}
         env:
-        - name: TRISADS_BIND_ADDR
+        - name: GDS_MAINTENANCE
+          value: "true"
+        - name: GDS_BIND_ADDR
           value: :443
-        - name: TRISADS_DATABASE
-          value: /data
-        - name: TRISADS_SERVICE_EMAIL
-          value: admin@vaspdirectory.net
-        - name: TRISADS_ADMIN_EMAIL
-          value: admin@trisa.io
-        - name: TRISADS_LOG_LEVEL
-          value: info
-        - name: TRISADS_DIRECTORY_ID
+        - name: GDS_DIRECTORY_ID
           value: vaspdirectory.net
+        - name: GDS_DATABASE_URL
+          value: leveldb:////data
+        - name: GDS_SERVICE_EMAIL
+          value: admin@vaspdirectory.net
+        - name: GDS_ADMIN_EMAIL
+          value: admin@trisa.io
+        - name: GDS_LOG_LEVEL
+          value: info
         - name: SECTIGO_USERNAME
           valueFrom:
             secretKeyRef:
@@ -57,15 +59,23 @@ spec:
             secretKeyRef:
               name: sendgrid-apikey
               key: apikey
-        - name: TRISADS_SECRET_KEY
+        - name: GDS_SECRET_KEY
           valueFrom:
             secretKeyRef:
               name: trisads-secret
               key: passphrase
-        - name: TRISADS_CERTMAN_INTERVAL
+        - name: GDS_CERTMAN_INTERVAL
           value: 2m
-        - name: TRISADS_CERTS_STORE
+        - name: GDS_CERTMAN_STORAGE
           value: /certs
+        - name: GDS_BACKUP_ENABLED
+          value: "true"
+        - name: GDS_BACKUP_INTERVAL
+          value: 1h
+        - name: GDS_BACKUP_STORAGE
+          value: /certs/backups
+        - name: GDS_BACKUP_KEEP
+          value: "1"
   volumeClaimTemplates:
   - metadata:
       name: dsdata
