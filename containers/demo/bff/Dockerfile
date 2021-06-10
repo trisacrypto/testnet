@@ -5,7 +5,7 @@ LABEL description="Backend for Frontend (BFF) for rVASP Demo"
 
 # Install rvaspy library
 WORKDIR /usr/src/lib
-COPY lib/rvaspy .
+COPY lib/python/rvaspy .
 RUN pip install -e .
 
 # Install the Flask app
