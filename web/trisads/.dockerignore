@@ -1,4 +1,0 @@
-# note this .dockerignore will not be used unless
-# this directory is the build context
-node_modules
-npm-debug.log
