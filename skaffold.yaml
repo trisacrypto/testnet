@@ -30,6 +30,13 @@ build:
       alias: BASE
     docker:
       dockerfile: containers/rvasp/bob/Dockerfile
+  - image: trisa/rvasp-evil
+    context: .
+    requires:
+    - image: trisa/rvasp
+      alias: BASE
+    docker:
+      dockerfile: containers/rvasp/evil/Dockerfile
   local:
     push: true
     useDockerCLI: true
