@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/rvasp"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
@@ -17,6 +18,9 @@ import (
 )
 
 func main() {
+	// Load the dotenv file if it exists
+	godotenv.Load()
+
 	app := cli.NewApp()
 
 	app.Name = "rvasp"

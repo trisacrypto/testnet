@@ -20,6 +20,7 @@ type Settings struct {
 	CertPath            string          `envconfig:"RVASP_CERT_PATH"`
 	TrustChainPath      string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`
 	DirectoryServiceURL string          `envconfig:"RVASP_DIRECTORY_SERVICE_URL" default:"api.vaspdirectory.net:443"`
+	ConsoleLog          bool            `envconfig:"RVASP_CONSOLE_LOG" default:"false"`
 	LogLevel            LogLevelDecoder `envconfig:"RVASP_LOG_LEVEL" default:"info"`
 }
 

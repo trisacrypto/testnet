@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/directory/pkg/gds/logger"
 	"github.com/trisacrypto/testnet/pkg"
 	api "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
@@ -33,6 +34,15 @@ import (
 func init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	// Initialize zerolog with GCP logging requirements
+	zerolog.TimeFieldFormat = time.RFC3339
+	zerolog.TimestampFieldName = logger.GCPFieldKeyTime
+	zerolog.MessageFieldName = logger.GCPFieldKeyMsg
+
+	// Add the severity hook for GCP logging
+	var gcpHook logger.SeverityHook
+	log.Logger = zerolog.New(os.Stdout).Hook(gcpHook).With().Timestamp().Logger()
 }
 
 // New creates a rVASP server with the specified configuration and prepares
@@ -46,6 +56,11 @@ func New(conf *Settings) (s *Server, err error) {
 
 	// Set the global level
 	zerolog.SetGlobalLevel(zerolog.Level(conf.LogLevel))
+
+	// Set human readable logging if specified
+	if conf.ConsoleLog {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	}
 
 	s = &Server{conf: conf, echan: make(chan error, 1)}
 	if s.db, err = gorm.Open(sqlite.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
