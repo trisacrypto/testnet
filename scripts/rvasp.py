@@ -375,7 +375,7 @@ WALLETS = [
     ],
     [
         "172n89jLjXKmFJni1vwV5EzxKRXuAAoxUz",
-        "adolf@evilvasp.gg", 3,
+        "launderer@evilvasp.gg", 3,
         {
             "natural_person": {
                 "name": {
@@ -414,7 +414,7 @@ WALLETS = [
     ],
     [
         "182kF4mb5SW4KGEvBSbyXTpDWy8rK1Dpu",
-        "mildred@evilvasp.gg", 3,
+        "badnews@evilvasp.gg", 3,
         {
             "natural_person": {
                 "name": {
