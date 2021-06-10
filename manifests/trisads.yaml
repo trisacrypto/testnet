@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: trisads
-        image: trisa/gds:de9902f
+        image: trisa/gds:1.0-rc.5
         ports:
         - containerPort: 443
           protocol: TCP
@@ -28,22 +28,23 @@ spec:
           mountPath: /data
         - name: dscerts
           mountPath: /certs
+        - name: dsgcpsa
+          mountPath: /creds
+          readOnly: true
         resources: {}
         env:
-        - name: GDS_MAINTENANCE
-          value: "true"
         - name: GDS_BIND_ADDR
           value: :443
         - name: GDS_DIRECTORY_ID
           value: vaspdirectory.net
         - name: GDS_DATABASE_URL
           value: leveldb:////data
-        - name: GDS_SERVICE_EMAIL
-          value: admin@vaspdirectory.net
-        - name: GDS_ADMIN_EMAIL
-          value: admin@trisa.io
         - name: GDS_LOG_LEVEL
           value: info
+        - name: GDS_SERVICE_EMAIL
+          value: "TRISA Directory Service <admin@vaspdirectory.net>"
+        - name: GDS_ADMIN_EMAIL
+          value: "TRISA Admins <admin@trisa.io>"
         - name: SECTIGO_USERNAME
           valueFrom:
             secretKeyRef:
@@ -65,7 +66,7 @@ spec:
               name: trisads-secret
               key: passphrase
         - name: GDS_CERTMAN_INTERVAL
-          value: 2m
+          value: 10m
         - name: GDS_CERTMAN_STORAGE
           value: /certs
         - name: GDS_BACKUP_ENABLED
@@ -76,6 +77,20 @@ spec:
           value: /certs/backups
         - name: GDS_BACKUP_KEEP
           value: "1"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /creds/gcp-trisads-sa.json
+        - name: GOOGLE_PROJECT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: gcp-config
+              key: project
+      volumes:
+      - name: dsgcpsa
+        secret:
+          secretName: gcp-trisads-sa
+          items:
+          - key: serviceAccount
+            path: gcp-trisads-sa.json
   volumeClaimTemplates:
   - metadata:
       name: dsdata
@@ -84,6 +99,7 @@ spec:
       resources:
         requests:
           storage: 4Gi
+  # TODO: change to emptyDir
   - metadata:
       name: dscerts
     spec:
