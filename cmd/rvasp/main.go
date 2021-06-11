@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -13,6 +12,8 @@ import (
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -119,6 +120,14 @@ func main() {
 				cli.Float64Flag{
 					Name:  "d, amount",
 					Usage: "the amount to transfer to the beneficiary",
+				},
+				&cli.StringFlag{
+					Name:  "B, beneficiary-vasp",
+					Usage: "the common name or vasp directory searchable name of the beneficiary vasp",
+				},
+				&cli.BoolFlag{
+					Name:  "E, external-demo",
+					Usage: "whether the beneficiary is a demo node (e.g. alice or bob) or not",
 				},
 			},
 		},
@@ -235,17 +244,19 @@ func account(c *cli.Context) (err error) {
 // Client method: transfer funds
 func transfer(c *cli.Context) (err error) {
 	req := &pb.TransferRequest{
-		Account:     c.String("account"),
-		Beneficiary: c.String("beneficiary"),
-		Amount:      float32(c.Float64("amount")),
+		Account:         c.String("account"),
+		Beneficiary:     c.String("beneficiary"),
+		BeneficiaryVasp: c.String("beneficiary-vasp"),
+		Amount:          float32(c.Float64("amount")),
+		ExternalDemo:    c.Bool("external-demo"),
 	}
 
 	if req.Account == "" {
 		return cli.NewExitError("specify account email", 1)
 	}
 
-	if req.Beneficiary == "" {
-		return cli.NewExitError("specify a beneficiary email or wallet", 1)
+	if req.Beneficiary == "" && req.BeneficiaryVasp == "" {
+		return cli.NewExitError("specify a beneficiary or beneficiary vasp", 1)
 	}
 
 	if req.Amount <= 0.0 {
@@ -368,8 +379,17 @@ func makeDemoClient(c *cli.Context) (_ pb.TRISADemoClient, err error) {
 }
 
 // helper function to print JSON response and exit
-func printJSON(v interface{}) error {
-	data, err := json.MarshalIndent(v, "", "  ")
+func printJSON(v protoreflect.ProtoMessage) error {
+	jsonpb := protojson.MarshalOptions{
+		Multiline:       true,
+		Indent:          "  ",
+		AllowPartial:    true,
+		UseProtoNames:   true,
+		UseEnumNumbers:  false,
+		EmitUnpopulated: true,
+	}
+
+	data, err := jsonpb.Marshal(v)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

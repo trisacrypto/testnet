@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import rvaspy.api_pb2 as api__pb2
+import api_pb2 as api__pb2
 
 
 class TRISADemoStub(object):
@@ -81,7 +81,7 @@ class TRISADemo(object):
 class TRISAIntegrationStub(object):
     """The TRISA Integration service can be used by VASPs as they develop their own internal
     implementations of the InterVASP protocol. The integration service provides one
-    primary RPC - TransferTo, which gets the rVASP to kick off an InterVASP transfer
+    primary RPC - Transfer, which gets the rVASP to kick off an InterVASP transfer
     request. The rVASP also implements the InterVASP protocol to receive transactions and
     provides a helper RPC, AccountStatus to get back all transactions the rVASP has seen
     for debugging purposes.
@@ -108,7 +108,7 @@ class TRISAIntegrationStub(object):
 class TRISAIntegrationServicer(object):
     """The TRISA Integration service can be used by VASPs as they develop their own internal
     implementations of the InterVASP protocol. The integration service provides one
-    primary RPC - TransferTo, which gets the rVASP to kick off an InterVASP transfer
+    primary RPC - Transfer, which gets the rVASP to kick off an InterVASP transfer
     request. The rVASP also implements the InterVASP protocol to receive transactions and
     provides a helper RPC, AccountStatus to get back all transactions the rVASP has seen
     for debugging purposes.
@@ -149,7 +149,7 @@ def add_TRISAIntegrationServicer_to_server(servicer, server):
 class TRISAIntegration(object):
     """The TRISA Integration service can be used by VASPs as they develop their own internal
     implementations of the InterVASP protocol. The integration service provides one
-    primary RPC - TransferTo, which gets the rVASP to kick off an InterVASP transfer
+    primary RPC - Transfer, which gets the rVASP to kick off an InterVASP transfer
     request. The rVASP also implements the InterVASP protocol to receive transactions and
     provides a helper RPC, AccountStatus to get back all transactions the rVASP has seen
     for debugging purposes.

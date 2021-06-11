@@ -13,7 +13,7 @@ service TRISADemo {
 
 // The TRISA Integration service can be used by VASPs as they develop their own internal
 // implementations of the InterVASP protocol. The integration service provides one
-// primary RPC - TransferTo, which gets the rVASP to kick off an InterVASP transfer
+// primary RPC - Transfer, which gets the rVASP to kick off an InterVASP transfer
 // request. The rVASP also implements the InterVASP protocol to receive transactions and
 // provides a helper RPC, AccountStatus to get back all transactions the rVASP has seen
 // for debugging purposes.
@@ -55,15 +55,16 @@ message TransferRequest {
     string beneficiary = 2;       // email address or crypto wallet to look up beneficiary with
     float amount = 3;             // amount to transfer to the beneficiary (will be truncated to 2 decimal points)
     string originating_vasp = 4;  // common name of the originating VASP for demo UI error handling (optional)
-    string beneficiary_vasp = 5;  // common name of the beneficiary VASP for demo UI error handling (optional)
+    string beneficiary_vasp = 5;  // common name of the beneficiary VASP for demo UI error handling or external demo lookup (optional if external_demo is false)
     bool check_beneficiary = 6;   // if set, confirm that the beneficiary wallet belongs to the beneficiary VASP (optional)
+    bool external_demo = 7;       // if true, beneficiary is resolved via beneficiary_vasp common name and the directory service
 }
 
 // The transfer reply will contain the details of the transaction initiated or completed
 // or an error if there are insufficient funds or the account or beneficiary could not
 // be looked up. Errors encountered during the TRISA protocol may also be returned.
 message TransferReply {
-    Error error = 1;
+    Error error = 1;              // Only used in live stream
     Transaction transaction = 2;
 }
 
@@ -80,7 +81,7 @@ message AccountRequest {
 // Returns the account information and balance as well as transactions ordered from
 // most to least recent. An error is returned if the account cannot be found.
 message AccountReply {
-    Error error = 1;
+    Error error = 1;              // Only used in live stream
     string name = 2;
     string email = 3;
     string wallet_address = 4;

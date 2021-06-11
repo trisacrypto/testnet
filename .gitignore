@@ -19,3 +19,6 @@ fixtures/*
 
 # Environment configuration
 .env
+
+# Testing
+pkg/traveler
