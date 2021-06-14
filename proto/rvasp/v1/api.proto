@@ -38,7 +38,7 @@ message Account {
 }
 
 // Describes a simple transaction between an originator and beneficiary.
-// TODO: this is a TRISA-specific message, move to TRISA protocol buffers?
+// NOTE: this is an rVASP-specific transaction that is used for debugging.
 message Transaction {
     Account originator = 1;     // Source described by wallet address or email of originator
     Account beneficiary = 2;    // Target described by wallet address or email of beneficiary

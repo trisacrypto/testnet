@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/testnet/pkg/rvasp/jsonpb"
+	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -144,6 +145,26 @@ func (a Account) Transactions(db *gorm.DB) (records []Transaction, err error) {
 func (t Transaction) AmountFloat() float32 {
 	bal, _ := t.Amount.Truncate(2).Float64()
 	return float32(bal)
+}
+
+// Proto converts the transaction into a protocol buffer transaction
+func (t Transaction) Proto() *pb.Transaction {
+	return &pb.Transaction{
+		Originator: &pb.Account{
+			WalletAddress: t.Originator.WalletAddress,
+			Email:         t.Originator.Email,
+			Provider:      t.Originator.Provider,
+		},
+		Beneficiary: &pb.Account{
+			WalletAddress: t.Beneficiary.WalletAddress,
+			Email:         t.Beneficiary.Email,
+			Provider:      t.Beneficiary.Provider,
+		},
+		Amount:    t.AmountFloat(),
+		Timestamp: t.Timestamp.Format(time.RFC3339),
+		Envelope:  t.Envelope,
+		Identity:  t.Identity,
+	}
 }
 
 // LoadIdentity returns the ivms101.Person for the VASP.

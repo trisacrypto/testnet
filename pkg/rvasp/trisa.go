@@ -10,19 +10,19 @@ import (
 	"net"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
-	api "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
 	protocol "github.com/trisacrypto/trisa/pkg/trisa/api/v1beta1"
+	generic "github.com/trisacrypto/trisa/pkg/trisa/data/generic/v1beta1"
 	"github.com/trisacrypto/trisa/pkg/trisa/handler"
 	"github.com/trisacrypto/trisa/pkg/trisa/mtls"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"github.com/trisacrypto/trisa/pkg/trust"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/anypb"
 	"gorm.io/gorm"
 )
 
@@ -234,18 +234,19 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		return nil, protocol.Errorf(protocol.UnparseableIdentity, "rVASP requires ivms101.IdentityPayload payload identity type")
 	}
 
-	if payload.Transaction.TypeUrl != "type.googleapis.com/rvasp.v1.Transaction" {
+	if payload.Transaction.TypeUrl != "type.googleapis.com/trisa.data.generic.v1beta1.Transaction" {
 		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
-		return nil, protocol.Errorf(protocol.UnparseableTransaction, "rVASP requires rvasp.v1.Transaction payload transaction type")
+		return nil, protocol.Errorf(protocol.UnparseableTransaction, "rVASP requires trisa.data.generic.v1beta1.Transaction payload transaction type")
 	}
 
 	identity := &ivms101.IdentityPayload{}
-	transaction := &api.Transaction{}
-	if err = ptypes.UnmarshalAny(payload.Identity, identity); err != nil {
+	transaction := &generic.Transaction{}
+
+	if err = payload.Identity.UnmarshalTo(identity); err != nil {
 		log.Error().Err(err).Msg("could not unmarshal identity")
 		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal identity")
 	}
-	if err = ptypes.UnmarshalAny(payload.Transaction, transaction); err != nil {
+	if err = payload.Transaction.UnmarshalTo(transaction); err != nil {
 		log.Error().Err(err).Msg("could not unmarshal transaction")
 		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal transaction")
 	}
@@ -253,13 +254,11 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 
 	// Lookup the beneficiary in the local VASP database.
 	var accountAddress string
-	if transaction.Beneficiary.WalletAddress != "" {
-		accountAddress = transaction.Beneficiary.WalletAddress
-	} else if transaction.Beneficiary.Email != "" {
-		accountAddress = transaction.Beneficiary.Email
-	} else {
+	if transaction.Beneficiary == "" {
 		log.Warn().Msg("no beneficiary information supplied")
 		return nil, protocol.Errorf(protocol.MissingFields, "beneficiary wallet address or email required in transaction")
+	} else {
+		accountAddress = transaction.Beneficiary
 	}
 
 	var account Account
@@ -300,9 +299,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	identity.Beneficiary.BeneficiaryPersons = append(identity.Beneficiary.BeneficiaryPersons, beneficiary)
 
 	// Update the transactionwith beneficiary information
-	transaction.Beneficiary.WalletAddress = account.WalletAddress
-	transaction.Beneficiary.Email = account.Email
-	transaction.Beneficiary.Provider = s.parent.vasp.Name
+	transaction.Beneficiary = account.WalletAddress
 	transaction.Timestamp = time.Now().Format(time.RFC3339)
 
 	// Save the completed transaction in the database
@@ -310,16 +307,14 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		Envelope: in.Id,
 		Account:  account,
 		Originator: Identity{
-			WalletAddress: transaction.Originator.WalletAddress,
-			Email:         transaction.Originator.Email,
-			Provider:      transaction.Originator.Provider,
+			WalletAddress: transaction.Originator,
 		},
 		Beneficiary: Identity{
 			WalletAddress: account.WalletAddress,
 			Email:         account.Email,
 			Provider:      s.parent.vasp.Name,
 		},
-		Amount:    decimal.NewFromFloat32(transaction.Amount),
+		Amount:    decimal.NewFromFloat(transaction.Amount),
 		Debit:     false,
 		Completed: true,
 		Timestamp: time.Now(),
@@ -338,7 +333,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	}
 
 	// Update the account information
-	account.Balance.Add(decimal.NewFromFloat32(transaction.Amount))
+	account.Balance.Add(decimal.NewFromFloat(transaction.Amount))
 	account.Completed++
 	account.Pending--
 	if err = s.parent.db.Save(&account).Error; err != nil {
@@ -351,11 +346,11 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 
 	// Encode and encrypt the payload information to return the secure envelope
 	payload = &protocol.Payload{}
-	if payload.Identity, err = ptypes.MarshalAny(identity); err != nil {
+	if payload.Identity, err = anypb.New(identity); err != nil {
 		log.Error().Err(err).Msg("could not dump payload identity")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
-	if payload.Transaction, err = ptypes.MarshalAny(transaction); err != nil {
+	if payload.Transaction, err = anypb.New(transaction); err != nil {
 		log.Error().Err(err).Msg("could not dump payload transaction")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}

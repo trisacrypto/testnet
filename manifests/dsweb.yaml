@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: dsweb
-        image: trisa/gds-ui:1.0-rc.5
+        image: trisa/gds-ui:27694d9
         ports:
         - containerPort: 80
           protocol: TCP
