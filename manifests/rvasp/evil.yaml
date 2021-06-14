@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: rvasp-evil
-        image: trisa/rvasp-evil:alpha-9-gace67bb
+        image: trisa/rvasp-evil:alpha-14-ge61211d
         ports:
         - containerPort: 4434
           protocol: TCP
