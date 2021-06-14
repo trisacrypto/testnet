@@ -30,3 +30,19 @@ spec:
         - name: rvasp-bob-service
           port: 4434
           scheme: h2c
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: rvasp-evil-route
+  namespace: trisa
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`admin.evil.vaspbot.net`)
+      kind: Rule
+      services:
+        - name: rvasp-evil-service
+          port: 4434
+          scheme: h2c

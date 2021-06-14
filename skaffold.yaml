@@ -4,18 +4,6 @@ metadata:
   name: testnet
 build:
   artifacts:
-  - image: trisa/dsweb
-    context: .
-    docker:
-      dockerfile: containers/dsweb/Dockerfile
-  - image: trisa/trisads
-    context: .
-    docker:
-      dockerfile: containers/trisads/Dockerfile
-  - image: trisa/testnet-docs
-    context: .
-    docker:
-      dockerfile: containers/docs/Dockerfile
   - image: trisa/demo-bff
     context: .
     docker:
@@ -42,6 +30,13 @@ build:
       alias: BASE
     docker:
       dockerfile: containers/rvasp/bob/Dockerfile
+  - image: trisa/rvasp-evil
+    context: .
+    requires:
+    - image: trisa/rvasp
+      alias: BASE
+    docker:
+      dockerfile: containers/rvasp/evil/Dockerfile
   local:
     push: true
     useDockerCLI: true

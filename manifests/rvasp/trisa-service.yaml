@@ -35,3 +35,22 @@ spec:
     targetPort: grpc-trisa
   selector:
     app: rvasp-bob
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rvasp-evil-trisa-service
+  namespace: trisa
+  labels:
+    app.kubernetes.io/name: rvasp-evil-trisa-service
+    app.kubernetes.io/part-of: trisa-services
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  loadBalancerIP: 35.222.29.180
+  ports:
+  - name: websecure
+    port: 443
+    targetPort: grpc-trisa
+  selector:
+    app: rvasp-evil

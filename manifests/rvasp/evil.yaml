@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rvasp-bob
+  name: rvasp-evil
   namespace: trisa
   labels:
-    app: rvasp-bob
+    app: rvasp-evil
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: rvasp-bob
+      app: rvasp-evil
   template:
     metadata:
       labels:
-        app: rvasp-bob
+        app: rvasp-evil
     spec:
       containers:
-      - name: rvasp-bob
-        image: trisa/rvasp-bob:alpha-8-g2d7123d
+      - name: rvasp-evil
+        image: trisa/rvasp-evil:alpha-9-gace67bb
         ports:
         - containerPort: 4434
           protocol: TCP
@@ -32,7 +32,7 @@ spec:
         resources: {}
         env:
         - name: RVASP_NAME
-          value: "api.bob.vaspbot.net"
+          value: "api.evil.vaspbot.net"
         - name: RVASP_BIND_ADDR
           value: ":4434"
         - name: RVASP_TRISA_BIND_ADDR
@@ -40,7 +40,7 @@ spec:
         - name: RVASP_DATABASE
           value: "/data/rvasp.db"
         - name: RVASP_CERT_PATH
-          value: "/data/certs/api.bob.vaspbot.net.gz"
+          value: "/data/certs/api.evil.vaspbot.net.gz"
         - name: RVASP_TRUST_CHAIN_PATH
           value: "/data/certs/trisa.zip"
         - name: RVASP_DIRECTORY_SERVICE_URL
@@ -50,17 +50,17 @@ spec:
       volumes:
       - name: certs
         secret:
-          secretName: bob-certs
+          secretName: evil-certs
           items:
           - key: mtls
-            path: api.bob.vaspbot.net.gz
+            path: api.evil.vaspbot.net.gz
           - key: chain
             path: trisa.zip
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: rvasp-bob-service
+  name: rvasp-evil-service
   namespace: trisa
 spec:
   type: ClusterIP
@@ -70,4 +70,4 @@ spec:
     protocol: TCP
     targetPort: grpc-rvasp
   selector:
-    app: rvasp-bob
+    app: rvasp-evil

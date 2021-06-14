@@ -13,19 +13,22 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/directory/pkg/gds/logger"
 	"github.com/trisacrypto/testnet/pkg"
-	api "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
 	protocol "github.com/trisacrypto/trisa/pkg/trisa/api/v1beta1"
+	generic "github.com/trisacrypto/trisa/pkg/trisa/data/generic/v1beta1"
 	"github.com/trisacrypto/trisa/pkg/trisa/handler"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/anypb"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -33,6 +36,15 @@ import (
 func init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	// Initialize zerolog with GCP logging requirements
+	zerolog.TimeFieldFormat = time.RFC3339
+	zerolog.TimestampFieldName = logger.GCPFieldKeyTime
+	zerolog.MessageFieldName = logger.GCPFieldKeyMsg
+
+	// Add the severity hook for GCP logging
+	var gcpHook logger.SeverityHook
+	log.Logger = zerolog.New(os.Stdout).Hook(gcpHook).With().Timestamp().Logger()
 }
 
 // New creates a rVASP server with the specified configuration and prepares
@@ -46,6 +58,11 @@ func New(conf *Settings) (s *Server, err error) {
 
 	// Set the global level
 	zerolog.SetGlobalLevel(zerolog.Level(conf.LogLevel))
+
+	// Set human readable logging if specified
+	if conf.ConsoleLog {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	}
 
 	s = &Server{conf: conf, echan: make(chan error, 1)}
 	if s.db, err = gorm.Open(sqlite.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
@@ -159,52 +176,60 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	var account Account
 	if err = LookupAccount(s.db, req.Account).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			rep.Error = pb.Errorf(pb.ErrNotFound, "account not found")
 			log.Info().Str("account", req.Account).Msg("not found")
-			return rep, nil
+			return nil, status.Error(codes.NotFound, "account not found")
 		}
 		log.Error().Err(err).Msg("could not lookup account")
-		return nil, err
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup account: %s", err)
 	}
 
-	// Lookup beneficiary wallet and confirm it belongs to a remote RVASP
+	// Identify the beneficiary either using the demo database or the directory service
 	var beneficiary Wallet
-	if err = LookupBeneficiary(s.db, req.Beneficiary).First(&beneficiary).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			rep.Error = pb.Errorf(pb.ErrNotFound, "beneficiary not found")
-			log.Info().Str("beneficiary", req.Beneficiary).Msg("not found")
-			return rep, nil
-		}
-		log.Error().Err(err).Msg("could not lookup beneficiary")
-		return nil, err
-	}
-
-	if req.CheckBeneficiary {
-		if req.BeneficiaryVasp != beneficiary.Provider.Name {
-			rep.Error = pb.Errorf(pb.ErrWrongVASP, "beneficiary wallet does not match beneficiary VASP")
-			log.Info().
-				Str("expected", req.BeneficiaryVasp).
-				Str("actual", beneficiary.Provider.Name).
-				Msg("check beneficiary failed")
-			return rep, nil
+	if req.ExternalDemo {
+		if req.BeneficiaryVasp == "" {
+			return nil, status.Error(codes.InvalidArgument, "if external demo is true, must specify beneficiary vasp")
 		}
 
+		beneficiary = Wallet{
+			Provider: VASP{
+				Name: req.BeneficiaryVasp,
+			},
+		}
+	} else {
+		// Lookup beneficiary wallet and confirm it belongs to a remote RVASP
+		if err = LookupBeneficiary(s.db, req.Beneficiary).First(&beneficiary).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				log.Info().Str("beneficiary", req.Beneficiary).Msg("not found")
+				return nil, status.Error(codes.NotFound, "beneficiary not found (use external_demo?)")
+			}
+			log.Error().Err(err).Msg("could not lookup beneficiary")
+			return nil, status.Errorf(codes.FailedPrecondition, "could not lookup beneficiary: %s", err)
+		}
+
+		if req.CheckBeneficiary {
+			if req.BeneficiaryVasp != beneficiary.Provider.Name {
+				log.Warn().
+					Str("expected", req.BeneficiaryVasp).
+					Str("actual", beneficiary.Provider.Name).
+					Msg("check beneficiary failed")
+				return nil, status.Error(codes.InvalidArgument, "beneficiary wallet does not match beneficiary VASP")
+			}
+
+		}
 	}
 
 	// Conduct a TRISADS lookup if necessary to get the endpoint
 	var peer *peers.Peer
 	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
 		log.Error().Err(err).Msg("could not search peer from directory service")
-		return rep, nil
+		return nil, status.Errorf(codes.Internal, "could not search peer from directory service: %s", err)
 	}
 
 	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
 	var signKey *rsa.PublicKey
-	if signKey, err = peer.ExchangeKeys(false); err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
+	if signKey, err = peer.ExchangeKeys(true); err != nil {
 		log.Error().Err(err).Msg("could not exchange keys with remote peer")
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "could not exchange keys with remote peer: %s", err)
 	}
 
 	// Save the pending transaction and increment the accounts pending field
@@ -217,40 +242,34 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	if err = s.db.Save(&xfer).Error; err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
 		log.Error().Err(err).Msg("could not save transaction")
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "could not save transaction: %s", err)
 	}
 
 	// Save the pending transaction on the account
 	// TODO: remove pending transactions
 	account.Pending++
 	if err = s.db.Save(&account).Error; err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
 		log.Error().Err(err).Msg("could not save originator account")
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "could not save originator account: %s", err)
 	}
 
 	// Create an identity and transaction payload for TRISA exchange
-	transaction := &api.Transaction{
-		Originator: &api.Account{
-			WalletAddress: account.WalletAddress,
-			Email:         account.Email,
-			Provider:      s.vasp.Name,
-		},
-		Beneficiary: &api.Account{
-			WalletAddress: beneficiary.Address,
-		},
-		Amount: req.Amount,
+	transaction := &generic.Transaction{
+		Txid:        fmt.Sprintf("%d", xfer.ID),
+		Originator:  account.WalletAddress,
+		Beneficiary: beneficiary.Address,
+		Amount:      float64(req.Amount),
+		Network:     "TestNet",
+		Timestamp:   xfer.Timestamp.Format(time.RFC3339),
 	}
 	identity := &ivms101.IdentityPayload{
 		Originator:      &ivms101.Originator{},
 		OriginatingVasp: &ivms101.OriginatingVasp{},
 	}
 	if identity.OriginatingVasp.OriginatingVasp, err = s.vasp.LoadIdentity(); err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, "could not load originator vasp")
 		log.Error().Err(err).Msg("could not load originator vasp")
-		return rep, nil
+		return nil, status.Errorf(codes.Internal, "could not load originator vasp: %s", err)
 	}
 
 	identity.Originator = &ivms101.Originator{
@@ -259,79 +278,72 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 	var originator *ivms101.Person
 	if originator, err = account.LoadIdentity(); err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, "could not load originator identity")
 		log.Error().Err(err).Msg("could not load originator identity")
-		return rep, nil
+		return nil, status.Errorf(codes.Internal, "could not load originator identity: %s", err)
 	}
 	identity.Originator.OriginatorPersons = append(identity.Originator.OriginatorPersons, originator)
 
 	payload := &protocol.Payload{}
-	if payload.Transaction, err = ptypes.MarshalAny(transaction); err != nil {
+	if payload.Transaction, err = anypb.New(transaction); err != nil {
 		log.Error().Err(err).Msg("could not dump payload transaction")
-		rep.Error = pb.Errorf(pb.ErrInternal, "could not dump payload transaction")
-		return rep, nil
+		return nil, status.Errorf(codes.Internal, "could not dump payload transaction: %s", err)
 	}
-	if payload.Identity, err = ptypes.MarshalAny(identity); err != nil {
+	if payload.Identity, err = anypb.New(identity); err != nil {
 		log.Error().Err(err).Msg("could not dump payload identity")
-		rep.Error = pb.Errorf(pb.ErrInternal, "could not dump payload identity")
-		return rep, nil
+		return nil, status.Errorf(codes.Internal, "could not dump payload identity: %s", err)
 	}
 
 	// Secure the envelope with the remote beneficiary's signing keys
 	var envelope *protocol.SecureEnvelope
 	if envelope, err = handler.New(xfer.Envelope, payload, nil).Seal(signKey); err != nil {
 		log.Error().Err(err).Msg("could not create or sign secure envelope")
-		rep.Error = pb.Errorf(pb.ErrInternal, "could not create or sign secure envelope")
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "could not create or sign secure envelope: %s", err)
 	}
 
 	// Conduct the TRISA transaction, handle errors and send back to user
 	if envelope, err = peer.Transfer(envelope); err != nil {
 		log.Error().Err(err).Msg("could not perform TRISA exchange")
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "could not perform TRISA exchange: %s", err)
 	}
 
 	// Open the response envelope with local private keys
 	var opened *handler.Envelope
 	if opened, err = handler.Open(envelope, s.trisa.sign); err != nil {
 		log.Error().Err(err).Msg("could not unseal TRISA response")
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "could not unseal TRISA response: %s", err)
 	}
 
 	// Verify the contents of the response
 	payload = opened.Payload
-	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
-		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
-		return rep, nil
+	if payload.Identity == nil || payload.Transaction == nil {
+		log.Warn().Msg("did not receive identity or transaction")
+		return nil, status.Error(codes.FailedPrecondition, "no identity or transaction returned")
 	}
 
-	if payload.Transaction.TypeUrl != "type.googleapis.com/rvasp.v1.Transaction" {
+	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
+		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
+		return nil, status.Errorf(codes.FailedPrecondition, "unsupported identity type for rVASP: %q", payload.Identity.TypeUrl)
+	}
+
+	if payload.Transaction.TypeUrl != "type.googleapis.com/trisa.data.generic.v1beta1.Transaction" {
 		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "unsupported identity type for rVASP: %q", payload.Transaction.TypeUrl)
 	}
 
 	identity = &ivms101.IdentityPayload{}
-	transaction = &api.Transaction{}
-	if err = ptypes.UnmarshalAny(payload.Identity, identity); err != nil {
+	transaction = &generic.Transaction{}
+	if err = payload.Identity.UnmarshalTo(identity); err != nil {
 		log.Error().Err(err).Msg("could not unmarshal identity")
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "could not unmarshal identity: %s", err)
 	}
-	if err = ptypes.UnmarshalAny(payload.Transaction, transaction); err != nil {
+	if err = payload.Transaction.UnmarshalTo(transaction); err != nil {
 		log.Error().Err(err).Msg("could not unmarshal transaction")
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
-		return rep, nil
+		return nil, status.Errorf(codes.FailedPrecondition, "could not unmarshal transaction: %s", err)
 	}
 
 	// Update the completed transaction and save to disk
 	xfer.Beneficiary = Identity{
-		WalletAddress: transaction.Beneficiary.WalletAddress,
-		Email:         transaction.Beneficiary.Email,
-		Provider:      transaction.Beneficiary.Provider,
+		WalletAddress: transaction.Beneficiary,
 	}
 	xfer.Completed = true
 	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
@@ -339,16 +351,14 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	// Serialize the identity information as JSON data
 	var data []byte
 	if data, err = json.Marshal(identity); err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, "could not marshal IVMS 101 identity")
-		log.Error().Err(err).Msg("could not save transaction")
-		return rep, nil
+		log.Error().Err(err).Msg("could not marshal IVMS 101 identity")
+		return nil, status.Errorf(codes.Internal, "could not marshal IVMS 101 identity: %s", err)
 	}
 	xfer.Identity = string(data)
 
 	if err = s.db.Save(&xfer).Error; err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
 		log.Error().Err(err).Msg("could not save transaction")
-		return rep, nil
+		return nil, status.Errorf(codes.Internal, "could not save transaction: %s", err)
 	}
 
 	// Save the pending transaction on the account
@@ -357,15 +367,12 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	account.Completed++
 	account.Balance.Sub(xfer.Amount)
 	if err = s.db.Save(&account).Error; err != nil {
-		rep.Error = pb.Errorf(pb.ErrInternal, err.Error())
 		log.Error().Err(err).Msg("could not save originator account")
-		return rep, nil
+		return nil, status.Errorf(codes.Internal, "could not save originator account: %s", err)
 	}
 
 	// Return the transfer response
-	rep.Transaction = transaction
-	rep.Transaction.Envelope = xfer.Envelope
-	rep.Transaction.Identity = xfer.Identity
+	rep.Transaction = xfer.Proto()
 	return rep, nil
 }
 
@@ -377,12 +384,11 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 	var account Account
 	if err = LookupAccount(s.db, req.Account).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			rep.Error = pb.Errorf(pb.ErrNotFound, "account not found")
 			log.Info().Err(err).Msg("account not found")
-			return rep, nil
+			return nil, status.Error(codes.NotFound, "account not found")
 		}
 		log.Error().Err(err).Msg("could not lookup account")
-		return nil, err
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup account: %s", err)
 	}
 
 	rep.Name = account.Name
@@ -396,27 +402,12 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 		var transactions []Transaction
 		if transactions, err = account.Transactions(s.db); err != nil {
 			log.Error().Err(err).Msg("could not get transactions")
-			return nil, err
+			return nil, status.Errorf(codes.FailedPrecondition, "could not get transactions: %s", err)
 		}
 
 		rep.Transactions = make([]*pb.Transaction, 0, len(transactions))
 		for _, transaction := range transactions {
-			rep.Transactions = append(rep.Transactions, &pb.Transaction{
-				Originator: &pb.Account{
-					WalletAddress: transaction.Originator.WalletAddress,
-					Email:         transaction.Originator.Email,
-					Provider:      transaction.Originator.Provider,
-				},
-				Beneficiary: &pb.Account{
-					WalletAddress: transaction.Beneficiary.WalletAddress,
-					Email:         transaction.Beneficiary.Email,
-					Provider:      transaction.Beneficiary.Provider,
-				},
-				Amount:    transaction.AmountFloat(),
-				Timestamp: transaction.Timestamp.Format(time.RFC3339),
-				Envelope:  transaction.Envelope,
-				Identity:  transaction.Identity,
-			})
+			rep.Transactions = append(rep.Transactions, transaction.Proto())
 		}
 	}
 
@@ -635,17 +626,13 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Create an identity and transaction payload for TRISA exchange
-	// Create an identity and transaction payload for TRISA exchange
-	transaction := &api.Transaction{
-		Originator: &api.Account{
-			WalletAddress: account.WalletAddress,
-			Email:         account.Email,
-			Provider:      s.vasp.Name,
-		},
-		Beneficiary: &api.Account{
-			WalletAddress: beneficiary.Address,
-		},
-		Amount: transfer.Amount,
+	transaction := &generic.Transaction{
+		Txid:        fmt.Sprintf("%d", xfer.ID),
+		Originator:  account.WalletAddress,
+		Beneficiary: beneficiary.Address,
+		Amount:      float64(transfer.Amount),
+		Network:     "TestNet",
+		Timestamp:   xfer.Timestamp.Format(time.RFC3339),
 	}
 	identity := &ivms101.IdentityPayload{
 		Originator:      &ivms101.Originator{},
@@ -672,13 +659,13 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	identity.Originator.OriginatorPersons = append(identity.Originator.OriginatorPersons, originator)
 
 	payload := &protocol.Payload{}
-	if payload.Transaction, err = ptypes.MarshalAny(transaction); err != nil {
+	if payload.Transaction, err = anypb.New(transaction); err != nil {
 		log.Error().Err(err).Msg("could not serialize transaction payload")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrInternal, "could not serialize transaction payload"),
 		)
 	}
-	if payload.Identity, err = ptypes.MarshalAny(identity); err != nil {
+	if payload.Identity, err = anypb.New(identity); err != nil {
 		log.Error().Err(err).Msg("could not serialize identity payload")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrInternal, "could not serialize identity payload"),
@@ -725,26 +712,26 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
 		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
 		return s.updates.SendTransferError(client, req.Id,
-			pb.Errorf(pb.ErrInternal, err.Error()),
+			pb.Errorf(pb.ErrInternal, "unsupported identity type", payload.Identity.TypeUrl),
 		)
 	}
 
-	if payload.Transaction.TypeUrl != "type.googleapis.com/rvasp.v1.Transaction" {
+	if payload.Transaction.TypeUrl != "type.googleapis.com/trisa.data.generic.v1beta1.Transaction" {
 		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
 		return s.updates.SendTransferError(client, req.Id,
-			pb.Errorf(pb.ErrInternal, err.Error()),
+			pb.Errorf(pb.ErrInternal, "unsupported transaction type", payload.Transaction.TypeUrl),
 		)
 	}
 
 	identity = &ivms101.IdentityPayload{}
-	transaction = &api.Transaction{}
-	if err = ptypes.UnmarshalAny(payload.Identity, identity); err != nil {
+	transaction = &generic.Transaction{}
+	if err = payload.Identity.UnmarshalTo(identity); err != nil {
 		log.Error().Err(err).Msg("could not unmarshal identity")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrInternal, err.Error()),
 		)
 	}
-	if err = ptypes.UnmarshalAny(payload.Transaction, transaction); err != nil {
+	if err = payload.Transaction.UnmarshalTo(transaction); err != nil {
 		log.Error().Err(err).Msg("could not unmarshal transaction")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrInternal, err.Error()),
@@ -756,9 +743,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 
 	// Update the completed transaction and save to disk
 	xfer.Beneficiary = Identity{
-		WalletAddress: transaction.Beneficiary.WalletAddress,
-		Email:         transaction.Beneficiary.Email,
-		Provider:      transaction.Beneficiary.Provider,
+		WalletAddress: transaction.Beneficiary,
 	}
 	xfer.Completed = true
 	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
@@ -799,15 +784,13 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	s.updates.Broadcast(req.Id, fmt.Sprintf("%04d new account balance: %s", account.ID, account.Balance), pb.MessageCategory_LEDGER)
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
-	transaction.Envelope = xfer.Envelope
-	transaction.Identity = xfer.Identity
 	rep := &pb.Message{
 		Type:      pb.RPC_TRANSFER,
 		Id:        req.Id,
 		Timestamp: time.Now().Format(time.RFC3339),
 		Category:  pb.MessageCategory_LEDGER,
 		Reply: &pb.Message_Transfer{Transfer: &pb.TransferReply{
-			Transaction: transaction,
+			Transaction: xfer.Proto(),
 		}},
 	}
 

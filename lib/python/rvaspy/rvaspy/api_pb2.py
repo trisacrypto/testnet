@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=b'Z2github.com/trisacrypto/testnet/pkg/rvasp/pb/v1;api',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\tapi.proto\x12\x08rvasp.v1\"&\n\x05\x45rror\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x0f\n\x07message\x18\x02 \x01(\t\"B\n\x07\x41\x63\x63ount\x12\x16\n\x0ewallet_address\x18\x01 \x01(\t\x12\r\n\x05\x65mail\x18\x02 \x01(\t\x12\x10\n\x08provider\x18\x03 \x01(\t\"\xa3\x01\n\x0bTransaction\x12%\n\noriginator\x18\x01 \x01(\x0b\x32\x11.rvasp.v1.Account\x12&\n\x0b\x62\x65neficiary\x18\x02 \x01(\x0b\x32\x11.rvasp.v1.Account\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x02\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12\x10\n\x08\x65nvelope\x18\x05 \x01(\t\x12\x10\n\x08identity\x18\x06 \x01(\t\"\x96\x01\n\x0fTransferRequest\x12\x0f\n\x07\x61\x63\x63ount\x18\x01 \x01(\t\x12\x13\n\x0b\x62\x65neficiary\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x02\x12\x18\n\x10originating_vasp\x18\x04 \x01(\t\x12\x18\n\x10\x62\x65neficiary_vasp\x18\x05 \x01(\t\x12\x19\n\x11\x63heck_beneficiary\x18\x06 \x01(\x08\"[\n\rTransferReply\x12\x1e\n\x05\x65rror\x18\x01 \x01(\x0b\x32\x0f.rvasp.v1.Error\x12*\n\x0btransaction\x18\x02 \x01(\x0b\x32\x15.rvasp.v1.Transaction\"Z\n\x0e\x41\x63\x63ountRequest\x12\x0f\n\x07\x61\x63\x63ount\x18\x01 \x01(\t\x12\x17\n\x0fno_transactions\x18\x02 \x01(\x08\x12\x0c\n\x04page\x18\x03 \x01(\r\x12\x10\n\x08per_page\x18\x04 \x01(\r\"\xc5\x01\n\x0c\x41\x63\x63ountReply\x12\x1e\n\x05\x65rror\x18\x01 \x01(\x0b\x32\x0f.rvasp.v1.Error\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\x16\n\x0ewallet_address\x18\x04 \x01(\t\x12\x0f\n\x07\x62\x61lance\x18\x05 \x01(\x02\x12\x11\n\tcompleted\x18\x06 \x01(\x04\x12\x0f\n\x07pending\x18\x07 \x01(\x04\x12+\n\x0ctransactions\x18\x08 \x03(\x0b\x32\x15.rvasp.v1.Transaction\"\xa9\x01\n\x07\x43ommand\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.rvasp.v1.RPC\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0e\n\x06\x63lient\x18\x03 \x01(\t\x12-\n\x08transfer\x18\x0b \x01(\x0b\x32\x19.rvasp.v1.TransferRequestH\x00\x12+\n\x07\x61\x63\x63ount\x18\x0c \x01(\x0b\x32\x18.rvasp.v1.AccountRequestH\x00\x42\t\n\x07request\"\xe3\x01\n\x07Message\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.rvasp.v1.RPC\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0e\n\x06update\x18\x03 \x01(\t\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12+\n\x08\x63\x61tegory\x18\x05 \x01(\x0e\x32\x19.rvasp.v1.MessageCategory\x12+\n\x08transfer\x18\x0b \x01(\x0b\x32\x17.rvasp.v1.TransferReplyH\x00\x12)\n\x07\x61\x63\x63ount\x18\x0c \x01(\x0b\x32\x16.rvasp.v1.AccountReplyH\x00\x42\x07\n\x05reply*+\n\x03RPC\x12\t\n\x05NORPC\x10\x00\x12\x0c\n\x08TRANSFER\x10\x01\x12\x0b\n\x07\x41\x43\x43OUNT\x10\x02*S\n\x0fMessageCategory\x12\n\n\x06LEDGER\x10\x00\x12\x0b\n\x07TRISADS\x10\x01\x12\x0c\n\x08TRISAP2P\x10\x02\x12\x0e\n\nBLOCKCHAIN\x10\x03\x12\t\n\x05\x45RROR\x10\x04\x32\x44\n\tTRISADemo\x12\x37\n\x0bLiveUpdates\x12\x11.rvasp.v1.Command\x1a\x11.rvasp.v1.Message(\x01\x30\x01\x32\x95\x01\n\x10TRISAIntegration\x12>\n\x08Transfer\x12\x19.rvasp.v1.TransferRequest\x1a\x17.rvasp.v1.TransferReply\x12\x41\n\rAccountStatus\x12\x18.rvasp.v1.AccountRequest\x1a\x16.rvasp.v1.AccountReplyB4Z2github.com/trisacrypto/testnet/pkg/rvasp/pb/v1;apib\x06proto3'
+  serialized_pb=b'\n\tapi.proto\x12\x08rvasp.v1\"&\n\x05\x45rror\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x0f\n\x07message\x18\x02 \x01(\t\"B\n\x07\x41\x63\x63ount\x12\x16\n\x0ewallet_address\x18\x01 \x01(\t\x12\r\n\x05\x65mail\x18\x02 \x01(\t\x12\x10\n\x08provider\x18\x03 \x01(\t\"\xa3\x01\n\x0bTransaction\x12%\n\noriginator\x18\x01 \x01(\x0b\x32\x11.rvasp.v1.Account\x12&\n\x0b\x62\x65neficiary\x18\x02 \x01(\x0b\x32\x11.rvasp.v1.Account\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x02\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12\x10\n\x08\x65nvelope\x18\x05 \x01(\t\x12\x10\n\x08identity\x18\x06 \x01(\t\"\xad\x01\n\x0fTransferRequest\x12\x0f\n\x07\x61\x63\x63ount\x18\x01 \x01(\t\x12\x13\n\x0b\x62\x65neficiary\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x02\x12\x18\n\x10originating_vasp\x18\x04 \x01(\t\x12\x18\n\x10\x62\x65neficiary_vasp\x18\x05 \x01(\t\x12\x19\n\x11\x63heck_beneficiary\x18\x06 \x01(\x08\x12\x15\n\rexternal_demo\x18\x07 \x01(\x08\"[\n\rTransferReply\x12\x1e\n\x05\x65rror\x18\x01 \x01(\x0b\x32\x0f.rvasp.v1.Error\x12*\n\x0btransaction\x18\x02 \x01(\x0b\x32\x15.rvasp.v1.Transaction\"Z\n\x0e\x41\x63\x63ountRequest\x12\x0f\n\x07\x61\x63\x63ount\x18\x01 \x01(\t\x12\x17\n\x0fno_transactions\x18\x02 \x01(\x08\x12\x0c\n\x04page\x18\x03 \x01(\r\x12\x10\n\x08per_page\x18\x04 \x01(\r\"\xc5\x01\n\x0c\x41\x63\x63ountReply\x12\x1e\n\x05\x65rror\x18\x01 \x01(\x0b\x32\x0f.rvasp.v1.Error\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\x16\n\x0ewallet_address\x18\x04 \x01(\t\x12\x0f\n\x07\x62\x61lance\x18\x05 \x01(\x02\x12\x11\n\tcompleted\x18\x06 \x01(\x04\x12\x0f\n\x07pending\x18\x07 \x01(\x04\x12+\n\x0ctransactions\x18\x08 \x03(\x0b\x32\x15.rvasp.v1.Transaction\"\xa9\x01\n\x07\x43ommand\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.rvasp.v1.RPC\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0e\n\x06\x63lient\x18\x03 \x01(\t\x12-\n\x08transfer\x18\x0b \x01(\x0b\x32\x19.rvasp.v1.TransferRequestH\x00\x12+\n\x07\x61\x63\x63ount\x18\x0c \x01(\x0b\x32\x18.rvasp.v1.AccountRequestH\x00\x42\t\n\x07request\"\xe3\x01\n\x07Message\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.rvasp.v1.RPC\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0e\n\x06update\x18\x03 \x01(\t\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12+\n\x08\x63\x61tegory\x18\x05 \x01(\x0e\x32\x19.rvasp.v1.MessageCategory\x12+\n\x08transfer\x18\x0b \x01(\x0b\x32\x17.rvasp.v1.TransferReplyH\x00\x12)\n\x07\x61\x63\x63ount\x18\x0c \x01(\x0b\x32\x16.rvasp.v1.AccountReplyH\x00\x42\x07\n\x05reply*+\n\x03RPC\x12\t\n\x05NORPC\x10\x00\x12\x0c\n\x08TRANSFER\x10\x01\x12\x0b\n\x07\x41\x43\x43OUNT\x10\x02*S\n\x0fMessageCategory\x12\n\n\x06LEDGER\x10\x00\x12\x0b\n\x07TRISADS\x10\x01\x12\x0c\n\x08TRISAP2P\x10\x02\x12\x0e\n\nBLOCKCHAIN\x10\x03\x12\t\n\x05\x45RROR\x10\x04\x32\x44\n\tTRISADemo\x12\x37\n\x0bLiveUpdates\x12\x11.rvasp.v1.Command\x1a\x11.rvasp.v1.Message(\x01\x30\x01\x32\x95\x01\n\x10TRISAIntegration\x12>\n\x08Transfer\x12\x19.rvasp.v1.TransferRequest\x1a\x17.rvasp.v1.TransferReply\x12\x41\n\rAccountStatus\x12\x18.rvasp.v1.AccountRequest\x1a\x16.rvasp.v1.AccountReplyB4Z2github.com/trisacrypto/testnet/pkg/rvasp/pb/v1;apib\x06proto3'
 )
 
 _RPC = _descriptor.EnumDescriptor(
@@ -48,8 +48,8 @@ _RPC = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1237,
-  serialized_end=1280,
+  serialized_start=1260,
+  serialized_end=1303,
 )
 _sym_db.RegisterEnumDescriptor(_RPC)
 
@@ -89,8 +89,8 @@ _MESSAGECATEGORY = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1282,
-  serialized_end=1365,
+  serialized_start=1305,
+  serialized_end=1388,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGECATEGORY)
 
@@ -308,6 +308,13 @@ _TRANSFERREQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='external_demo', full_name='rvasp.v1.TransferRequest.external_demo', index=6,
+      number=7, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -321,7 +328,7 @@ _TRANSFERREQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=298,
-  serialized_end=448,
+  serialized_end=471,
 )
 
 
@@ -359,8 +366,8 @@ _TRANSFERREPLY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=450,
-  serialized_end=541,
+  serialized_start=473,
+  serialized_end=564,
 )
 
 
@@ -412,8 +419,8 @@ _ACCOUNTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=543,
-  serialized_end=633,
+  serialized_start=566,
+  serialized_end=656,
 )
 
 
@@ -493,8 +500,8 @@ _ACCOUNTREPLY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=636,
-  serialized_end=833,
+  serialized_start=659,
+  serialized_end=856,
 )
 
 
@@ -558,8 +565,8 @@ _COMMAND = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=836,
-  serialized_end=1005,
+  serialized_start=859,
+  serialized_end=1028,
 )
 
 
@@ -637,8 +644,8 @@ _MESSAGE = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=1008,
-  serialized_end=1235,
+  serialized_start=1031,
+  serialized_end=1258,
 )
 
 _TRANSACTION.fields_by_name['originator'].message_type = _ACCOUNT
@@ -752,8 +759,8 @@ _TRISADEMO = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1367,
-  serialized_end=1435,
+  serialized_start=1390,
+  serialized_end=1458,
   methods=[
   _descriptor.MethodDescriptor(
     name='LiveUpdates',
@@ -778,8 +785,8 @@ _TRISAINTEGRATION = _descriptor.ServiceDescriptor(
   index=1,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1438,
-  serialized_end=1587,
+  serialized_start=1461,
+  serialized_end=1610,
   methods=[
   _descriptor.MethodDescriptor(
     name='Transfer',

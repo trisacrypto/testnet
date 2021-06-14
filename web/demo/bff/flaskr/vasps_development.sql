@@ -22,11 +22,11 @@ INSERT INTO wallets(wallet_address, vasp_id, wallet_id) VALUES
 
 
 INSERT INTO vasps(vasp_id, display_name, description, private_key, public_key, websocket_address, trisa_ds_id, trisa_ds_name, trisa_protocol_host)
- VALUES('EVIL-GUID', 'Evil VASP', 'An evil VASP out to do no good.  NOT registered in Trisa Directory Service', 'private', 'N/A', '127.0.0.1:4437', null, null, null);
+ VALUES('api.evil.vaspbot.net', 'Evil VASP', 'An evil VASP out to do no good.  NOT registered in Trisa Directory Service', 'private', 'N/A', 'admin.evil.vaspbot.net:443', null, 'Evil VASP', 'http://api.evil.vaspbot.net:443');
 
 INSERT INTO wallets(wallet_address, vasp_id, wallet_id) VALUES
- ('voldemort', 'EVIL-GUID', 'mary@evilvasp');
+ ('voldemort@evilvasp.gg', 'api.evil.vaspbot.net', '1PFTsUQrRqvmFkJunfuQbSC2k9p4RfxYLF');
 INSERT INTO wallets(wallet_address, vasp_id, wallet_id) VALUES
- ('launderer', 'EVIL-GUID', 'alice@evilvasp');
+ ('launderer@evilvasp.gg', 'api.evil.vaspbot.net', '172n89jLjXKmFJni1vwV5EzxKRXuAAoxUz');
 INSERT INTO wallets(wallet_address, vasp_id, wallet_id) VALUES
- ('badnews', 'EVIL-GUID', 'jane@evilvasp');
+ ('badnews@evilvasp.gg', 'api.evil.vaspbot.net', '182kF4mb5SW4KGEvBSbyXTpDWy8rK1Dpu');

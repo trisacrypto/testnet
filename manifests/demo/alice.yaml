@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: demobff-alice
-        image: trisa/demo-bff:d5e9926
+        image: trisa/demo-bff:alpha-10-g1a48a34
         ports:
         - containerPort: 8000
           protocol: TCP

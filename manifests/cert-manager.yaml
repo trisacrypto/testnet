@@ -68,5 +68,6 @@ spec:
   - "*.vaspbot.net"
   - "*.alice.vaspbot.net"
   - "*.bob.vaspbot.net"
+  - "*.evil.vaspbot.net"
   - "vaspdirectory.net"
   - "*.vaspdirectory.net"
