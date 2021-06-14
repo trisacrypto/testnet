@@ -254,7 +254,7 @@ func (x *Account) GetProvider() string {
 }
 
 // Describes a simple transaction between an originator and beneficiary.
-// TODO: this is a TRISA-specific message, move to TRISA protocol buffers?
+// NOTE: this is an rVASP-specific transaction that is used for debugging.
 type Transaction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
