@@ -37,6 +37,10 @@ build:
       alias: BASE
     docker:
       dockerfile: containers/rvasp/evil/Dockerfile
+  - image: trisa/docs-redirect
+    context: .
+    docker:
+      dockerfile: containers/docs-redirect/Dockerfile
   local:
     push: true
     useDockerCLI: true
