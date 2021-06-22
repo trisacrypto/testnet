@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: docs
-        image: trisa/testnet-docs:b7f39e7
+        image: trisa/docs-redirect:latest
         ports:
         - containerPort: 80
           protocol: TCP
