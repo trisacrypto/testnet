@@ -28,7 +28,7 @@ class TrisaDSCard extends Component<TrisaDSCardProps> {
                                     <h3>Directory Service:</h3>
                                 </Col>
                                 <Col className="card-right-table">
-                                    <a target="_blank" href="https://vaspdirectory.net">https://vaspdirectory.net</a>
+                                    <a target="_blank" href="https://trisatest.net">https://trisatest.net</a>
                                 </Col>
                             </Row>
                             <Row>

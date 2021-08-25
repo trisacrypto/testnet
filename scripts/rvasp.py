@@ -224,6 +224,45 @@ WALLETS = [
         },
     ],
     [
+        "1Hzej6a2VG7C8iCAD5DAdN72cZH5THSMt9",
+        "fred@bobvasp.co.uk", 1,
+        {
+            "natural_person": {
+                "name": {
+                    "name_identifiers": [{
+                        "primary_identifier": "Miles",
+                        "secondary_identifier": "Frederick",
+                        "name_identifier_type": 3,
+                    }, {
+                        "primary_identifier": "Miles",
+                        "secondary_identifier": "Fred",
+                        "name_identifier_type": 0,
+                    }],
+                },
+                "geographic_addresses": [{
+                    "address_type": 0,
+                    "street_name": "Bishopgate Street",
+                    "building_number": "36",
+                    "post_code": "LA8 5WP",
+                    "town_name": "Sedgwick",
+                    "country": "United Kingdom",
+                }],
+                "national_identification": {
+                    "national_identifier": "CY537660B",
+                    "national_identifier_type": 5,
+                    "country_of_issue": "GB",
+                    "registration_authority": "RA000591",
+                },
+                "customer_identification": "",
+                "date_and_place_of_birth": {
+                    "date_of_birth": "1973-10-04",
+                    "place_of_birth": "Whilhamshire, United Kingdom",
+                },
+                "country_of_residence": "GB"
+            },
+        },
+    ],
+    [
        "1ASkqdo1hvydosVRvRv2j6eNnWpWLHucMX",
        "mary@alicevasp.us", 2,
         {
@@ -330,6 +369,42 @@ WALLETS = [
                 "date_and_place_of_birth": {
                     "date_of_birth": "1992-10-04",
                     "place_of_birth": "West Islip, NY",
+                },
+                "country_of_residence": "US"
+            },
+        },
+    ],
+    [
+        "19nFejdNSUhzkAAdwAvP3wc53o8dL326QQ",
+        "sarah@alicevasp.us", 2,
+        {
+            "natural_person": {
+                "name": {
+                    "name_identifiers": [{
+                        "primary_identifier": "Luellen",
+                        "secondary_identifier": "Sarah",
+                        "name_identifier_type": 3,
+                    }],
+                },
+                "geographic_addresses": [{
+                    "address_type": 0,
+                    "street_name": "Shobe Lane",
+                    "building_number": "69",
+                    "post_code": "80203",
+                    "town_name": "Denver",
+                    "country_sub_division": "CO",
+                    "country": "US",
+                }],
+                "national_identification": {
+                    "national_identifier": "521129251",
+                    "national_identifier_type": 6,
+                    "country_of_issue": "US",
+                    "registration_authority": "RA000748",
+                },
+                "customer_identification": "",
+                "date_and_place_of_birth": {
+                    "date_of_birth": "1995-01-24",
+                    "place_of_birth": "Salt Lake City, UT",
                 },
                 "country_of_residence": "US"
             },
@@ -445,6 +520,42 @@ WALLETS = [
                     "place_of_birth": "Salem, Oregon",
                 },
                 "country_of_residence": "US"
+            },
+        },
+    ],
+    [
+        "1AsF1fMSaXPzz3dkBPyq81wrPQUKtT2tiz",
+        "gambler@evilvasp.gg", 3,
+        {
+            "natural_person": {
+                "name": {
+                    "name_identifiers": [{
+                        "primary_identifier": "Denny",
+                        "secondary_identifier": "Bill",
+                        "name_identifier_type": 1,
+                    }],
+                },
+                "geographic_addresses": [{
+                    "address_type": 0,
+                    "street_name": "Weigall Avenue",
+                    "building_number": "121",
+                    "post_code": "5418",
+                    "town_name": "Mount Bryan",
+                    "country_sub_division": "SA",
+                    "country": "AU",
+                }],
+                "national_identification": {
+                    "national_identifier": "f5892485",
+                    "national_identifier_type": 1,
+                    "country_of_issue": "AU",
+                    "registration_authority": "RA000696",
+                },
+                "customer_identification": "",
+                "date_and_place_of_birth": {
+                    "date_of_birth": "1991-06-18",
+                    "place_of_birth": "Monte Carlo, Monaco",
+                },
+                "country_of_residence": "AU"
             },
         },
     ],

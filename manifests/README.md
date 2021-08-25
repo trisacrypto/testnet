@@ -93,11 +93,11 @@
     apiVersion: v1
     kind: Secret
     metadata:
-    name: traefik-dashboard-auth
-    namespace: global
+      name: traefik-dashboard-auth
+      namespace: global
     data:
-    users: |2
-        YWRtaW5AdHJpc2EuaW86JGFwcjEkQ3dwRnN1RHckVXE0Y2ZiQ1hjbm9nTEwvdXBEZGhNLgoK
+      users: |2
+        [base64 encoded secret]
     ```
 
     Then apply the required files

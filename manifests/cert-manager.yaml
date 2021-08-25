@@ -60,14 +60,8 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-  - "trisatest.net"
-  - "*.trisatest.net"
-  - "test-net.io"
-  - "*.test-net.io"
   - "vaspbot.net"
   - "*.vaspbot.net"
   - "*.alice.vaspbot.net"
   - "*.bob.vaspbot.net"
   - "*.evil.vaspbot.net"
-  - "vaspdirectory.net"
-  - "*.vaspdirectory.net"
