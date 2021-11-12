@@ -191,6 +191,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 		}
 
 		beneficiary = Wallet{
+			Address: req.Beneficiary,
 			Provider: VASP{
 				Name: req.BeneficiaryVasp,
 			},
@@ -239,6 +240,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 		Amount:    decimal.NewFromFloat32(req.Amount),
 		Debit:     true,
 		Completed: false,
+		Timestamp: time.Now(),
 	}
 
 	if err = s.db.Save(&xfer).Error; err != nil {
@@ -316,6 +318,32 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	// Verify the contents of the response
 	payload = opened.Payload
 	if payload.Identity == nil || payload.Transaction == nil {
+		// Check if we've received a confirmation receipt
+		if payload.Transaction != nil {
+			switch payload.Transaction.TypeUrl {
+			case "type.googleapis.com/trisa.data.generic.v1beta1.ConfirmationReceipt":
+				receipt := &generic.ConfirmationReceipt{}
+				if err = payload.Transaction.UnmarshalTo(receipt); err != nil {
+					log.Error().Err(err).Msg("could not unmarshal confirmation receipt")
+					return nil, status.Errorf(codes.FailedPrecondition, "could not unmarshal confirmation receipt: %s", err)
+				}
+				log.Info().
+					Str("envelope", receipt.EnvelopeId).
+					Str("received_by", receipt.ReceivedBy).
+					Str("received_at", receipt.ReceivedAt).
+					Str("message", receipt.Message).
+					Msg("confirmation receipt received")
+				err = fmt.Errorf("received confirmation ID %s from %s: %s", receipt.EnvelopeId, receipt.ReceivedBy, receipt.Message)
+				return nil, status.Error(codes.Unimplemented, err.Error())
+			case "type.googleapis.com/ciphertrace.apis.traveler.common.v1.ConfirmationReceipt":
+				log.Info().Msg("received Traveler confirmation receipt")
+				return nil, status.Error(codes.Unimplemented, "received confirmation receipt, transaction could not be completed")
+			default:
+				log.Error().Str("type", payload.Transaction.TypeUrl).Msg("unknown confirmation receipt type")
+				return nil, status.Error(codes.FailedPrecondition, "could not parse confirmation receipt")
+			}
+		}
+
 		log.Warn().Msg("did not receive identity or transaction")
 		return nil, status.Error(codes.FailedPrecondition, "no identity or transaction returned")
 	}
