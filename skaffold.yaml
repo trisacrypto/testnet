@@ -40,15 +40,3 @@ build:
   local:
     push: true
     useDockerCLI: true
-deploy:
-  kubectl:
-    defaultNamespace: trisa
-    manifests:
-    - manifests/cert-manager.yaml
-    - manifests/namespaces.yaml
-    - manifests/creds/sectigo-creds.yaml
-    - manifests/creds/sendgrid-apikey.yaml
-    - manifests/creds/traefik-dashboard-auth.yaml
-    - manfiests/creds/trisads-secret.yaml
-    - manifests/traefik/dashboard.yaml
-    - manifests/traefik/traefik-config.configmap.yaml
