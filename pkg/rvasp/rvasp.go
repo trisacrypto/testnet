@@ -337,7 +337,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 				return nil, status.Error(codes.Unimplemented, err.Error())
 			case "type.googleapis.com/ciphertrace.apis.traveler.common.v1.ConfirmationReceipt":
 				log.Info().Msg("received Traveler confirmation receipt")
-				return nil, status.Error(codes.Unimplemented, "received confirmation receipt, transaction could not be completed")
+				return nil, status.Error(codes.Unimplemented, "received confirmation receipt, transaction could not be completed synchronously")
 			default:
 				log.Error().Str("type", payload.Transaction.TypeUrl).Msg("unknown confirmation receipt type")
 				return nil, status.Error(codes.FailedPrecondition, "could not parse confirmation receipt")

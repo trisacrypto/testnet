@@ -12,6 +12,7 @@ import (
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"gorm.io/driver/sqlite"
@@ -273,9 +274,17 @@ func transfer(c *cli.Context) (err error) {
 
 	rep, err := client.Transfer(ctx, req)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		// Extract the status from the error
+		var (
+			ok   bool
+			serr *status.Status
+		)
+		if serr, ok = status.FromError(err); !ok {
+			return cli.NewExitError(err, 1)
+		}
+		fmt.Printf("[%d] %s\n", serr.Code(), serr.Message())
+		return nil
 	}
-
 	return printJSON(rep)
 }
 
