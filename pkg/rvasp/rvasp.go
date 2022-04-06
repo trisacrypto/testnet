@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
-	"github.com/trisacrypto/directory/pkg/gds/logger"
+	"github.com/trisacrypto/directory/pkg/utils/logger"
 	"github.com/trisacrypto/testnet/pkg"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
@@ -381,7 +381,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 			Str("received_at", pending.ReceivedAt).
 			Str("message", pending.Message).
 			Msg("pending received")
-		return nil, status.Errorf(codes.FailedPrecondition, "received pending mesage ID %s from %s (%s): transaction cannot be completed until compliance workflow is completed")
+		return nil, status.Errorf(codes.FailedPrecondition, "received pending mesage ID %s from %s (%s): transaction cannot be completed until compliance workflow is completed", pending.EnvelopeId, pending.ReceivedBy, pending.Message)
 	}
 
 	if payload.Transaction.TypeUrl != "type.googleapis.com/trisa.data.generic.v1beta1.Transaction" {

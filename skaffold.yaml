@@ -4,14 +4,6 @@ metadata:
   name: testnet
 build:
   artifacts:
-  - image: trisa/demo-bff
-    context: .
-    docker:
-      dockerfile: containers/demo/bff/Dockerfile
-  - image: trisa/demo-npm
-    context: .
-    docker:
-      dockerfile: containers/demo/npm/Dockerfile
   - image: trisa/rvasp
     context: .
     docker:

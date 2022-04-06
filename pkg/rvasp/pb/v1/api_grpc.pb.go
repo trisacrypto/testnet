@@ -11,6 +11,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
 // TRISADemoClient is the client API for TRISADemo service.
@@ -29,7 +30,7 @@ func NewTRISADemoClient(cc grpc.ClientConnInterface) TRISADemoClient {
 }
 
 func (c *tRISADemoClient) LiveUpdates(ctx context.Context, opts ...grpc.CallOption) (TRISADemo_LiveUpdatesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_TRISADemo_serviceDesc.Streams[0], "/rvasp.v1.TRISADemo/LiveUpdates", opts...)
+	stream, err := c.cc.NewStream(ctx, &TRISADemo_ServiceDesc.Streams[0], "/rvasp.v1.TRISADemo/LiveUpdates", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ type UnsafeTRISADemoServer interface {
 }
 
 func RegisterTRISADemoServer(s grpc.ServiceRegistrar, srv TRISADemoServer) {
-	s.RegisterService(&_TRISADemo_serviceDesc, srv)
+	s.RegisterService(&TRISADemo_ServiceDesc, srv)
 }
 
 func _TRISADemo_LiveUpdates_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -113,7 +114,10 @@ func (x *tRISADemoLiveUpdatesServer) Recv() (*Command, error) {
 	return m, nil
 }
 
-var _TRISADemo_serviceDesc = grpc.ServiceDesc{
+// TRISADemo_ServiceDesc is the grpc.ServiceDesc for TRISADemo service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TRISADemo_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "rvasp.v1.TRISADemo",
 	HandlerType: (*TRISADemoServer)(nil),
 	Methods:     []grpc.MethodDesc{},
@@ -191,7 +195,7 @@ type UnsafeTRISAIntegrationServer interface {
 }
 
 func RegisterTRISAIntegrationServer(s grpc.ServiceRegistrar, srv TRISAIntegrationServer) {
-	s.RegisterService(&_TRISAIntegration_serviceDesc, srv)
+	s.RegisterService(&TRISAIntegration_ServiceDesc, srv)
 }
 
 func _TRISAIntegration_Transfer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -230,7 +234,10 @@ func _TRISAIntegration_AccountStatus_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
-var _TRISAIntegration_serviceDesc = grpc.ServiceDesc{
+// TRISAIntegration_ServiceDesc is the grpc.ServiceDesc for TRISAIntegration service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TRISAIntegration_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "rvasp.v1.TRISAIntegration",
 	HandlerType: (*TRISAIntegrationServer)(nil),
 	Methods: []grpc.MethodDesc{
