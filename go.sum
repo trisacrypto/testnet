@@ -188,6 +188,8 @@ github.com/trisacrypto/directory v0.0.0-20210610141940-3a94b23aee3d/go.mod h1:3D
 github.com/trisacrypto/trisa v0.2.0/go.mod h1:lt8KM8YlOq8VSahDl2PmBzsBL04FUBbjEBGshWESXzo=
 github.com/trisacrypto/trisa v0.3.0 h1:KIuaQBcVgFHiXQimjXugQ7ujgjWq83ROWqy6h1g6UJw=
 github.com/trisacrypto/trisa v0.3.0/go.mod h1:lt8KM8YlOq8VSahDl2PmBzsBL04FUBbjEBGshWESXzo=
+github.com/trisacrypto/trisa v0.3.2 h1:xVXWcFV0RWBwATbq23/j+gSNBN0U5pCJrXHmrcPi67c=
+github.com/trisacrypto/trisa v0.3.2/go.mod h1:Ik66Ym5ArY/vWh9GzlTtLQFfEKmOo4ccxsBZgQLYVGk=
 github.com/urfave/cli v1.22.5 h1:lNq9sAHXK2qfdI8W+GRItjCEkI+2oR4d+MEHy1CKXoU=
 github.com/urfave/cli v1.22.5/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

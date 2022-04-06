@@ -321,6 +321,20 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 		// Check if we've received a confirmation receipt
 		if payload.Transaction != nil {
 			switch payload.Transaction.TypeUrl {
+			case "type.googleapis.com/trisa.data.generic.v1beta1.Pending":
+				pending := &generic.Pending{}
+				if err = payload.Transaction.UnmarshalTo(pending); err != nil {
+					log.Error().Err(err).Msg("could not unmarshal pending")
+					return nil, status.Errorf(codes.FailedPrecondition, "could not unmarshal pending: %s", err)
+				}
+				log.Info().
+					Str("envelope", pending.EnvelopeId).
+					Str("received_by", pending.ReceivedBy).
+					Str("received_at", pending.ReceivedAt).
+					Str("message", pending.Message).
+					Msg("pending received")
+				err = fmt.Errorf("received pending without identity payload message ID %s from %s: %s", pending.EnvelopeId, pending.ReceivedBy, pending.Message)
+				return nil, status.Error(codes.Unimplemented, err.Error())
 			case "type.googleapis.com/trisa.data.generic.v1beta1.ConfirmationReceipt":
 				receipt := &generic.ConfirmationReceipt{}
 				if err = payload.Transaction.UnmarshalTo(receipt); err != nil {
@@ -353,9 +367,26 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 		return nil, status.Errorf(codes.FailedPrecondition, "unsupported identity type for rVASP: %q", payload.Identity.TypeUrl)
 	}
 
+	// Have we received a pending message
+	if payload.Transaction.TypeUrl == "type.googleapis.com/trisa.data.generic.v1beta1.Pending" {
+		pending := &generic.Pending{}
+		if err = payload.Transaction.UnmarshalTo(pending); err != nil {
+			log.Error().Err(err).Msg("could not unmarshal pending")
+			return nil, status.Errorf(codes.FailedPrecondition, "could not unmarshal pending: %s", err)
+		}
+
+		log.Info().
+			Str("envelope", pending.EnvelopeId).
+			Str("received_by", pending.ReceivedBy).
+			Str("received_at", pending.ReceivedAt).
+			Str("message", pending.Message).
+			Msg("pending received")
+		return nil, status.Errorf(codes.FailedPrecondition, "received pending mesage ID %s from %s (%s): transaction cannot be completed until compliance workflow is completed")
+	}
+
 	if payload.Transaction.TypeUrl != "type.googleapis.com/trisa.data.generic.v1beta1.Transaction" {
 		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
-		return nil, status.Errorf(codes.FailedPrecondition, "unsupported identity type for rVASP: %q", payload.Transaction.TypeUrl)
+		return nil, status.Errorf(codes.FailedPrecondition, "unsupported transaction type for rVASP: %q", payload.Transaction.TypeUrl)
 	}
 
 	identity = &ivms101.IdentityPayload{}
