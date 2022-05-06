@@ -65,7 +65,7 @@ func New(conf *Settings) (s *Server, err error) {
 	}
 
 	s = &Server{conf: conf, echan: make(chan error, 1)}
-	if s.db, err = gorm.Open(postgres.Open(conf.DSN()), &gorm.Config{}); err != nil {
+	if s.db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return nil, err
 	}
 

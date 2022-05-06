@@ -16,10 +16,7 @@ type Settings struct {
 	Name                string          `envconfig:"RVASP_NAME"`
 	BindAddr            string          `envconfig:"RVASP_BIND_ADDR" default:":4434"`
 	TRISABindAddr       string          `envconfig:"RVASP_TRISA_BIND_ADDR" default:":4435"`
-	DatabaseHost        string          `envconfig:"RVASP_DATABASE_HOST"`
-	DatabasePort        string          `envconfig:"RVASP_DATABASE_PORT"`
-	DatabaseCreds       string          `envconfig:"RVASP_DATABASE_CREDS"`
-	DatabaseName        string          `envconfig:"RVASP_DATABASE_NAME"`
+	DatabaseDSN         string          `envconfig:"RVASP_DATABASE"`
 	CertPath            string          `envconfig:"RVASP_CERT_PATH"`
 	TrustChainPath      string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`
 	DirectoryServiceURL string          `envconfig:"RVASP_DIRECTORY_SERVICE_URL" default:"api.trisatest.net:443"`
@@ -61,9 +58,4 @@ func (ll *LogLevelDecoder) Decode(value string) error {
 		return fmt.Errorf("unknown log level %q", value)
 	}
 	return nil
-}
-
-func (conf *Settings) DSN() string {
-	creds := strings.Split(conf.DatabaseCreds, ":")
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", conf.DatabaseHost, conf.DatabasePort, creds[0], creds[1], conf.DatabaseName)
 }

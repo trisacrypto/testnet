@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -55,28 +54,9 @@ func main() {
 					EnvVar: "RVASP_TRISA_BIND_ADDR",
 				},
 				cli.StringFlag{
-					Name:   "H, host",
-					Usage:  "the host of the postgres database to connect to",
-					Value:  "localhost",
-					EnvVar: "RVASP_DATABASE_CONNECT",
-				},
-				cli.StringFlag{
-					Name:   "p, port",
-					Usage:  "the port of the postgres database to connect to",
-					Value:  "5433",
-					EnvVar: "RVASP_DATABASE_PORT",
-				},
-				cli.StringFlag{
-					Name:   "c, creds",
-					Usage:  "the user/password to connect to the postgres database",
-					Value:  "postgres/postgres",
-					EnvVar: "RVASP_DATABASE_CREDS",
-				},
-				cli.StringFlag{
 					Name:   "d, db",
-					Usage:  "the name of the postgres database to connect to",
-					Value:  "postgres",
-					EnvVar: "RVASP_DATABASE_NAME",
+					Usage:  "the dsn of the postgres database to connect to",
+					EnvVar: "RVASP_DATABASE",
 				},
 			},
 		},
@@ -87,28 +67,9 @@ func main() {
 			Action:   initdb,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:   "H, host",
-					Usage:  "the host of the postgres database to connect to",
-					Value:  "localhost",
-					EnvVar: "RVASP_DATABASE_CONNECT",
-				},
-				cli.StringFlag{
-					Name:   "p, port",
-					Usage:  "the port of the postgres database to connect to",
-					Value:  "5433",
-					EnvVar: "RVASP_DATABASE_PORT",
-				},
-				cli.StringFlag{
-					Name:   "c, creds",
-					Usage:  "the user/password to connect to the postgres database",
-					Value:  "postgres/postgres",
-					EnvVar: "RVASP_DATABASE_CREDS",
-				},
-				cli.StringFlag{
 					Name:   "d, db",
-					Usage:  "the name of the postgres database to connect to",
-					Value:  "postgres",
-					EnvVar: "RVASP_DATABASE_NAME",
+					Usage:  "the dsn of the postgres database to connect to",
+					EnvVar: "RVASP_DATABASE",
 				},
 			},
 		},
@@ -206,29 +167,6 @@ func main() {
 	app.Run(os.Args)
 }
 
-// Parse DSN args from the command line
-func parseDSN(c *cli.Context, conf *rvasp.Settings) (err error) {
-	if host := c.String("host"); host != "" {
-		conf.DatabaseHost = host
-	}
-
-	if port := c.String("port"); port != "" {
-		conf.DatabasePort = port
-	}
-
-	if creds := c.String("creds"); creds != "" {
-		if len(strings.Split(creds, "/")) != 2 {
-			return fmt.Errorf("invalid creds format, expected user/password: %s", creds)
-		}
-		conf.DatabaseCreds = creds
-	}
-
-	if name := c.String("db"); name != "" {
-		conf.DatabaseName = name
-	}
-	return nil
-}
-
 // Serve the TRISA directory service
 func serve(c *cli.Context) (err error) {
 	var conf *rvasp.Settings
@@ -248,8 +186,8 @@ func serve(c *cli.Context) (err error) {
 		conf.TRISABindAddr = addr
 	}
 
-	if err = parseDSN(c, conf); err != nil {
-		return cli.NewExitError(err, 1)
+	if db := c.String("db"); db != "" {
+		conf.DatabaseDSN = db
 	}
 
 	var srv *rvasp.Server
@@ -269,12 +207,13 @@ func initdb(c *cli.Context) (err error) {
 	if conf, err = rvasp.Config(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	if err = parseDSN(c, conf); err != nil {
-		return cli.NewExitError(err, 1)
+
+	if db := c.String("db"); db != "" {
+		conf.DatabaseDSN = db
 	}
 
 	var db *gorm.DB
-	if db, err = gorm.Open(postgres.Open(conf.DSN()), &gorm.Config{}); err != nil {
+	if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
