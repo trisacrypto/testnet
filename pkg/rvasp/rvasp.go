@@ -29,7 +29,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -65,7 +65,7 @@ func New(conf *Settings) (s *Server, err error) {
 	}
 
 	s = &Server{conf: conf, echan: make(chan error, 1)}
-	if s.db, err = gorm.Open(sqlite.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
+	if s.db, err = gorm.Open(postgres.Open(conf.DSN()), &gorm.Config{}); err != nil {
 		return nil, err
 	}
 
