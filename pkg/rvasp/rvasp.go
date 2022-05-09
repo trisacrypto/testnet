@@ -296,15 +296,10 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	// Secure the envelope with the remote beneficiary's signing keys
-	msg, reject, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
+	msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
 	if err != nil {
-		if reject != nil {
-			out, _ := envelope.Reject(reject, envelope.WithEnvelopeID(msg.Id))
-			log.Error().Err(err).Str("id", out.Id).Str("reject", reject.String()).Msg("failed to seal envelope, sending rejection message")
-		} else {
-			log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
-		}
+		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	// Conduct the TRISA transaction, handle errors and send back to user
@@ -314,15 +309,10 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	// Open the response envelope with local private keys
-	payload, reject, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
+	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
 	if err != nil {
-		if reject != nil {
-			out, _ := envelope.Reject(reject, envelope.WithEnvelopeID(msg.Id))
-			log.Error().Err(err).Str("id", out.Id).Str("reject", reject.String()).Msg("failed to open envelope, sending rejection message")
-		} else {
-			log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
-		}
+		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	// Verify the contents of the response
@@ -744,15 +734,10 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Secure the envelope with the remote beneficiary's signing keys
-	msg, reject, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
+	msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
 	if err != nil {
-		if reject != nil {
-			out, _ := envelope.Reject(reject, envelope.WithEnvelopeID(msg.Id))
-			log.Error().Err(err).Str("id", out.Id).Str("reject", reject.String()).Msg("failed to seal envelope, sending rejection message")
-		} else {
-			log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
-			return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
-		}
+		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	s.updates.Broadcast(req.Id, fmt.Sprintf("secure envelope %s sealed: encrypted with AES-GCM and RSA - sending ...", msg.Id), pb.MessageCategory_TRISAP2P)
@@ -770,15 +755,10 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Open the response envelope with local private keys
-	payload, reject, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
+	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
 	if err != nil {
-		if reject != nil {
-			out, _ := envelope.Reject(reject, envelope.WithEnvelopeID(msg.Id))
-			log.Error().Err(err).Str("id", out.Id).Str("reject", reject.String()).Msg("failed to open envelope, sending rejection message")
-		} else {
-			log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
-			return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
-		}
+		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	// Verify the contents of the response
