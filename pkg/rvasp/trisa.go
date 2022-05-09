@@ -227,8 +227,10 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	payload, reject, err := envelope.Open(in, envelope.WithRSAPrivateKey(s.sign))
 	if err != nil {
 		if reject != nil {
-			log.Error().Err(err).Str("reject", reject.String()).Msg("failed to open envelope")
-			return nil, reject
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
+				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+			}
+			return out, nil
 		}
 		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
@@ -365,8 +367,10 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	out, reject, err = envelope.Seal(payload, envelope.WithRSAPublicKey(peer.SigningKey()))
 	if err != nil {
 		if reject != nil {
-			log.Error().Err(err).Str("reject", reject.String()).Msg("failed to seal envelope")
-			return nil, reject
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
+				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+			}
+			return out, nil
 		}
 		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
