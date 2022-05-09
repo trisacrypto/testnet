@@ -16,11 +16,13 @@ import (
 	"github.com/trisacrypto/trisa/pkg/ivms101"
 	protocol "github.com/trisacrypto/trisa/pkg/trisa/api/v1beta1"
 	generic "github.com/trisacrypto/trisa/pkg/trisa/data/generic/v1beta1"
-	"github.com/trisacrypto/trisa/pkg/trisa/handler"
+	"github.com/trisacrypto/trisa/pkg/trisa/envelope"
 	"github.com/trisacrypto/trisa/pkg/trisa/mtls"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"github.com/trisacrypto/trisa/pkg/trust"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
 	"gorm.io/gorm"
@@ -222,13 +224,18 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	s.parent.updates.Broadcast(0, "decrypting with RSA and AES256-GCM; verifying with HMAC-SHA256", pb.MessageCategory_TRISAP2P)
 
 	// Decrypt the encryption key and HMAC secret with private signing keys (asymmetric phase)
-	var envelope *handler.Envelope
-	if envelope, err = handler.Open(in, s.sign); err != nil {
-		log.Error().Err(err).Msg("could not open secure envelope")
-		return nil, err
+	payload, reject, err := envelope.Open(in, envelope.WithRSAPrivateKey(s.sign))
+	if err != nil {
+		if reject != nil {
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
+				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+			}
+			return out, nil
+		}
+		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
-	payload := envelope.Payload
 	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
 		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
 		return nil, protocol.Errorf(protocol.UnparseableIdentity, "rVASP requires ivms101.IdentityPayload payload identity type")
@@ -250,7 +257,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		log.Error().Err(err).Msg("could not unmarshal transaction")
 		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal transaction")
 	}
-	s.parent.updates.Broadcast(0, fmt.Sprintf("secure envelope %s opened and payload decrypted and parsed", envelope.ID), pb.MessageCategory_TRISAP2P)
+	s.parent.updates.Broadcast(0, fmt.Sprintf("secure envelope %s opened and payload decrypted and parsed", in.Id), pb.MessageCategory_TRISAP2P)
 
 	// Lookup the beneficiary in the local VASP database.
 	var accountAddress string
@@ -357,10 +364,16 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 
 	s.parent.updates.Broadcast(0, "sealing beneficiary information and returning", pb.MessageCategory_TRISAP2P)
 
-	envelope.Payload = payload
-	if out, err = envelope.Seal(peer.SigningKey()); err != nil {
-		log.Error().Err(err).Msg("could not seal envelope to send to originator")
-		return nil, err
+	out, reject, err = envelope.Seal(payload, envelope.WithRSAPublicKey(peer.SigningKey()))
+	if err != nil {
+		if reject != nil {
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
+				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+			}
+			return out, nil
+		}
+		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	s.parent.updates.Broadcast(0, fmt.Sprintf("%04d new account balance: %s", account.ID, account.Balance), pb.MessageCategory_LEDGER)

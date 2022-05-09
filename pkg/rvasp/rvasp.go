@@ -23,7 +23,7 @@ import (
 	"github.com/trisacrypto/trisa/pkg/ivms101"
 	protocol "github.com/trisacrypto/trisa/pkg/trisa/api/v1beta1"
 	generic "github.com/trisacrypto/trisa/pkg/trisa/data/generic/v1beta1"
-	"github.com/trisacrypto/trisa/pkg/trisa/handler"
+	"github.com/trisacrypto/trisa/pkg/trisa/envelope"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -296,27 +296,26 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	// Secure the envelope with the remote beneficiary's signing keys
-	var envelope *protocol.SecureEnvelope
-	if envelope, err = handler.New(xfer.Envelope, payload, nil).Seal(signKey); err != nil {
-		log.Error().Err(err).Msg("could not create or sign secure envelope")
-		return nil, status.Errorf(codes.FailedPrecondition, "could not create or sign secure envelope: %s", err)
+	msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
+	if err != nil {
+		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	// Conduct the TRISA transaction, handle errors and send back to user
-	if envelope, err = peer.Transfer(envelope); err != nil {
+	if msg, err = peer.Transfer(msg); err != nil {
 		log.Error().Err(err).Msg("could not perform TRISA exchange")
 		return nil, status.Errorf(codes.FailedPrecondition, "could not perform TRISA exchange: %s", err)
 	}
 
 	// Open the response envelope with local private keys
-	var opened *handler.Envelope
-	if opened, err = handler.Open(envelope, s.trisa.sign); err != nil {
-		log.Error().Err(err).Msg("could not unseal TRISA response")
-		return nil, status.Errorf(codes.FailedPrecondition, "could not unseal TRISA response: %s", err)
+	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
+	if err != nil {
+		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	// Verify the contents of the response
-	payload = opened.Payload
 	if payload.Identity == nil || payload.Transaction == nil {
 		// Check if we've received a confirmation receipt
 		if payload.Transaction != nil {
@@ -579,8 +578,8 @@ func (s *Server) LiveUpdates(stream pb.TRISADemo_LiveUpdatesServer) (err error) 
 func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	// Get the transfer from the original command, will panic if nil
 	transfer := req.GetTransfer()
-	msg := fmt.Sprintf("starting transaction of %0.2f from %s to %s", transfer.Amount, transfer.Account, transfer.Beneficiary)
-	s.updates.Broadcast(req.Id, msg, pb.MessageCategory_LEDGER)
+	message := fmt.Sprintf("starting transaction of %0.2f from %s to %s", transfer.Amount, transfer.Account, transfer.Beneficiary)
+	s.updates.Broadcast(req.Id, message, pb.MessageCategory_LEDGER)
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Handle Demo UI errors before the account lookup
@@ -735,39 +734,34 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Secure the envelope with the remote beneficiary's signing keys
-	var envelope *protocol.SecureEnvelope
-	if envelope, err = handler.New(xfer.Envelope, payload, nil).Seal(signKey); err != nil {
-		log.Error().Err(err).Msg("could not create or sign secure envelope")
-		return s.updates.SendTransferError(client, req.Id,
-			pb.Errorf(pb.ErrInternal, "could not create or sign secure envelope"),
-		)
+	msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
+	if err != nil {
+		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
-	s.updates.Broadcast(req.Id, fmt.Sprintf("secure envelope %s sealed: encrypted with AES-GCM and RSA - sending ...", envelope.Id), pb.MessageCategory_TRISAP2P)
+	s.updates.Broadcast(req.Id, fmt.Sprintf("secure envelope %s sealed: encrypted with AES-GCM and RSA - sending ...", msg.Id), pb.MessageCategory_TRISAP2P)
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Conduct the TRISA transaction, handle errors and send back to user
-	if envelope, err = peer.Transfer(envelope); err != nil {
+	if msg, err = peer.Transfer(msg); err != nil {
 		log.Error().Err(err).Msg("could not perform TRISA exchange")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrInternal, err.Error()),
 		)
 	}
 
-	s.updates.Broadcast(req.Id, fmt.Sprintf("received %s information exchange reply from %s", envelope.Id, peer.String()), pb.MessageCategory_TRISAP2P)
+	s.updates.Broadcast(req.Id, fmt.Sprintf("received %s information exchange reply from %s", msg.Id, peer.String()), pb.MessageCategory_TRISAP2P)
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Open the response envelope with local private keys
-	var opened *handler.Envelope
-	if opened, err = handler.Open(envelope, s.trisa.sign); err != nil {
-		log.Error().Err(err).Msg("could not unseal TRISA response")
-		return s.updates.SendTransferError(client, req.Id,
-			pb.Errorf(pb.ErrInternal, err.Error()),
-		)
+	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
+	if err != nil {
+		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	// Verify the contents of the response
-	payload = opened.Payload
 	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
 		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
 		return s.updates.SendTransferError(client, req.Id,
@@ -836,8 +830,8 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 		)
 	}
 
-	msg = fmt.Sprintf("transaction %04d complete: %s transfered from %s to %s", xfer.ID, xfer.Amount.String(), xfer.Originator.WalletAddress, xfer.Beneficiary.WalletAddress)
-	s.updates.Broadcast(req.Id, msg, pb.MessageCategory_BLOCKCHAIN)
+	message = fmt.Sprintf("transaction %04d complete: %s transfered from %s to %s", xfer.ID, xfer.Amount.String(), xfer.Originator.WalletAddress, xfer.Beneficiary.WalletAddress)
+	s.updates.Broadcast(req.Id, message, pb.MessageCategory_BLOCKCHAIN)
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	s.updates.Broadcast(req.Id, fmt.Sprintf("%04d new account balance: %s", account.ID, account.Balance), pb.MessageCategory_LEDGER)
