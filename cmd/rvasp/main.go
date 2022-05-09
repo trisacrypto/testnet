@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -70,6 +71,25 @@ func main() {
 					Name:   "d, db",
 					Usage:  "the dsn of the postgres database to connect to",
 					EnvVar: "RVASP_DATABASE",
+				},
+			},
+		},
+		{
+			Name:     "resetdb",
+			Usage:    "reset the database using the JSON fixtures",
+			Category: "server",
+			Action:   resetdb,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "d, db",
+					Usage:  "the dsn of the postgres database to connect to",
+					EnvVar: "RVASP_DATABASE",
+				},
+				cli.StringFlag{
+					Name:   "f, fixtures",
+					Usage:  "the path to the fixtures directory",
+					Value:  filepath.Join("pkg", "rvasp", "fixtures"),
+					EnvVar: "RVASP_FIXTURES_PATH",
 				},
 			},
 		},
@@ -218,6 +238,32 @@ func initdb(c *cli.Context) (err error) {
 	}
 
 	if err = rvasp.MigrateDB(db); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return nil
+}
+
+// Reset the database
+func resetdb(c *cli.Context) (err error) {
+	var conf *rvasp.Settings
+	if conf, err = rvasp.Config(); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if db := c.String("db"); db != "" {
+		conf.DatabaseDSN = db
+	}
+
+	if fixtures := c.String("fixtures"); fixtures != "" {
+		conf.FixturesPath = fixtures
+	}
+
+	var db *gorm.DB
+	if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if err = rvasp.ResetDB(db, conf.FixturesPath); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	return nil

@@ -122,6 +122,55 @@ func MigrateDB(db *gorm.DB) (err error) {
 	return nil
 }
 
+// ResetDB resets the database using the JSON fixtures.
+func ResetDB(db *gorm.DB, fixturesPath string) (err error) {
+	var (
+		vasps    []VASP
+		wallets  []Wallet
+		accounts []Account
+	)
+
+	// Load the VASP fixtures
+	if vasps, err = LoadVASPs(fixturesPath); err != nil {
+		return err
+	}
+
+	// Load the wallet and account fixtures
+	if wallets, accounts, err = LoadWallets(fixturesPath); err != nil {
+		return err
+	}
+
+	// TODO: Load the transactions
+
+	// Reset the database
+	if err = db.Migrator().DropTable(&VASP{}, &Wallet{}, &Account{}, &Transaction{}, &Identity{}); err != nil {
+		return err
+	}
+
+	if err = db.Migrator().CreateTable(&Identity{}, &VASP{}, &Wallet{}, &Account{}, &Transaction{}); err != nil {
+		return err
+	}
+
+	// Insert the VASP fixtures into the database
+	if err = db.Create(&vasps).Error; err != nil {
+		return err
+	}
+
+	// Insert the wallet fixtures into the database
+	if err = db.Create(&wallets).Error; err != nil {
+		return err
+	}
+
+	// Insert the account fixtures into the database
+	if err = db.Create(&accounts).Error; err != nil {
+		return err
+	}
+
+	// TODO: Insert the transaction fixtures into the database
+
+	return nil
+}
+
 // BalanceFloat converts the balance decmial into an exact two precision float32 for
 // use with the protocol buffers.
 func (a Account) BalanceFloat() float32 {
