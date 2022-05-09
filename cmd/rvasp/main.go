@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -55,7 +55,7 @@ func main() {
 				},
 				cli.StringFlag{
 					Name:   "d, db",
-					Usage:  "the dsn to the sqlite3 database to connect to",
+					Usage:  "the dsn of the postgres database to connect to",
 					EnvVar: "RVASP_DATABASE",
 				},
 			},
@@ -68,8 +68,7 @@ func main() {
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:   "d, db",
-					Usage:  "the dsn to the sqlite3 database to connect to",
-					Value:  "rvasp.db",
+					Usage:  "the dsn of the postgres database to connect to",
 					EnvVar: "RVASP_DATABASE",
 				},
 			},
@@ -204,8 +203,17 @@ func serve(c *cli.Context) (err error) {
 
 // Run the database migration
 func initdb(c *cli.Context) (err error) {
+	var conf *rvasp.Settings
+	if conf, err = rvasp.Config(); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	if db := c.String("db"); db != "" {
+		conf.DatabaseDSN = db
+	}
+
 	var db *gorm.DB
-	if db, err = gorm.Open(sqlite.Open(c.String("db")), &gorm.Config{}); err != nil {
+	if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
