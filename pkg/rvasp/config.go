@@ -17,6 +17,7 @@ type Settings struct {
 	BindAddr            string          `envconfig:"RVASP_BIND_ADDR" default:":4434"`
 	TRISABindAddr       string          `envconfig:"RVASP_TRISA_BIND_ADDR" default:":4435"`
 	DatabaseDSN         string          `envconfig:"RVASP_DATABASE"`
+	FixturesPath        string          `envconfig:"RVASP_FIXTURES_PATH"`
 	CertPath            string          `envconfig:"RVASP_CERT_PATH"`
 	TrustChainPath      string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`
 	DirectoryServiceURL string          `envconfig:"RVASP_DIRECTORY_SERVICE_URL" default:"api.trisatest.net:443"`
