@@ -12,6 +12,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
 	protocol "github.com/trisacrypto/trisa/pkg/trisa/api/v1beta1"
@@ -268,8 +269,8 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		accountAddress = transaction.Beneficiary
 	}
 
-	var account Account
-	if err = LookupAccount(s.parent.db, accountAddress).First(&account).Error; err != nil {
+	var account db.Account
+	if err = s.parent.db.LookupAccount(accountAddress).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Warn().Str("account", accountAddress).Msg("unknown beneficiary")
 			return nil, protocol.Errorf(protocol.UnkownBeneficiary, "could not find beneficiary %q", accountAddress)
@@ -310,21 +311,24 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	transaction.Timestamp = time.Now().Format(time.RFC3339)
 
 	// Save the completed transaction in the database
-	ach := Transaction{
+	ach := db.Transaction{
 		Envelope: in.Id,
 		Account:  account,
-		Originator: Identity{
+		Originator: db.Identity{
 			WalletAddress: transaction.Originator,
+			Vasp:          s.parent.vasp,
 		},
-		Beneficiary: Identity{
+		Beneficiary: db.Identity{
 			WalletAddress: account.WalletAddress,
 			Email:         account.Email,
 			Provider:      s.parent.vasp.Name,
+			Vasp:          s.parent.vasp,
 		},
 		Amount:    decimal.NewFromFloat(transaction.Amount),
 		Debit:     false,
 		Completed: true,
 		Timestamp: time.Now(),
+		Vasp:      s.parent.vasp,
 	}
 
 	var achBytes []byte

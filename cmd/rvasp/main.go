@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/rvasp"
+	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
@@ -238,27 +239,27 @@ func initdb(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	if db := c.String("db"); db != "" {
-		conf.DatabaseDSN = db
+	if dsn := c.String("db"); dsn != "" {
+		conf.DatabaseDSN = dsn
 	}
 
 	if fixtures := c.String("fixtures"); fixtures != "" {
 		conf.FixturesPath = fixtures
 	}
 
-	var db *gorm.DB
-	if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
+	var gdb *gorm.DB
+	if gdb, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	if c.Bool("no-load") {
 		// If we're not loading fixtures, just perform the migration
-		if err = rvasp.MigrateDB(db); err != nil {
+		if err = db.MigrateDB(gdb); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	} else {
 		// Otherwise, load the database with the fixtures
-		if err = rvasp.ResetDB(db, conf.FixturesPath); err != nil {
+		if err = db.ResetDB(gdb, conf.FixturesPath); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -273,20 +274,20 @@ func resetdb(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	if db := c.String("db"); db != "" {
-		conf.DatabaseDSN = db
+	if dsn := c.String("db"); dsn != "" {
+		conf.DatabaseDSN = dsn
 	}
 
 	if fixtures := c.String("fixtures"); fixtures != "" {
 		conf.FixturesPath = fixtures
 	}
 
-	var db *gorm.DB
-	if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
+	var gdb *gorm.DB
+	if gdb, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	if err = rvasp.ResetDB(db, conf.FixturesPath); err != nil {
+	if err = db.ResetDB(gdb, conf.FixturesPath); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	return nil
