@@ -72,6 +72,16 @@ func main() {
 					Usage:  "the dsn of the postgres database to connect to",
 					EnvVar: "RVASP_DATABASE",
 				},
+				cli.BoolFlag{
+					Name:  "L, no-load",
+					Usage: "do not load initial fixtures into the database",
+				},
+				cli.StringFlag{
+					Name:   "f, fixtures",
+					Usage:  "the path to the fixtures directory to load into the database",
+					Value:  filepath.Join("pkg", "rvasp", "fixtures"),
+					EnvVar: "RVASP_FIXTURES_PATH",
+				},
 			},
 		},
 		{
@@ -232,14 +242,27 @@ func initdb(c *cli.Context) (err error) {
 		conf.DatabaseDSN = db
 	}
 
+	if fixtures := c.String("fixtures"); fixtures != "" {
+		conf.FixturesPath = fixtures
+	}
+
 	var db *gorm.DB
 	if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	if err = rvasp.MigrateDB(db); err != nil {
-		return cli.NewExitError(err, 1)
+	if c.Bool("no-load") {
+		// If we're not loading fixtures, just perform the migration
+		if err = rvasp.MigrateDB(db); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	} else {
+		// Otherwise, load the database with the fixtures
+		if err = rvasp.ResetDB(db, conf.FixturesPath); err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
+
 	return nil
 }
 
