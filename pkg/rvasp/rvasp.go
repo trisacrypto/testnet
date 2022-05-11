@@ -19,6 +19,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/trisacrypto/directory/pkg/utils/logger"
 	"github.com/trisacrypto/testnet/pkg"
+	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
 	protocol "github.com/trisacrypto/trisa/pkg/trisa/api/v1beta1"
@@ -29,7 +30,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -65,21 +65,8 @@ func New(conf *Settings) (s *Server, err error) {
 	}
 
 	s = &Server{conf: conf, echan: make(chan error, 1)}
-	if s.db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
+	if s.db, err = db.NewDB(conf.DatabaseDSN, conf.Name); err != nil {
 		return nil, err
-	}
-
-	if err = MigrateDB(s.db); err != nil {
-		return nil, err
-	}
-
-	// TODO: mark the VASP local based on name or configuration rather than erroring
-	if err = s.db.Where("is_local = ?", true).First(&s.vasp).Error; err != nil {
-		return nil, fmt.Errorf("could not fetch local VASP info from database: %s", err)
-	}
-
-	if s.conf.Name != s.vasp.Name {
-		return nil, fmt.Errorf("expected name %q but have database name %q", s.conf.Name, s.vasp.Name)
 	}
 
 	// Create the TRISA service
@@ -99,8 +86,8 @@ type Server struct {
 	pb.UnimplementedTRISAIntegrationServer
 	conf    *Settings
 	srv     *grpc.Server
-	db      *gorm.DB
-	vasp    VASP
+	db      *db.DB
+	vasp    db.VASP
 	trisa   *TRISA
 	echan   chan error
 	peers   *peers.Peers
@@ -173,8 +160,8 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	rep = &pb.TransferReply{}
 
 	// Get originator account and confirm it belongs to this RVASP
-	var account Account
-	if err = LookupAccount(s.db, req.Account).First(&account).Error; err != nil {
+	var account db.Account
+	if err = s.db.LookupAccount(req.Account).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Info().Str("account", req.Account).Msg("not found")
 			return nil, status.Error(codes.NotFound, "account not found")
@@ -184,21 +171,22 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	// Identify the beneficiary either using the demo database or the directory service
-	var beneficiary Wallet
+	var beneficiary db.Wallet
 	if req.ExternalDemo {
 		if req.BeneficiaryVasp == "" {
 			return nil, status.Error(codes.InvalidArgument, "if external demo is true, must specify beneficiary vasp")
 		}
 
-		beneficiary = Wallet{
+		beneficiary = db.Wallet{
 			Address: req.Beneficiary,
-			Provider: VASP{
+			Provider: db.VASP{
 				Name: req.BeneficiaryVasp,
 			},
+			Vasp: s.vasp,
 		}
 	} else {
 		// Lookup beneficiary wallet and confirm it belongs to a remote RVASP
-		if err = LookupBeneficiary(s.db, req.Beneficiary).First(&beneficiary).Error; err != nil {
+		if err = s.db.LookupBeneficiary(req.Beneficiary).First(&beneficiary).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				log.Info().Str("beneficiary", req.Beneficiary).Msg("not found")
 				return nil, status.Error(codes.NotFound, "beneficiary not found (use external_demo?)")
@@ -234,13 +222,14 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	// Save the pending transaction and increment the accounts pending field
-	xfer := Transaction{
+	xfer := db.Transaction{
 		Envelope:  uuid.New().String(),
 		Account:   account,
 		Amount:    decimal.NewFromFloat32(req.Amount),
 		Debit:     true,
 		Completed: false,
 		Timestamp: time.Now(),
+		Vasp:      s.vasp,
 	}
 
 	if err = s.db.Save(&xfer).Error; err != nil {
@@ -400,8 +389,9 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	// Update the completed transaction and save to disk
-	xfer.Beneficiary = Identity{
+	xfer.Beneficiary = db.Identity{
 		WalletAddress: transaction.Beneficiary,
+		Vasp:          s.vasp,
 	}
 	xfer.Completed = true
 	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
@@ -439,8 +429,8 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 	rep = &pb.AccountReply{}
 
 	// Lookup the account in the database
-	var account Account
-	if err = LookupAccount(s.db, req.Account).First(&account).Error; err != nil {
+	var account db.Account
+	if err = s.db.LookupAccount(req.Account).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Info().Err(err).Msg("account not found")
 			return nil, status.Error(codes.NotFound, "account not found")
@@ -457,7 +447,7 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 	rep.Pending = account.Pending
 
 	if !req.NoTransactions {
-		var transactions []Transaction
+		var transactions []db.Transaction
 		if transactions, err = account.Transactions(s.db); err != nil {
 			log.Error().Err(err).Msg("could not get transactions")
 			return nil, status.Errorf(codes.FailedPrecondition, "could not get transactions: %s", err)
@@ -591,8 +581,8 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	}
 
 	// Lookup the account associated with the transfer originator
-	var account Account
-	if err = LookupAccount(s.db, transfer.Account).First(&account).Error; err != nil {
+	var account db.Account
+	if err = s.db.LookupAccount(transfer.Account).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Info().Str("account", transfer.Account).Msg("not found")
 			return s.updates.SendTransferError(client, req.Id,
@@ -605,8 +595,8 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Lookup the wallet of the beneficiary
-	var beneficiary Wallet
-	if err = LookupBeneficiary(s.db, transfer.Beneficiary).First(&beneficiary).Error; err != nil {
+	var beneficiary db.Wallet
+	if err = s.db.LookupBeneficiary(transfer.Beneficiary).First(&beneficiary).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Info().Str("beneficiary", transfer.Beneficiary).Msg("not found")
 			return s.updates.SendTransferError(client, req.Id,
@@ -655,12 +645,13 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 
 	// Prepare the transaction
 	// Save the pending transaction and increment the accounts pending field
-	xfer := Transaction{
+	xfer := db.Transaction{
 		Envelope:  uuid.New().String(),
 		Account:   account,
 		Amount:    decimal.NewFromFloat32(transfer.Amount),
 		Debit:     true,
 		Completed: false,
+		Vasp:      s.vasp,
 	}
 
 	if err = s.db.Save(&xfer).Error; err != nil {
@@ -795,8 +786,9 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
 	// Update the completed transaction and save to disk
-	xfer.Beneficiary = Identity{
+	xfer.Beneficiary = db.Identity{
 		WalletAddress: transaction.Beneficiary,
+		Vasp:          s.vasp,
 	}
 	xfer.Completed = true
 	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
