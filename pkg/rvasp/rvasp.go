@@ -19,6 +19,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/trisacrypto/directory/pkg/utils/logger"
 	"github.com/trisacrypto/testnet/pkg"
+	"github.com/trisacrypto/testnet/pkg/rvasp/config"
 	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
@@ -49,9 +50,9 @@ func init() {
 
 // New creates a rVASP server with the specified configuration and prepares
 // it to listen for and serve GRPC requests.
-func New(conf *Settings) (s *Server, err error) {
+func New(conf *config.Settings) (s *Server, err error) {
 	if conf == nil {
-		if conf, err = Config(); err != nil {
+		if conf, err = config.Config(); err != nil {
 			return nil, err
 		}
 	}
@@ -65,7 +66,7 @@ func New(conf *Settings) (s *Server, err error) {
 	}
 
 	s = &Server{conf: conf, echan: make(chan error, 1)}
-	if s.db, err = db.NewDB(conf.DatabaseDSN, conf.Name); err != nil {
+	if s.db, err = db.NewDB(conf); err != nil {
 		return nil, err
 	}
 
@@ -84,7 +85,7 @@ func New(conf *Settings) (s *Server, err error) {
 type Server struct {
 	pb.UnimplementedTRISADemoServer
 	pb.UnimplementedTRISAIntegrationServer
-	conf    *Settings
+	conf    *config.Settings
 	srv     *grpc.Server
 	db      *db.DB
 	vasp    db.VASP

@@ -1,5 +1,5 @@
-{
-    "bob": {
+[
+    {
         "common_name": "api.bob.vaspbot.net",
         "legal_person": {
             "name": {
@@ -31,7 +31,7 @@
             "country_of_registration": "GB"
         }
     },
-    "alice": {
+    {
         "common_name": "api.alice.vaspbot.net",
         "legal_person": {
             "name": {
@@ -67,7 +67,7 @@
             "country_of_registration": "US"
         }
     },
-    "evil": {
+    {
         "common_name": "api.evil.vaspbot.net",
         "legal_person": {
             "name": {
@@ -98,4 +98,4 @@
             "country_of_registration": "GG"
         }
     }
-}
+]

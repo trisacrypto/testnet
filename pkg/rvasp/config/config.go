@@ -1,4 +1,4 @@
-package rvasp
+package config
 
 import (
 	"fmt"
@@ -17,6 +17,7 @@ type Settings struct {
 	BindAddr            string          `envconfig:"RVASP_BIND_ADDR" default:":4434"`
 	TRISABindAddr       string          `envconfig:"RVASP_TRISA_BIND_ADDR" default:":4435"`
 	DatabaseDSN         string          `envconfig:"RVASP_DATABASE"`
+	MaxRetries          int             `envconfig:"RVASP_MAX_RETRIES" default:"0"`
 	FixturesPath        string          `envconfig:"RVASP_FIXTURES_PATH"`
 	CertPath            string          `envconfig:"RVASP_CERT_PATH"`
 	TrustChainPath      string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`

@@ -1,0 +1,75 @@
+version: "3"
+services:
+  db:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rvasp
+
+  migrate:
+    build:
+      context: ../
+      dockerfile: ./containers/db/Dockerfile
+    image: trisa/rvasp-migrate
+    depends_on:
+      - db
+    environment:
+      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_FIXTURES_PATH=/fixtures
+      - RVASP_MAX_RETRIES=5
+    volumes:
+      - ../pkg/rvasp/fixtures:/fixtures
+
+  alice:
+    image: trisa/rvasp:latest
+    depends_on:
+      - migrate
+    ports:
+      - 4434:4434
+      - 4435:4435
+    environment:
+      - RVASP_NAME=api.alice.vaspbot.net
+      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_CERT_PATH=/certs/cert.pem
+      - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
+      - RVASP_DIRECTORY_SERVICE_URL=localhost:443
+      - RVASP_MAX_RETRIES=5
+    volumes:
+      - ../fixtures/certs/alice:/certs
+
+  bob:
+    image: trisa/rvasp:latest
+    depends_on:
+      - migrate
+    ports:
+      - 5434:4434
+      - 5435:4435
+    environment:
+      - RVASP_NAME=api.bob.vaspbot.net
+      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_CERT_PATH=/certs/cert.pem
+      - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
+      - RVASP_DIRECTORY_SERVICE_URL=localhost:443
+      - RVASP_MAX_RETRIES=5
+    volumes:
+      - ../fixtures/certs/bob:/certs
+
+  evil:
+    image: trisa/rvasp:latest
+    depends_on:
+      - migrate
+    ports:
+      - 6434:4434
+      - 6435:4435
+    environment:
+      - RVASP_NAME=api.evil.vaspbot.net
+      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_CERT_PATH=/certs/cert.pem
+      - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
+      - RVASP_DIRECTORY_SERVICE_URL=localhost:443
+      - RVASP_MAX_RETRIES=5
+    volumes:
+      - ../fixtures/certs/evil:/certs

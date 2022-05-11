@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/testnet/pkg/rvasp/config"
 	"github.com/trisacrypto/testnet/pkg/rvasp/jsonpb"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
@@ -20,9 +21,9 @@ type DB struct {
 	vasp *VASP
 }
 
-func NewDB(dsn string, vasp string) (d *DB, err error) {
+func NewDB(conf *config.Settings) (d *DB, err error) {
 	d = &DB{}
-	if d.db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{}); err != nil {
+	if d.db, err = OpenDB(conf); err != nil {
 		return nil, err
 	}
 
@@ -30,12 +31,12 @@ func NewDB(dsn string, vasp string) (d *DB, err error) {
 		return nil, err
 	}
 
-	if err = d.db.Where("name = ?", vasp).First(&d.vasp).Error; err != nil {
+	if err = d.db.Where("name = ?", conf.Name).First(&d.vasp).Error; err != nil {
 		return nil, fmt.Errorf("could not fetch VASP info from database: %s", err)
 	}
 
-	if vasp != d.vasp.Name {
-		return nil, fmt.Errorf("expected name %q but have database name %q", vasp, d.vasp.Name)
+	if conf.Name != d.vasp.Name {
+		return nil, fmt.Errorf("expected name %q but have database name %q", conf.Name, d.vasp.Name)
 	}
 
 	return d, nil
@@ -239,6 +240,19 @@ func (a Account) LoadIdentity() (person *ivms101.Person, err error) {
 		return nil, fmt.Errorf("could not unmarshal identity: %s", err)
 	}
 	return person, nil
+}
+
+// OpenDB opens a connection to a database with retries and returns the gorm database
+// pointer.
+func OpenDB(conf *config.Settings) (db *gorm.DB, err error) {
+	for i := 0; i < conf.MaxRetries+1; i++ {
+		if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err == nil {
+			return db, nil
+		}
+		time.Sleep(time.Second)
+	}
+
+	return db, fmt.Errorf("could not connect to database after %d retries: %s", conf.MaxRetries, err)
 }
 
 // MigrateDB the schema based on the models defined above.
