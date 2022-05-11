@@ -1,4 +1,4 @@
-package rvasp
+package db
 
 import (
 	"encoding/json"
@@ -146,9 +146,11 @@ func LoadWallets(fixturesPath string) (wallets []Wallet, accounts []Account, err
 		w.Address = record.([]interface{})[0].(string)
 		w.Email = record.([]interface{})[1].(string)
 		w.ProviderID = uint(record.([]interface{})[2].(float64))
+		w.VaspID = w.ProviderID
 
 		a.Email = w.Email
 		a.WalletAddress = w.Address
+		a.VaspID = w.ProviderID
 
 		// Parse the account name
 		var person map[string]interface{}
