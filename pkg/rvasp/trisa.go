@@ -310,25 +310,55 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	transaction.Beneficiary = account.WalletAddress
 	transaction.Timestamp = time.Now().Format(time.RFC3339)
 
+	// Fetch originator identity record
+	var originatorIdentity db.Identity
+	if err = s.parent.db.LookupIdentity(transaction.Originator).FirstOrInit(&originatorIdentity, db.Identity{}).Error; err != nil {
+		log.Error().Err(err).Msg("could not lookup originator identity")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// If originator identity does not exist then create it
+	if originatorIdentity.ID == 0 {
+		originatorIdentity.WalletAddress = transaction.Originator
+		originatorIdentity.Vasp = s.parent.vasp
+
+		if err = s.parent.db.Create(&originatorIdentity).Error; err != nil {
+			log.Error().Err(err).Msg("could not save originator identity")
+			return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+		}
+	}
+
+	// Fetch beneficiary identity record
+	var beneficiaryIdentity db.Identity
+	if err = s.parent.db.LookupIdentity(transaction.Beneficiary).FirstOrInit(&beneficiaryIdentity, db.Identity{}).Error; err != nil {
+		log.Error().Err(err).Msg("could not lookup identity")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// If the beneficiary identity does not exist then create it
+	if beneficiaryIdentity.ID == 0 {
+		beneficiaryIdentity.WalletAddress = transaction.Beneficiary
+		beneficiaryIdentity.Email = account.Email
+		beneficiaryIdentity.Provider = s.parent.vasp.Name
+		beneficiaryIdentity.Vasp = s.parent.vasp
+
+		if err = s.parent.db.Create(&beneficiaryIdentity).Error; err != nil {
+			log.Error().Err(err).Msg("could not save beneficiary identity")
+			return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+		}
+	}
+
 	// Save the completed transaction in the database
 	ach := db.Transaction{
-		Envelope: in.Id,
-		Account:  account,
-		Originator: db.Identity{
-			WalletAddress: transaction.Originator,
-			Vasp:          s.parent.vasp,
-		},
-		Beneficiary: db.Identity{
-			WalletAddress: account.WalletAddress,
-			Email:         account.Email,
-			Provider:      s.parent.vasp.Name,
-			Vasp:          s.parent.vasp,
-		},
-		Amount:    decimal.NewFromFloat(transaction.Amount),
-		Debit:     false,
-		Completed: true,
-		Timestamp: time.Now(),
-		Vasp:      s.parent.vasp,
+		Envelope:    in.Id,
+		Account:     account,
+		Originator:  originatorIdentity,
+		Beneficiary: beneficiaryIdentity,
+		Amount:      decimal.NewFromFloat(transaction.Amount),
+		Debit:       false,
+		Completed:   true,
+		Timestamp:   time.Now(),
+		Vasp:        s.parent.vasp,
 	}
 
 	var achBytes []byte
@@ -356,7 +386,9 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	s.parent.updates.Broadcast(0, msg, pb.MessageCategory_BLOCKCHAIN)
 
 	// Encode and encrypt the payload information to return the secure envelope
-	payload = &protocol.Payload{}
+	payload = &protocol.Payload{
+		SentAt: time.Now().Format(time.RFC3339),
+	}
 	if payload.Identity, err = anypb.New(identity); err != nil {
 		log.Error().Err(err).Msg("could not dump payload identity")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")

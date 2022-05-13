@@ -1,0 +1,110 @@
+version: "3"
+services:
+  db:
+    image: postgres
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rvasp
+
+  migrate:
+    build:
+      context: ../
+      dockerfile: ./containers/db/Dockerfile
+    image: trisa/rvasp-migrate
+    depends_on:
+      - db
+    environment:
+      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_FIXTURES_PATH=/fixtures
+      - RVASP_MAX_RETRIES=5
+    volumes:
+      - ../pkg/rvasp/fixtures:/fixtures
+
+  gds:
+    image: trisa/gds:latest
+    init: true
+    ports:
+      - 4433:4433
+      - 4435:4435
+    volumes:
+      - ../fixtures/db:/data
+      - ../fixtures/certs/gds:/certs
+    environment:
+      - GDS_DIRECTORY_ID=trisatest.net
+      - GDS_SECRET_KEY=supersecretsquirrel
+      - GDS_MAINTENANCE=false
+      - GDS_LOG_LEVEL=debug
+      - GDS_CONSOLE_LOG=true
+      - GDS_API_ENABLED=true
+      - GDS_BIND_ADDR=:4433
+      - GDS_ADMIN_ENABLED=false
+      - GDS_MEMBERS_ENABLED=true
+      - GDS_MEMBERS_BIND_ADDR=:4435
+      - GDS_MEMBERS_INSECURE=false
+      - GDS_MEMBERS_CERTS=/certs/cert.pem
+      - GDS_MEMBERS_CERT_POOL=/certs/chain.pem
+      - GDS_DATABASE_URL=leveldb:////data
+      - GDS_DATABASE_REINDEX_ON_BOOT=false
+      - SECTIGO_TESTING=true
+      - GDS_EMAIL_TESTING=true
+      - GDS_EMAIL_STORAGE=/data/emails
+      - GDS_CERTMAN_INTERVAL=96h
+      - GDS_BACKUP_ENABLED=false
+      - GDS_SECRETS_TESTING=true
+
+  alice:
+    image: trisa/rvasp:latest
+    depends_on:
+      - migrate
+      - gds
+    ports:
+      - 5434:4434
+      - 5435:4435
+    environment:
+      - RVASP_NAME=api.alice.vaspbot.net
+      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_CERT_PATH=/certs/cert.pem
+      - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
+      - RVASP_DIRECTORY_SERVICE_URL=gds:4433
+      - RVASP_MAX_RETRIES=5
+    volumes:
+      - ../fixtures/certs/alice:/certs
+
+  bob:
+    image: trisa/rvasp:latest
+    depends_on:
+      - migrate
+      - gds
+    ports:
+      - 6434:4434
+      - 6435:4435
+    environment:
+      - RVASP_NAME=api.bob.vaspbot.net
+      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_CERT_PATH=/certs/cert.pem
+      - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
+      - RVASP_DIRECTORY_SERVICE_URL=gds:4433
+      - RVASP_MAX_RETRIES=5
+    volumes:
+      - ../fixtures/certs/bob:/certs
+
+  evil:
+    image: trisa/rvasp:latest
+    depends_on:
+      - migrate
+      - gds
+    ports:
+      - 7434:4434
+      - 7435:4435
+    environment:
+      - RVASP_NAME=api.evil.vaspbot.net
+      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_CERT_PATH=/certs/cert.pem
+      - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
+      - RVASP_DIRECTORY_SERVICE_URL=gds:4433
+      - RVASP_MAX_RETRIES=5
+    volumes:
+      - ../fixtures/certs/evil:/certs

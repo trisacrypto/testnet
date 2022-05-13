@@ -13,12 +13,7 @@ LABEL description="Robot VASP for TRISA demonstration and integration"
 RUN apt-get update
 RUN apt-get install -y ca-certificates
 RUN apt-get install -y wget gnupg
-RUN apt-get install -y python3
 
 COPY --from=builder /srv/build/rvasp /bin/
-COPY --from=builder /srv/build/scripts/rvasp.py /bin/
-
-RUN mkdir /data
-ENV RVASP_DATABASE=/data/rvasp.db
 
 ENTRYPOINT [ "/bin/rvasp", "serve" ]

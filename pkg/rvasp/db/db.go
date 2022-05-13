@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/testnet/pkg/rvasp/config"
 	"github.com/trisacrypto/testnet/pkg/rvasp/jsonpb"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
@@ -17,12 +18,12 @@ import (
 // VASP.
 type DB struct {
 	db   *gorm.DB
-	vasp *VASP
+	vasp VASP
 }
 
-func NewDB(dsn string, vasp string) (d *DB, err error) {
+func NewDB(conf *config.Settings) (d *DB, err error) {
 	d = &DB{}
-	if d.db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{}); err != nil {
+	if d.db, err = OpenDB(conf); err != nil {
 		return nil, err
 	}
 
@@ -30,15 +31,19 @@ func NewDB(dsn string, vasp string) (d *DB, err error) {
 		return nil, err
 	}
 
-	if err = d.db.Where("name = ?", vasp).First(&d.vasp).Error; err != nil {
+	if err = d.db.Where("name = ?", conf.Name).First(&d.vasp).Error; err != nil {
 		return nil, fmt.Errorf("could not fetch VASP info from database: %s", err)
 	}
 
-	if vasp != d.vasp.Name {
-		return nil, fmt.Errorf("expected name %q but have database name %q", vasp, d.vasp.Name)
+	if conf.Name != d.vasp.Name {
+		return nil, fmt.Errorf("expected name %q but have database name %q", conf.Name, d.vasp.Name)
 	}
 
 	return d, nil
+}
+
+func (d *DB) GetVASP() VASP {
+	return d.vasp
 }
 
 func (d *DB) Query() *gorm.DB {
@@ -61,6 +66,11 @@ func (d *DB) LookupAccount(account string) *gorm.DB {
 // LookupBeneficiary by email address or wallet address.
 func (d *DB) LookupBeneficiary(beneficiary string) *gorm.DB {
 	return d.Query().Preload("Provider").Where("email = ?", beneficiary).Or("address = ?", beneficiary)
+}
+
+// LookupIdentity by email address and provider
+func (d *DB) LookupIdentity(walletAddress string) *gorm.DB {
+	return d.Query().Where("wallet_address = ?", walletAddress)
 }
 
 // VASP is a record of known partner VASPs and caches TRISA protocol information. This
@@ -158,10 +168,10 @@ func (Transaction) TableName() string {
 // is designed to more closely mimic data storage as part of a blockchain transaction.
 type Identity struct {
 	gorm.Model
-	WalletAddress string `gorm:"not null;column:wallet_address"`
-	Email         string `gorm:"uniqueIndex"`
+	WalletAddress string `gorm:"not null;column:wallet_address;index:wallet_index,unique"`
+	Email         string `gorm:"not null"`
 	Provider      string `gorm:"not null"`
-	VaspID        uint   `gorm:"not null"`
+	VaspID        uint   `gorm:"not null;index:wallet_index,unique"`
 	Vasp          VASP   `gorm:"foreignKey:VaspID"`
 }
 
@@ -239,6 +249,19 @@ func (a Account) LoadIdentity() (person *ivms101.Person, err error) {
 		return nil, fmt.Errorf("could not unmarshal identity: %s", err)
 	}
 	return person, nil
+}
+
+// OpenDB opens a connection to a database with retries and returns the gorm database
+// pointer.
+func OpenDB(conf *config.Settings) (db *gorm.DB, err error) {
+	for i := 0; i < conf.MaxRetries+1; i++ {
+		if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err == nil {
+			return db, nil
+		}
+		time.Sleep(time.Second)
+	}
+
+	return db, fmt.Errorf("could not connect to database after %d retries: %s", conf.MaxRetries, err)
 }
 
 // MigrateDB the schema based on the models defined above.

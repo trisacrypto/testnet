@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/rvasp"
+	"github.com/trisacrypto/testnet/pkg/rvasp/config"
 	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/urfave/cli"
@@ -200,8 +201,8 @@ func main() {
 
 // Serve the TRISA directory service
 func serve(c *cli.Context) (err error) {
-	var conf *rvasp.Settings
-	if conf, err = rvasp.Config(); err != nil {
+	var conf *config.Settings
+	if conf, err = config.Config(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -234,8 +235,8 @@ func serve(c *cli.Context) (err error) {
 
 // Run the database migration
 func initdb(c *cli.Context) (err error) {
-	var conf *rvasp.Settings
-	if conf, err = rvasp.Config(); err != nil {
+	var conf *config.Settings
+	if conf, err = config.Config(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -269,8 +270,8 @@ func initdb(c *cli.Context) (err error) {
 
 // Reset the database
 func resetdb(c *cli.Context) (err error) {
-	var conf *rvasp.Settings
-	if conf, err = rvasp.Config(); err != nil {
+	var conf *config.Settings
+	if conf, err = config.Config(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -283,7 +284,7 @@ func resetdb(c *cli.Context) (err error) {
 	}
 
 	var gdb *gorm.DB
-	if gdb, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
+	if gdb, err = db.OpenDB(conf); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 

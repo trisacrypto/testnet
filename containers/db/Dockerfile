@@ -11,4 +11,5 @@ COPY --from=builder /rvasp/build/rvasp /bin/
 COPY --from=builder /rvasp/build/scripts/reset-db.sh /bin/
 COPY --from=builder /rvasp/build/pkg/rvasp/fixtures /fixtures
 
+RUN chmod +x /bin/reset-db.sh
 CMD ["/bin/reset-db.sh"]

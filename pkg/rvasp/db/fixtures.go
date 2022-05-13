@@ -56,7 +56,7 @@ func lookupKeys(obj map[string]interface{}, keys ...string) (value interface{}, 
 func LoadVASPs(fixturesPath string) (vasps []VASP, err error) {
 	var (
 		bytes []byte
-		obj   map[string]interface{}
+		obj   []interface{}
 	)
 	if bytes, err = loadFile(fixturesPath, VASPS_FILE); err != nil {
 		return nil, err
@@ -66,20 +66,20 @@ func LoadVASPs(fixturesPath string) (vasps []VASP, err error) {
 		return nil, err
 	}
 
-	for name, record := range obj {
+	for _, record := range obj {
 		v := VASP{}
 		var ok bool
 		var obj interface{}
 
 		// Parse common name
 		if v.Name, ok = record.(map[string]interface{})["common_name"].(string); !ok {
-			return nil, fmt.Errorf("could not parse common name for vasp %s", name)
+			return nil, fmt.Errorf("could not parse common name for vasp: %v", record)
 		}
 
 		// Parse IVMS101
 		var legal_person interface{}
 		if legal_person, ok = record.(map[string]interface{})["legal_person"]; !ok {
-			return nil, fmt.Errorf("could not parse legal person for vasp %s", name)
+			return nil, fmt.Errorf("could not parse legal person for vasp: %v", record)
 		}
 
 		// Dump legal person to JSON string
@@ -94,21 +94,21 @@ func LoadVASPs(fixturesPath string) (vasps []VASP, err error) {
 
 		// Parse legal name
 		if obj, err = lookupKeys(legal_person.(map[string]interface{}), "name", "name_identifiers"); err != nil {
-			return nil, fmt.Errorf("could not parse legal ids for vasp %s: %s", name, err)
+			return nil, fmt.Errorf("could not parse legal ids for vasp: %s", err)
 		}
 
 		if len(obj.([]interface{})) == 0 {
-			return nil, fmt.Errorf("no legal ids found for vasp %s", name)
+			return nil, fmt.Errorf("no legal ids found for vasp: %s", err)
 		}
 
 		var legal_id map[string]interface{}
 		if legal_id, ok = obj.([]interface{})[0].(map[string]interface{}); !ok {
-			return nil, fmt.Errorf("could not parse legal id for vasp %s: %v", name, obj)
+			return nil, fmt.Errorf("could not parse legal id for vasp: %v", obj)
 		}
 
 		var legal_name string
 		if legal_name, ok = legal_id["legal_person_name"].(string); !ok {
-			return nil, fmt.Errorf("could not parse legal name for vasp %s: %v", name, legal_id)
+			return nil, fmt.Errorf("could not parse legal name for vasp: %v", legal_id)
 		}
 		v.LegalName = &legal_name
 
