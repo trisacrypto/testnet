@@ -29,6 +29,7 @@ import (
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
 	"gorm.io/gorm"
@@ -69,6 +70,7 @@ func New(conf *config.Settings) (s *Server, err error) {
 	if s.db, err = db.NewDB(conf); err != nil {
 		return nil, err
 	}
+	s.vasp = s.db.GetVASP()
 
 	// Create the TRISA service
 	if s.trisa, err = NewTRISA(s); err != nil {
@@ -77,6 +79,7 @@ func New(conf *config.Settings) (s *Server, err error) {
 
 	// Create the remote peers using the same credentials as the TRISA service
 	s.peers = peers.New(s.trisa.certs, s.trisa.chain, s.conf.DirectoryServiceURL)
+	s.peers.Connect(grpc.WithTransportCredentials(insecure.NewCredentials()))
 	s.updates = NewUpdateManager()
 	return s, nil
 }
@@ -222,20 +225,60 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 		return nil, status.Errorf(codes.FailedPrecondition, "could not exchange keys with remote peer: %s", err)
 	}
 
-	// Save the pending transaction and increment the accounts pending field
-	xfer := db.Transaction{
-		Envelope:  uuid.New().String(),
-		Account:   account,
-		Amount:    decimal.NewFromFloat32(req.Amount),
-		Debit:     true,
-		Completed: false,
-		Timestamp: time.Now(),
-		Vasp:      s.vasp,
+	// Fetch originator identity record
+	var originatorIdentity db.Identity
+	if err = s.db.LookupIdentity(account.WalletAddress).FirstOrInit(&originatorIdentity, db.Identity{}).Error; err != nil {
+		log.Error().Err(err).Msg("could not lookup originator identity")
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup originator identity: %s", err)
 	}
 
+	// If originator identity does not exist then create it
+	if originatorIdentity.ID == 0 {
+		originatorIdentity.WalletAddress = account.WalletAddress
+		originatorIdentity.Vasp = s.vasp
+
+		if err = s.db.Create(&originatorIdentity).Error; err != nil {
+			log.Error().Err(err).Msg("could not save originator identity")
+			return nil, status.Errorf(codes.FailedPrecondition, "could not save originator identity: %s", err)
+		}
+	}
+
+	// Fetch beneficiary identity record
+	var beneficiaryIdentity db.Identity
+	if err = s.db.LookupIdentity(beneficiary.Address).FirstOrInit(&beneficiaryIdentity, db.Identity{}).Error; err != nil {
+		log.Error().Err(err).Msg("could not lookup beneficiary identity")
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup beneficiary identity: %s", err)
+	}
+
+	// If the beneficiary identity does not exist then create it
+	if beneficiaryIdentity.ID == 0 {
+		beneficiaryIdentity.WalletAddress = beneficiary.Address
+		beneficiaryIdentity.Vasp = s.vasp
+
+		if err = s.db.Create(&beneficiaryIdentity).Error; err != nil {
+			log.Error().Err(err).Msg("could not save beneficiary identity")
+			return nil, status.Errorf(codes.FailedPrecondition, "could not save beneficiary identity: %s", err)
+		}
+	}
+
+	// Save the pending transaction and increment the accounts pending field
+	xfer := db.Transaction{
+		Envelope:    uuid.New().String(),
+		Account:     account,
+		Originator:  originatorIdentity,
+		Beneficiary: beneficiaryIdentity,
+		Amount:      decimal.NewFromFloat32(req.Amount),
+		Debit:       true,
+		Completed:   false,
+		Timestamp:   time.Now(),
+		Vasp:        s.vasp,
+	}
+
+	log.Info().Interface("transaction", xfer.Beneficiary).Msg("transaction prepared")
+
 	if err = s.db.Save(&xfer).Error; err != nil {
-		log.Error().Err(err).Msg("could not save transaction")
-		return nil, status.Errorf(codes.FailedPrecondition, "could not save transaction: %s", err)
+		log.Error().Err(err).Msg("could not save pending transaction")
+		return nil, status.Errorf(codes.FailedPrecondition, "could not save pending transaction: %s", err)
 	}
 
 	// Save the pending transaction on the account
@@ -275,7 +318,9 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 	identity.Originator.OriginatorPersons = append(identity.Originator.OriginatorPersons, originator)
 
-	payload := &protocol.Payload{}
+	payload := &protocol.Payload{
+		SentAt: time.Now().Format(time.RFC3339),
+	}
 	if payload.Transaction, err = anypb.New(transaction); err != nil {
 		log.Error().Err(err).Msg("could not dump payload transaction")
 		return nil, status.Errorf(codes.Internal, "could not dump payload transaction: %s", err)
@@ -390,10 +435,8 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	}
 
 	// Update the completed transaction and save to disk
-	xfer.Beneficiary = db.Identity{
-		WalletAddress: transaction.Beneficiary,
-		Vasp:          s.vasp,
-	}
+	beneficiaryIdentity.WalletAddress = transaction.Beneficiary
+	xfer.Beneficiary = beneficiaryIdentity
 	xfer.Completed = true
 	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
 
@@ -406,8 +449,8 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	xfer.Identity = string(data)
 
 	if err = s.db.Save(&xfer).Error; err != nil {
-		log.Error().Err(err).Msg("could not save transaction")
-		return nil, status.Errorf(codes.Internal, "could not save transaction: %s", err)
+		log.Error().Err(err).Msg("could not save completed transaction")
+		return nil, status.Errorf(codes.Internal, "could not save completed transaction: %s", err)
 	}
 
 	// Save the pending transaction on the account
@@ -656,9 +699,9 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	}
 
 	if err = s.db.Save(&xfer).Error; err != nil {
-		log.Error().Err(err).Msg("could not save transaction")
+		log.Error().Err(err).Msg("could not save pending transaction")
 		return s.updates.SendTransferError(client, req.Id,
-			pb.Errorf(pb.ErrInternal, "could not save transaction"),
+			pb.Errorf(pb.ErrInternal, "could not save pending transaction"),
 		)
 	}
 
@@ -797,7 +840,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	// Serialize the identity information as JSON data
 	var data []byte
 	if data, err = json.Marshal(identity); err != nil {
-		log.Error().Err(err).Msg("could not save transaction")
+		log.Error().Err(err).Msg("could not save completed transaction")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrInternal, "could not marshal IVMS 101 identity"),
 		)
@@ -805,7 +848,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	xfer.Identity = string(data)
 
 	if err = s.db.Save(&xfer).Error; err != nil {
-		log.Error().Err(err).Msg("could not save transaction")
+		log.Error().Err(err).Msg("could not save completed transaction")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrInternal, err.Error()),
 		)
@@ -817,7 +860,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	account.Completed++
 	account.Balance.Sub(xfer.Amount)
 	if err = s.db.Save(&account).Error; err != nil {
-		log.Error().Err(err).Msg("could not save transaction")
+		log.Error().Err(err).Msg("could not save transaction on account")
 		return s.updates.SendTransferError(client, req.Id,
 			pb.Errorf(pb.ErrInternal, err.Error()),
 		)

@@ -18,7 +18,7 @@ import (
 // VASP.
 type DB struct {
 	db   *gorm.DB
-	vasp *VASP
+	vasp VASP
 }
 
 func NewDB(conf *config.Settings) (d *DB, err error) {
@@ -42,6 +42,10 @@ func NewDB(conf *config.Settings) (d *DB, err error) {
 	return d, nil
 }
 
+func (d *DB) GetVASP() VASP {
+	return d.vasp
+}
+
 func (d *DB) Query() *gorm.DB {
 	return d.db.Where("vasp_id = ?", d.vasp.ID)
 }
@@ -62,6 +66,11 @@ func (d *DB) LookupAccount(account string) *gorm.DB {
 // LookupBeneficiary by email address or wallet address.
 func (d *DB) LookupBeneficiary(beneficiary string) *gorm.DB {
 	return d.Query().Preload("Provider").Where("email = ?", beneficiary).Or("address = ?", beneficiary)
+}
+
+// LookupIdentity by email address and provider
+func (d *DB) LookupIdentity(walletAddress string) *gorm.DB {
+	return d.Query().Where("wallet_address = ?", walletAddress)
 }
 
 // VASP is a record of known partner VASPs and caches TRISA protocol information. This
@@ -159,10 +168,10 @@ func (Transaction) TableName() string {
 // is designed to more closely mimic data storage as part of a blockchain transaction.
 type Identity struct {
 	gorm.Model
-	WalletAddress string `gorm:"not null;column:wallet_address"`
-	Email         string `gorm:"uniqueIndex"`
+	WalletAddress string `gorm:"not null;column:wallet_address;index:wallet_index,unique"`
+	Email         string `gorm:"not null"`
 	Provider      string `gorm:"not null"`
-	VaspID        uint   `gorm:"not null"`
+	VaspID        uint   `gorm:"not null;index:wallet_index,unique"`
 	Vasp          VASP   `gorm:"foreignKey:VaspID"`
 }
 
