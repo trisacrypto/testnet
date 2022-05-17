@@ -46,6 +46,10 @@ func (d *DB) GetVASP() VASP {
 	return d.vasp
 }
 
+func (d *DB) GetDB() *gorm.DB {
+	return d.db
+}
+
 func (d *DB) Query() *gorm.DB {
 	return d.db.Where("vasp_id = ?", d.vasp.ID)
 }

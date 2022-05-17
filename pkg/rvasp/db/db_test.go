@@ -1,133 +1,178 @@
 package db_test
 
 import (
-	"io"
-	"io/ioutil"
-	"os"
+	"fmt"
+	"regexp"
+	"testing"
 
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 )
 
-// Copies the SQLite database in the testdata directory to a temporary file location and
-// opens the temporary database file (so that modifications to the database will not be
-// preserved across tests). Also returns a cleanup function that will close the database
-// connection and remove temporary files, the cleanup function must be called when the
-// test finishes using the testdb fixture.
-func testdb() (db *gorm.DB, cleanup func() error, err error) {
-	// Copy the testdb from testdata into a temporary directory
-	var tmpdb string
-	if tmpdb, err = copydb(); err != nil {
-		return nil, nil, err
-	}
+const (
+	FIXTURES_PATH = "../fixtures"
+	NUM_TABLES    = 5
+	NUM_INDICES   = 11
+)
 
-	if db, err = gorm.Open(sqlite.Open(tmpdb), &gorm.Config{}); err != nil {
-		// Cleanup temporary database before returning the error
-		os.Remove(tmpdb)
-		return nil, nil, err
-	}
-
-	cleanup = func() error {
-		if err = os.Remove(tmpdb); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return db, cleanup, nil
+// Expect a query which does no row updates (e.g. CREATE TABLE, DROP TABLE, etc.)
+func expectExec(mock sqlmock.Sqlmock, query string) {
+	mock.ExpectExec(query).WillReturnResult(sqlmock.NewResult(0, 0))
 }
 
-func copydb() (path string, err error) {
-	var src, dst *os.File
-	if src, err = os.Open("testdata/test.db"); err != nil {
-		return "", err
+// Expect a number of CREATE queries
+func expectCreate(mock sqlmock.Sqlmock, numCreated int) {
+	for i := 0; i < numCreated; i++ {
+		expectExec(mock, "CREATE")
 	}
-	defer src.Close()
-
-	if dst, err = ioutil.TempFile("", "rvasp_test_*.db"); err != nil {
-		return "", err
-	}
-	defer dst.Close()
-
-	if _, err = io.Copy(dst, src); err != nil {
-		return "", err
-	}
-
-	return dst.Name(), nil
 }
 
-/*
-func TestMigrateDB(t *testing.T) {
-	// Create the test database fixture
-	gdb, cleanup, err := testdb()
-	require.NoError(t, err)
-	defer cleanup()
-
-	// Migrate the test database
-	err = db.MigrateDB(gdb)
-	require.NoError(t, err)
-
-	// Ensure the correct number of rows are still in the DB
-	var count int64
-	db.Table("vasps").Count(&count)
-	require.Equal(t, int64(3), count)
-
-	db.Table("wallets").Count(&count)
-	require.Equal(t, int64(9), count)
-
-	db.Table("accounts").Count(&count)
-	require.Equal(t, int64(3), count)
-
-	db.Table("transactions").Count(&count)
-	require.Equal(t, int64(0), count)
-
-	db.Table("identities").Count(&count)
-	require.Equal(t, int64(0), count)
-}*/
-
-/*
-func TestAccountHelpers(t *testing.T) {
-	// Create the test database fixture
-	gdb, cleanup, err := testdb()
-	require.NoError(t, err)
-	defer cleanup()
-
-	// Migrate the test database
-	err = MigrateDB(gdb)
-	require.NoError(t, err)
-
-	// Test lookup account by email address or wallet
-	var aca db.Account
-	tx := LookupAccount(db, "mary@alicevasp.us").First(&aca)
-	require.NoError(t, tx.Error)
-	require.Equal(t, uint(1), aca.ID)
-
-	var acb Account
-	tx = LookupAccount(db, "14HmBSwec8XrcWge9Zi1ZngNia64u3Wd2v").First(&acb)
-	require.NoError(t, tx.Error)
-	require.Equal(t, uint(3), acb.ID)
-}*/
-
-/*
-func TestWalletHelpers(t *testing.T) {
-	// Create the test database fixture
-	db, cleanup, err := testdb()
-	require.NoError(t, err)
-	defer cleanup()
-
-	// Migrate the test database
-	err = MigrateDB(db)
-	require.NoError(t, err)
-
-	// Test lookup wallet by email address or wallet address
-	var bna Wallet
-	tx := LookupBeneficiary(db, "george@bobvasp.co.uk").First(&bna)
-	require.NoError(t, tx.Error)
-	require.Equal(t, uint(2), bna.ID)
-
-	var bnb Wallet
-	tx = LookupBeneficiary(db, "182kF4mb5SW4KGEvBSbyXTpDWy8rK1Dpu").First(&bnb)
-	require.NoError(t, tx.Error)
-	require.Equal(t, uint(9), bnb.ID)
+// Expect a number of DROP TABLE queries
+func expectDropTable(mock sqlmock.Sqlmock, numDropped int) {
+	for i := 0; i < numDropped; i++ {
+		expectExec(mock, "DROP TABLE IF EXISTS")
+	}
 }
-*/
+
+// Expect a query which inserts a number of rows into a table
+func expectInsert(mock sqlmock.Sqlmock, table string, numInserted int) {
+	if numInserted > 1 {
+		mock.ExpectBegin()
+	}
+
+	rows := sqlmock.NewRows([]string{"id"})
+	for i := 0; i < numInserted; i++ {
+		rows = rows.AddRow(i + 1)
+	}
+
+	mock.ExpectQuery(fmt.Sprintf(`INSERT INTO "%s"`, table)).WillReturnRows(rows)
+
+	if numInserted > 1 {
+		mock.ExpectCommit()
+	}
+}
+
+// dbTestSuite tests interactions with the high-level database functions and asserts
+// that the expected SQL queries are executed.
+type dbTestSuite struct {
+	suite.Suite
+	db   *db.DB
+	mock sqlmock.Sqlmock
+}
+
+func TestDB(t *testing.T) {
+	suite.Run(t, new(dbTestSuite))
+}
+
+func (s *dbTestSuite) BeforeTest(suiteName, testName string) {
+	var err error
+	s.db, s.mock, err = db.NewDBMock("alice")
+	require.NoError(s.T(), err)
+}
+
+func (s *dbTestSuite) AfterTest() {
+	require.NoError(s.T(), s.mock.ExpectationsWereMet())
+}
+
+func (s *dbTestSuite) TestMigrateDB() {
+	require := s.Require()
+	gdb := s.db.GetDB()
+
+	// We can't rely on the order in which the migration operations are executed, so
+	// this asserts that the number of operations is correct.
+	expectCreate(s.mock, NUM_TABLES+NUM_INDICES)
+	require.NoError(db.MigrateDB(gdb))
+}
+
+func (s *dbTestSuite) TestResetDB() {
+	// Expecting the tables to be dropped
+	expectDropTable(s.mock, NUM_TABLES)
+
+	// Expecting the tables and indices to be created
+	expectCreate(s.mock, NUM_TABLES+NUM_INDICES)
+
+	// Expecting table inserts
+	expectInsert(s.mock, "vasps", 3)
+	expectInsert(s.mock, "wallets", 12)
+	expectInsert(s.mock, "accounts", 12)
+
+	// Reset the database
+	require.NoError(s.T(), db.ResetDB(s.db.GetDB(), FIXTURES_PATH))
+}
+
+func (s *dbTestSuite) TestLookupAccount() {
+	require := s.Require()
+	email := "mary@alicevasp.us"
+	id := s.db.GetVASP().ID
+
+	// Account lookups should be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "accounts" WHERE (vasp_id = $1 AND email = $2 OR wallet_address = $3)`)
+	s.mock.ExpectQuery(query).WithArgs(id, email, email).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var account db.Account
+	tx := s.db.LookupAccount(email).First(&account)
+	require.NoError(tx.Error)
+	require.Equal(id, account.ID)
+}
+
+func (s *dbTestSuite) TestLookupBeneficiary() {
+	require := s.Require()
+	beneficiary := "mary@alicevasp.us"
+	id := s.db.GetVASP().ID
+
+	// Beneficiary lookups should be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "wallets" WHERE (vasp_id = $1 AND email = $2 OR address = $3)`)
+	s.mock.ExpectQuery(query).WithArgs(id, beneficiary, beneficiary).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var wallet db.Wallet
+	tx := s.db.LookupBeneficiary(beneficiary).First(&wallet)
+	require.NoError(tx.Error)
+	require.Equal(id, wallet.ID)
+}
+
+func (s *dbTestSuite) TestLookupIdentity() {
+	require := s.Require()
+	address := "18nxAxBktHZDrMoJ3N2fk9imLX8xNnYbNh"
+	id := s.db.GetVASP().ID
+
+	// Identity lookups should be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "identities" WHERE vasp_id = $1 AND wallet_address = $2`)
+	s.mock.ExpectQuery(query).WithArgs(id, address).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var identity db.Identity
+	tx := s.db.LookupIdentity(address).First(&identity)
+	require.NoError(tx.Error)
+	require.Equal(id, identity.ID)
+}
+
+func (s *dbTestSuite) TestTransactions() {
+	require := s.Require()
+	email := "mary@alicevasp.us"
+	accountID := uint(47)
+	vaspID := s.db.GetVASP().ID
+	transactionIDs := []uint{1, 2, 3}
+
+	// Fetch mocked Account from the database
+	query := regexp.QuoteMeta(`SELECT * FROM "accounts" WHERE (vasp_id = $1 AND email = $2 OR wallet_address = $3)`)
+	s.mock.ExpectQuery(query).WithArgs(vaspID, email, email).WillReturnRows(s.mock.NewRows([]string{"id"}).AddRow(accountID))
+
+	var account db.Account
+	tx := s.db.LookupAccount(email).First(&account)
+	require.NoError(tx.Error)
+	require.Equal(accountID, account.ID)
+	require.NoError(s.mock.ExpectationsWereMet())
+
+	// Fetch mock transactions for the mocked Account
+	query = regexp.QuoteMeta(`SELECT * FROM "transactions" WHERE vasp_id = $1 AND account_id = $2`)
+	rows := sqlmock.NewRows([]string{"id"})
+	for _, id := range transactionIDs {
+		rows = rows.AddRow(id)
+	}
+	s.mock.ExpectQuery(query).WithArgs(vaspID, account.ID).WillReturnRows(rows)
+
+	transactions, err := account.Transactions(s.db)
+	require.NoError(err)
+	require.Len(transactions, len(transactionIDs))
+}
