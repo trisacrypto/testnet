@@ -68,9 +68,14 @@ func (d *DB) LookupBeneficiary(beneficiary string) *gorm.DB {
 	return d.Query().Preload("Provider").Where("email = ?", beneficiary).Or("address = ?", beneficiary)
 }
 
-// LookupIdentity by email address and provider
+// LookupIdentity by email address and provider.
 func (d *DB) LookupIdentity(walletAddress string) *gorm.DB {
 	return d.Query().Where("wallet_address = ?", walletAddress)
+}
+
+// LookupPending returns the pending transactions.
+func (d *DB) LookupPending() *gorm.DB {
+	return d.Query().Where("state = ?", TransactionPending)
 }
 
 // VASP is a record of known partner VASPs and caches TRISA protocol information. This
@@ -135,25 +140,35 @@ func (Account) TableName() string {
 	return "accounts"
 }
 
+type TransactionState uint
+
+const (
+	TransactionInvalid TransactionState = iota
+	TransactionPending
+	TransactionCompleted
+)
+
 // Transaction holds exchange information to send money from one account to another. It
 // also contains the decrypted identity payload that was sent as part of the TRISA
 // protocol and the envelope ID that uniquely identifies the message chain.
 type Transaction struct {
 	gorm.Model
-	Envelope      string          `gorm:"not null"`
-	AccountID     uint            `gorm:"not null"`
-	Account       Account         `gorm:"foreignKey:AccountID"`
-	OriginatorID  uint            `gorm:"column:originator_id;not null"`
-	Originator    Identity        `gorm:"foreignKey:OriginatorID"`
-	BeneficiaryID uint            `gorm:"column:beneficiary_id;not null"`
-	Beneficiary   Identity        `gorm:"foreignKey:BeneficiaryID"`
-	Amount        decimal.Decimal `gorm:"type:numeric(15,2)"`
-	Debit         bool            `gorm:"not null"`
-	Completed     bool            `gorm:"not null;default:false"`
-	Timestamp     time.Time       `gorm:"not null"`
-	Identity      string          `gorm:"not null"`
-	VaspID        uint            `gorm:"not null"`
-	Vasp          VASP            `gorm:"foreignKey:VaspID"`
+	Envelope      string           `gorm:"not null"`
+	AccountID     uint             `gorm:"not null"`
+	Account       Account          `gorm:"foreignKey:AccountID"`
+	OriginatorID  uint             `gorm:"column:originator_id;not null"`
+	Originator    Identity         `gorm:"foreignKey:OriginatorID"`
+	BeneficiaryID uint             `gorm:"column:beneficiary_id;not null"`
+	Beneficiary   Identity         `gorm:"foreignKey:BeneficiaryID"`
+	Amount        decimal.Decimal  `gorm:"type:numeric(15,2)"`
+	Debit         bool             `gorm:"not null"`
+	State         TransactionState `gorm:"not null;default:0"`
+	Timestamp     time.Time        `gorm:"not null"`
+	NotBefore     time.Time        `gorm:"not null"`
+	NotAfter      time.Time        `gorm:"not null"`
+	Identity      string           `gorm:"not null"`
+	VaspID        uint             `gorm:"not null"`
+	Vasp          VASP             `gorm:"foreignKey:VaspID"`
 }
 
 // TableName explicitly defines the name of the table for the model

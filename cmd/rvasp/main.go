@@ -61,6 +61,12 @@ func main() {
 					Usage:  "the dsn of the postgres database to connect to",
 					EnvVar: "RVASP_DATABASE",
 				},
+				cli.DurationFlag{
+					Name:   "i, interval",
+					Usage:  "the interval to check for pending transactions",
+					Value:  time.Duration(time.Second * 10),
+					EnvVar: "RVASP_ASYNC_INTERVAL",
+				},
 			},
 		},
 		{
@@ -220,6 +226,10 @@ func serve(c *cli.Context) (err error) {
 
 	if db := c.String("db"); db != "" {
 		conf.DatabaseDSN = db
+	}
+
+	if interval := c.Duration("interval"); interval > 0 {
+		conf.AsyncInterval = interval
 	}
 
 	var srv *rvasp.Server

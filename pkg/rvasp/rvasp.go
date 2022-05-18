@@ -269,7 +269,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 		Beneficiary: beneficiaryIdentity,
 		Amount:      decimal.NewFromFloat32(req.Amount),
 		Debit:       true,
-		Completed:   false,
+		State:       db.TransactionCompleted,
 		Timestamp:   time.Now(),
 		Vasp:        s.vasp,
 	}
@@ -437,7 +437,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	// Update the completed transaction and save to disk
 	beneficiaryIdentity.WalletAddress = transaction.Beneficiary
 	xfer.Beneficiary = beneficiaryIdentity
-	xfer.Completed = true
+	xfer.State = db.TransactionCompleted
 	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
 
 	// Serialize the identity information as JSON data
@@ -690,12 +690,12 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	// Prepare the transaction
 	// Save the pending transaction and increment the accounts pending field
 	xfer := db.Transaction{
-		Envelope:  uuid.New().String(),
-		Account:   account,
-		Amount:    decimal.NewFromFloat32(transfer.Amount),
-		Debit:     true,
-		Completed: false,
-		Vasp:      s.vasp,
+		Envelope: uuid.New().String(),
+		Account:  account,
+		Amount:   decimal.NewFromFloat32(transfer.Amount),
+		Debit:    true,
+		State:    db.TransactionPending,
+		Vasp:     s.vasp,
 	}
 
 	if err = s.db.Save(&xfer).Error; err != nil {
@@ -834,7 +834,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 		WalletAddress: transaction.Beneficiary,
 		Vasp:          s.vasp,
 	}
-	xfer.Completed = true
+	xfer.State = db.TransactionCompleted
 	xfer.Timestamp, _ = time.Parse(time.RFC3339, transaction.Timestamp)
 
 	// Serialize the identity information as JSON data
