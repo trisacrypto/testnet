@@ -356,7 +356,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		Beneficiary: beneficiaryIdentity,
 		Amount:      decimal.NewFromFloat(transaction.Amount),
 		Debit:       false,
-		Completed:   true,
+		State:       db.TransactionCompleted,
 		Timestamp:   time.Now(),
 		Vasp:        s.parent.vasp,
 	}
