@@ -160,12 +160,10 @@ func (s *Server) Shutdown() (err error) {
 // Transfer accepts a transfer request from a beneficiary and begins the InterVASP
 // protocol to perform identity verification prior to establishing the transaction in
 // the blockchain between crypto wallet addresses.
-func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb.TransferReply, err error) {
-	rep = &pb.TransferReply{}
-
+func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (*pb.TransferReply, error) {
 	// Get originator account and confirm it belongs to this RVASP
 	var account db.Account
-	if err = s.db.LookupAccount(req.Account).First(&account).Error; err != nil {
+	if err := s.db.LookupAccount(req.Account).First(&account).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Info().Str("account", req.Account).Msg("not found")
 			return nil, status.Error(codes.NotFound, "account not found")
@@ -173,6 +171,53 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 		log.Error().Err(err).Msg("could not lookup account")
 		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup account: %s", err)
 	}
+
+	// Retrieve the policy for the originator account
+	var wallet db.Wallet
+	if err := s.db.LookupWallet(account.WalletAddress).First(&wallet).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Info().Str("wallet", account.WalletAddress).Msg("not found")
+			return nil, status.Error(codes.NotFound, "wallet not found")
+		}
+		log.Error().Err(err).Msg("could not lookup wallet")
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup wallet: %s", err)
+	}
+
+	// Run the scenario for the wallet's configured policy
+	policy := wallet.Policy
+	switch policy {
+	case db.BasicSync:
+		return s.basicSyncTransfer(req, account)
+	case db.PartialSync:
+		return s.partialSyncTransfer(req, account)
+	case db.FullAsync:
+		return s.fullAsyncTransfer(req, account)
+	case db.RejectedAsync:
+		return s.rejectedAsyncTransfer(req, account)
+	default:
+		return nil, status.Errorf(codes.FailedPrecondition, "unknown policy %s for wallet: %s", policy, account.Wallet.Address)
+	}
+}
+
+// In the Basic Synchronous scenario:
+// 1. The originator sends a request containing: the originator identity, the
+//    beneficiary identity, and the complete transaction details.
+// 2. The originator receives a response containing the complete payload and the
+//    received_at timestamp.
+// 3. The originator validates the payload and returns an error if necessary.
+func (s *Server) basicSyncTransfer(req *pb.TransferRequest, account db.Account) (rep *pb.TransferReply, err error) {
+	// TODO: Implement this
+	return nil, status.Error(codes.Unimplemented, "basic_sync transfer is not implemented")
+}
+
+// In the Partial Synchronous scenario:
+// 1. The originator sends a request containing the originator identity and the
+//    complete transaction details.
+// 2. The originator receives a response containing the complete payload, the
+//    beneficiary identity, and the received_at timestamp.
+// 3. The originator validates the payload and returns an error if necessary.
+func (s *Server) partialSyncTransfer(req *pb.TransferRequest, account db.Account) (rep *pb.TransferReply, err error) {
+	rep = &pb.TransferReply{}
 
 	// Identify the beneficiary either using the demo database or the directory service
 	var beneficiary db.Wallet
@@ -466,6 +511,34 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (rep *pb
 	// Return the transfer response
 	rep.Transaction = xfer.Proto()
 	return rep, nil
+}
+
+// In the Full Asynchronous scenario:
+// 1. The originator sends a request containing at least the originator identity and a
+//    partial transaction which does not include the transaction ID.
+// 2. The originator receives a pending protocol message with NotBefore and NotAfter
+//    timestamps.
+// 3. The originator waits for a response with the beneficiary information and a
+//    received_at timestamp.
+// 4. The originator echoes the response if the response was received within the time
+//    window, otherwise it responds to the beneficiary with a canceled error.
+// 5. The originator sends a new request with the transaction ID filled in.
+// 6. The originator validates the echoed response from the beneficiary and returns
+//    an error if necessary.
+func (s *Server) fullAsyncTransfer(req *pb.TransferRequest, account db.Account) (rep *pb.TransferReply, err error) {
+	// TODO: Implement this
+	return nil, status.Error(codes.Unimplemented, "full_async transfer is not implemented")
+}
+
+// In the Rejected Asynchronous scenario:
+// 1. The originator sends a request containing at least the originator identity and a
+//    partial transaction which does not include the transaction ID.
+// 2. The originator receives a pending protocol message with NotBefore and NotAfter
+//    timestamps.
+// 3. The originator waits for a protocol reject message and stops the transaction.
+func (s *Server) rejectedAsyncTransfer(req *pb.TransferRequest, account db.Account) (rep *pb.TransferReply, err error) {
+	// TODO: Implement this
+	return nil, status.Error(codes.Unimplemented, "rejected_async transfer is not implemented")
 }
 
 // AccountStatus is a demo RPC to allow demo clients to fetch their recent transactions.
