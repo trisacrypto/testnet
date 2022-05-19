@@ -145,6 +145,8 @@ type TransactionState uint
 const (
 	TransactionInvalid TransactionState = iota
 	TransactionPending
+	TransactionFailed
+	TransactionExpired
 	TransactionCompleted
 )
 

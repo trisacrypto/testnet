@@ -18,21 +18,27 @@ import (
 // AsyncDispatcher is a go routine that periodically reads pending messages off the
 // rVASP database and initiates TRISA transfers back to the originator. This allows the
 // rVASPs to simulate asynchronous transactions.
-func (s *TRISA) AsyncDispatcher(stop <-chan struct{}) {
-	ticker := time.NewTicker(s.parent.conf.AsyncInterval)
+func (s *Server) AsyncDispatcher(stop <-chan struct{}) {
+	ticker := time.NewTicker(s.conf.AsyncInterval)
 
-	log.Info().Dur("Interval", s.parent.conf.AsyncInterval).Msg("asynchronous dispatcher started")
+	log.Info().Dur("Interval", s.conf.AsyncInterval).Msg("asynchronous dispatcher started")
 
 	for {
-		// Wait for the next tick
-		<-ticker.C
+		// Wait for the next tick or the stop signal
+		select {
+		case <-stop:
+			log.Info().Msg("asynchronous dispatcher received stop signal")
+			return
+		case <-ticker.C:
+		default:
+		}
 
 		// Retrieve all pending messages from the database
 		var (
 			transactions []db.Transaction
 			err          error
 		)
-		if err = s.parent.db.LookupPending().Find(&transactions).Error; err != nil {
+		if err = s.db.LookupPending().Find(&transactions).Error; err != nil {
 			log.Error().Err(err).Msg("could not lookup transactions")
 			continue
 		}
@@ -47,39 +53,39 @@ func (s *TRISA) AsyncDispatcher(stop <-chan struct{}) {
 			// Verify pending transaction has not expired
 			if now.After(tx.NotAfter) {
 				log.Info().Uint("id", tx.ID).Time("not_after", tx.NotAfter).Msg("transaction expired")
+				tx.State = db.TransactionExpired
+				if err = s.db.Save(&tx).Error; err != nil {
+					log.Error().Err(err).Uint("id", tx.ID).Msg("could not save expired transaction")
+				}
 				continue
 			}
 
 			// Acknowledge the transaction with the originator
 			if err = s.acknowledgeTransaction(tx); err != nil {
 				log.Error().Err(err).Uint("id", tx.ID).Msg("could not acknowledge transaction")
+				tx.State = db.TransactionFailed
+				if err = s.db.Save(&tx).Error; err != nil {
+					log.Error().Err(err).Uint("id", tx.ID).Msg("could not save failed transaction")
+				}
 				continue
 			}
 
 			// Mark the transaction as completed
 			tx.State = db.TransactionCompleted
-			if err = s.parent.db.Save(&tx).Error; err != nil {
-				log.Error().Err(err).Uint("id", tx.ID).Msg("could not save transaction")
-				continue
+			if err = s.db.Save(&tx).Error; err != nil {
+				log.Error().Err(err).Uint("id", tx.ID).Msg("could not save completed transaction")
 			}
-		}
-
-		select {
-		case <-stop:
-			log.Info().Msg("asynchronous dispatcher received stop signal")
-			return
-		default:
 		}
 	}
 }
 
 // acknowledgeTransaction acknowledges a received transaction by initiating a transfer
 // with the originator and sending back the transaction with a received_at timestamp.
-func (s *TRISA) acknowledgeTransaction(tx db.Transaction) (err error) {
+func (s *Server) acknowledgeTransaction(tx db.Transaction) (err error) {
 	// Conduct a TRISADS lookup if necessary to get the endpoint
 	// TODO: Populate the originator information when we first receive the transaction
 	var peer *peers.Peer
-	if peer, err = s.parent.peers.Search(tx.Originator.Provider); err != nil {
+	if peer, err = s.peers.Search(tx.Originator.Provider); err != nil {
 		log.Error().Err(err).Msg("could not search peer from directory service")
 		return fmt.Errorf("could not search peer from directory service: %s", err)
 	}
@@ -122,7 +128,7 @@ func (s *TRISA) acknowledgeTransaction(tx db.Transaction) (err error) {
 	}
 
 	// Open the response envelope with local private keys
-	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.parent.trisa.sign))
+	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
 	if err != nil {
 		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
 		return fmt.Errorf("TRISA protocol error: %s", err)
@@ -133,6 +139,8 @@ func (s *TRISA) acknowledgeTransaction(tx db.Transaction) (err error) {
 		log.Error().Msg("TRISA protocol error: did not receive identity payload")
 		return fmt.Errorf("TRISA protocol error: did not receive identity payload")
 	}
+
+	// TODO: Additional validation of the returned payload
 
 	return nil
 }

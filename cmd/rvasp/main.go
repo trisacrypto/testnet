@@ -64,7 +64,7 @@ func main() {
 				cli.DurationFlag{
 					Name:   "i, interval",
 					Usage:  "the interval to check for pending transactions",
-					Value:  time.Duration(time.Second * 10),
+					Value:  time.Duration(time.Minute * 2),
 					EnvVar: "RVASP_ASYNC_INTERVAL",
 				},
 			},

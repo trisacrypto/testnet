@@ -23,7 +23,7 @@ type Settings struct {
 	CertPath            string          `envconfig:"RVASP_CERT_PATH"`
 	TrustChainPath      string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`
 	DirectoryServiceURL string          `envconfig:"RVASP_DIRECTORY_SERVICE_URL" default:"api.trisatest.net:443"`
-	AsyncInterval       time.Duration   `envconfig:"RVASP_ASYNC_INTERVAL"`
+	AsyncInterval       time.Duration   `envconfig:"RVASP_ASYNC_INTERVAL" default:"2m"`
 	ConsoleLog          bool            `envconfig:"RVASP_CONSOLE_LOG" default:"false"`
 	LogLevel            LogLevelDecoder `envconfig:"RVASP_LOG_LEVEL" default:"info"`
 }
