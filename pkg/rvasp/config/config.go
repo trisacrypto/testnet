@@ -9,28 +9,38 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Settings uses envconfig to load required settings from the environment and
+// Config uses envconfig to load required settings from the environment and
 // validate them in preparation for running the rVASP.
 //
 // TODO: also store separate signing key instead of using the cert key.
-type Settings struct {
-	Name                string          `envconfig:"RVASP_NAME"`
-	BindAddr            string          `envconfig:"RVASP_BIND_ADDR" default:":4434"`
-	TRISABindAddr       string          `envconfig:"RVASP_TRISA_BIND_ADDR" default:":4435"`
-	DatabaseDSN         string          `envconfig:"RVASP_DATABASE"`
-	MaxRetries          int             `envconfig:"RVASP_MAX_RETRIES" default:"0"`
-	FixturesPath        string          `envconfig:"RVASP_FIXTURES_PATH"`
-	CertPath            string          `envconfig:"RVASP_CERT_PATH"`
-	TrustChainPath      string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`
-	DirectoryServiceURL string          `envconfig:"RVASP_DIRECTORY_SERVICE_URL" default:"api.trisatest.net:443"`
-	AsyncInterval       time.Duration   `envconfig:"RVASP_ASYNC_INTERVAL" default:"2m"`
-	ConsoleLog          bool            `envconfig:"RVASP_CONSOLE_LOG" default:"false"`
-	LogLevel            LogLevelDecoder `envconfig:"RVASP_LOG_LEVEL" default:"info"`
+type Config struct {
+	Name           string          `envconfig:"RVASP_NAME"`
+	BindAddr       string          `envconfig:"RVASP_BIND_ADDR" default:":4434"`
+	TRISABindAddr  string          `envconfig:"RVASP_TRISA_BIND_ADDR" default:":4435"`
+	FixturesPath   string          `envconfig:"RVASP_FIXTURES_PATH"`
+	CertPath       string          `envconfig:"RVASP_CERT_PATH"`
+	TrustChainPath string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`
+	AsyncInterval  time.Duration   `envconfig:"RVASP_ASYNC_INTERVAL" default:"2m"`
+	ConsoleLog     bool            `envconfig:"RVASP_CONSOLE_LOG" default:"false"`
+	LogLevel       LogLevelDecoder `envconfig:"RVASP_LOG_LEVEL" default:"info"`
+	GDS            GDSConfig
+	Database       DatabaseConfig
 }
 
-// Config creates a new settings object, loading environment variables and defaults.
-func Config() (_ *Settings, err error) {
-	var conf Settings
+// GDSConfig is the configuration for connecting to GDS
+type GDSConfig struct {
+	URL string `split_words:"true" default:"api.trisatest.net:443"`
+}
+
+// DatabaseConfig is the configuration for connecting to the RVASP database
+type DatabaseConfig struct {
+	DSN        string `split_words:"true"`
+	MaxRetries int    `split_words:"true" default:"0"`
+}
+
+// New creates a new Config object, loading environment variables and defaults.
+func New() (_ *Config, err error) {
+	var conf Config
 	if err = envconfig.Process("rvasp", &conf); err != nil {
 		return nil, err
 	}

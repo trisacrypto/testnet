@@ -51,9 +51,9 @@ func init() {
 
 // New creates a rVASP server with the specified configuration and prepares
 // it to listen for and serve GRPC requests.
-func New(conf *config.Settings) (s *Server, err error) {
+func New(conf *config.Config) (s *Server, err error) {
 	if conf == nil {
-		if conf, err = config.Config(); err != nil {
+		if conf, err = config.New(); err != nil {
 			return nil, err
 		}
 	}
@@ -78,7 +78,7 @@ func New(conf *config.Settings) (s *Server, err error) {
 	}
 
 	// Create the remote peers using the same credentials as the TRISA service
-	s.peers = peers.New(s.trisa.certs, s.trisa.chain, s.conf.DirectoryServiceURL)
+	s.peers = peers.New(s.trisa.certs, s.trisa.chain, s.conf.GDS.URL)
 	s.peers.Connect(grpc.WithTransportCredentials(insecure.NewCredentials()))
 	s.updates = NewUpdateManager()
 	return s, nil
@@ -88,7 +88,7 @@ func New(conf *config.Settings) (s *Server, err error) {
 type Server struct {
 	pb.UnimplementedTRISADemoServer
 	pb.UnimplementedTRISAIntegrationServer
-	conf    *config.Settings
+	conf    *config.Config
 	srv     *grpc.Server
 	db      *db.DB
 	vasp    db.VASP

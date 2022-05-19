@@ -17,9 +17,9 @@ services:
     depends_on:
       - db
     environment:
-      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
       - RVASP_FIXTURES_PATH=/fixtures
-      - RVASP_MAX_RETRIES=5
+      - RVASP_DATABASE_MAX_RETRIES=5
     volumes:
       - ../pkg/rvasp/fixtures:/fixtures
 
@@ -65,11 +65,11 @@ services:
       - 5435:4435
     environment:
       - RVASP_NAME=api.alice.vaspbot.net
-      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
-      - RVASP_DIRECTORY_SERVICE_URL=gds:4433
-      - RVASP_MAX_RETRIES=5
+      - RVASP_GDS_URL=gds:4433
+      - RVASP_DATABASE_MAX_RETRIES=5
     volumes:
       - ../fixtures/certs/alice:/certs
 
@@ -83,11 +83,11 @@ services:
       - 6435:4435
     environment:
       - RVASP_NAME=api.bob.vaspbot.net
-      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
-      - RVASP_DIRECTORY_SERVICE_URL=gds:4433
-      - RVASP_MAX_RETRIES=5
+      - RVASP_GDS_URL=gds:4433
+      - RVASP_DATABASE_MAX_RETRIES=5
     volumes:
       - ../fixtures/certs/bob:/certs
 
@@ -101,10 +101,10 @@ services:
       - 7435:4435
     environment:
       - RVASP_NAME=api.evil.vaspbot.net
-      - RVASP_DATABASE=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
-      - RVASP_DIRECTORY_SERVICE_URL=gds:4433
-      - RVASP_MAX_RETRIES=5
+      - RVASP_GDS_URL=gds:4433
+      - RVASP_DATABASE_MAX_RETRIES=5
     volumes:
       - ../fixtures/certs/evil:/certs
