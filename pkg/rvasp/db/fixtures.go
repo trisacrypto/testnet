@@ -146,7 +146,7 @@ func LoadWallets(fixturesPath string) (wallets []Wallet, accounts []Account, err
 		}
 
 		// Validate the number of fields
-		if len(fields) < 5 {
+		if len(fields) != 5 {
 			return nil, nil, fmt.Errorf("invalid number of wallet fields: got %d, expected 5", len(fields))
 		}
 
@@ -162,7 +162,7 @@ func LoadWallets(fixturesPath string) (wallets []Wallet, accounts []Account, err
 
 		// Validate the policy field
 		w.Policy = PolicyType(fields[3].(string))
-		if !isPolicy(w.Policy) {
+		if !isValidPolicy(w.Policy) {
 			return nil, nil, fmt.Errorf("invalid policy for wallet %s: %s", w.Address, w.Policy)
 		}
 

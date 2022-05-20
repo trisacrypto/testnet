@@ -195,7 +195,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (*pb.Tra
 	case db.RejectedAsync:
 		return s.rejectedAsyncTransfer(req, account)
 	default:
-		return nil, status.Errorf(codes.FailedPrecondition, "unknown policy %s for wallet: %s", policy, account.Wallet.Address)
+		return nil, status.Errorf(codes.FailedPrecondition, "unknown policy '%s' for wallet '%s'", policy, account.Wallet.Address)
 	}
 }
 

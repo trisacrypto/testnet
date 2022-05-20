@@ -83,8 +83,8 @@ func (d *DB) LookupPending() *gorm.DB {
 }
 
 // LookupWallet by wallet address.
-func (d *DB) LookupWallet(walletAddress string) *gorm.DB {
-	return d.Query().Where("address = ?", walletAddress)
+func (d *DB) LookupWallet(address string) *gorm.DB {
+	return d.Query().Where("address = ?", address)
 }
 
 // VASP is a record of known partner VASPs and caches TRISA protocol information. This
@@ -119,7 +119,7 @@ const (
 )
 
 // Returns True if this is a valid policy
-func isPolicy(policy PolicyType) bool {
+func isValidPolicy(policy PolicyType) bool {
 	return policy == BasicSync || policy == PartialSync || policy == FullAsync || policy == RejectedAsync
 }
 
