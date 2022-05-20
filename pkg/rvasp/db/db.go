@@ -21,7 +21,7 @@ type DB struct {
 	vasp VASP
 }
 
-func NewDB(conf *config.Settings) (d *DB, err error) {
+func NewDB(conf *config.Config) (d *DB, err error) {
 	d = &DB{}
 	if d.db, err = OpenDB(conf); err != nil {
 		return nil, err
@@ -274,15 +274,15 @@ func (a Account) LoadIdentity() (person *ivms101.Person, err error) {
 
 // OpenDB opens a connection to a database with retries and returns the gorm database
 // pointer.
-func OpenDB(conf *config.Settings) (db *gorm.DB, err error) {
-	for i := 0; i < conf.MaxRetries+1; i++ {
-		if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err == nil {
+func OpenDB(conf *config.Config) (db *gorm.DB, err error) {
+	for i := 0; i < conf.Database.MaxRetries+1; i++ {
+		if db, err = gorm.Open(postgres.Open(conf.Database.DSN), &gorm.Config{}); err == nil {
 			return db, nil
 		}
 		time.Sleep(time.Second)
 	}
 
-	return db, fmt.Errorf("could not connect to database after %d retries: %s", conf.MaxRetries, err)
+	return db, fmt.Errorf("could not connect to database after %d retries: %s", conf.Database.MaxRetries, err)
 }
 
 // MigrateDB the schema based on the models defined above.

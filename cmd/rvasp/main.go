@@ -59,7 +59,7 @@ func main() {
 				cli.StringFlag{
 					Name:   "d, db",
 					Usage:  "the dsn of the postgres database to connect to",
-					EnvVar: "RVASP_DATABASE",
+					EnvVar: "RVASP_DATABASE_DSN",
 				},
 				cli.DurationFlag{
 					Name:   "i, interval",
@@ -78,7 +78,7 @@ func main() {
 				cli.StringFlag{
 					Name:   "d, db",
 					Usage:  "the dsn of the postgres database to connect to",
-					EnvVar: "RVASP_DATABASE",
+					EnvVar: "RVASP_DATABASE_DSN",
 				},
 				cli.BoolFlag{
 					Name:  "L, no-load",
@@ -101,7 +101,7 @@ func main() {
 				cli.StringFlag{
 					Name:   "d, db",
 					Usage:  "the dsn of the postgres database to connect to",
-					EnvVar: "RVASP_DATABASE",
+					EnvVar: "RVASP_DATABASE_DSN",
 				},
 				cli.StringFlag{
 					Name:   "f, fixtures",
@@ -207,8 +207,8 @@ func main() {
 
 // Serve the TRISA directory service
 func serve(c *cli.Context) (err error) {
-	var conf *config.Settings
-	if conf, err = config.Config(); err != nil {
+	var conf *config.Config
+	if conf, err = config.New(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -225,7 +225,7 @@ func serve(c *cli.Context) (err error) {
 	}
 
 	if db := c.String("db"); db != "" {
-		conf.DatabaseDSN = db
+		conf.Database.DSN = db
 	}
 
 	if interval := c.Duration("interval"); interval > 0 {
@@ -245,13 +245,13 @@ func serve(c *cli.Context) (err error) {
 
 // Run the database migration
 func initdb(c *cli.Context) (err error) {
-	var conf *config.Settings
-	if conf, err = config.Config(); err != nil {
+	var conf *config.Config
+	if conf, err = config.New(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	if dsn := c.String("db"); dsn != "" {
-		conf.DatabaseDSN = dsn
+		conf.Database.DSN = dsn
 	}
 
 	if fixtures := c.String("fixtures"); fixtures != "" {
@@ -259,7 +259,7 @@ func initdb(c *cli.Context) (err error) {
 	}
 
 	var gdb *gorm.DB
-	if gdb, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err != nil {
+	if gdb, err = gorm.Open(postgres.Open(conf.Database.DSN), &gorm.Config{}); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -280,13 +280,13 @@ func initdb(c *cli.Context) (err error) {
 
 // Reset the database
 func resetdb(c *cli.Context) (err error) {
-	var conf *config.Settings
-	if conf, err = config.Config(); err != nil {
+	var conf *config.Config
+	if conf, err = config.New(); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
 	if dsn := c.String("db"); dsn != "" {
-		conf.DatabaseDSN = dsn
+		conf.Database.DSN = dsn
 	}
 
 	if fixtures := c.String("fixtures"); fixtures != "" {
