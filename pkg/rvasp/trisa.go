@@ -302,7 +302,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	case db.RejectedAsync:
 		return s.rejectedAsyncTransfer(in, peer, identity, transaction, account)
 	default:
-		return nil, protocol.Errorf(protocol.InternalError, "unknown policy %s for wallet: %s", policy, account.WalletAddress)
+		return nil, protocol.Errorf(protocol.InternalError, "unknown policy '%s' for wallet '%s'", policy, account.WalletAddress)
 	}
 }
 
