@@ -138,24 +138,37 @@ func LoadWallets(fixturesPath string) (wallets []Wallet, accounts []Account, err
 		w := Wallet{}
 		a := Account{}
 
-		// Parse the wallet info
-		if len(record.([]interface{})) < 4 {
+		// Validate wallet record
+		var fields []interface{}
+		var ok bool
+		if fields, ok = record.([]interface{}); !ok {
 			return nil, nil, fmt.Errorf("could not parse wallet record: %v", record)
 		}
 
-		w.Address = record.([]interface{})[0].(string)
-		w.Email = record.([]interface{})[1].(string)
-		w.ProviderID = uint(record.([]interface{})[2].(float64))
+		// Validate the number of fields
+		if len(fields) != 5 {
+			return nil, nil, fmt.Errorf("invalid number of wallet fields: got %d, expected 5", len(fields))
+		}
+
+		// Parse the wallet fields
+		w.Address = fields[0].(string)
+		w.Email = fields[1].(string)
+		w.ProviderID = uint(fields[2].(float64))
 		w.VaspID = w.ProviderID
 
 		a.Email = w.Email
 		a.WalletAddress = w.Address
 		a.VaspID = w.ProviderID
 
+		// Validate the policy field
+		w.Policy = PolicyType(fields[3].(string))
+		if !isValidPolicy(w.Policy) {
+			return nil, nil, fmt.Errorf("invalid policy for wallet %s: %s", w.Address, w.Policy)
+		}
+
 		// Parse the account name
 		var person map[string]interface{}
-		var ok bool
-		if person, ok = record.([]interface{})[3].(map[string]interface{}); !ok {
+		if person, ok = fields[4].(map[string]interface{}); !ok {
 			return nil, nil, fmt.Errorf("could not parse person record: %v", record)
 		}
 		var name_ids interface{}

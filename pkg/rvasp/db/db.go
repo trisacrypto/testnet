@@ -21,7 +21,7 @@ type DB struct {
 	vasp VASP
 }
 
-func NewDB(conf *config.Settings) (d *DB, err error) {
+func NewDB(conf *config.Config) (d *DB, err error) {
 	d = &DB{}
 	if d.db, err = OpenDB(conf); err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func (d *DB) LookupBeneficiary(beneficiary string) *gorm.DB {
 	return d.Query().Preload("Provider").Where("email = ?", beneficiary).Or("address = ?", beneficiary)
 }
 
-// LookupIdentity by email address and provider.
+// LookupIdentity by wallet address.
 func (d *DB) LookupIdentity(walletAddress string) *gorm.DB {
 	return d.Query().Where("wallet_address = ?", walletAddress)
 }
@@ -80,6 +80,11 @@ func (d *DB) LookupIdentity(walletAddress string) *gorm.DB {
 // LookupPending returns the pending transactions.
 func (d *DB) LookupPending() *gorm.DB {
 	return d.Query().Where("state = ?", TransactionPending)
+}
+
+// LookupWallet by wallet address.
+func (d *DB) LookupWallet(address string) *gorm.DB {
+	return d.Query().Where("address = ?", address)
 }
 
 // VASP is a record of known partner VASPs and caches TRISA protocol information. This
@@ -104,16 +109,31 @@ func (VASP) TableName() string {
 	return "vasps"
 }
 
+type PolicyType string
+
+const (
+	BasicSync     PolicyType = "basic_sync"
+	PartialSync   PolicyType = "partial_sync"
+	FullAsync     PolicyType = "full_async"
+	RejectedAsync PolicyType = "rejected_async"
+)
+
+// Returns True if this is a valid policy
+func isValidPolicy(policy PolicyType) bool {
+	return policy == BasicSync || policy == PartialSync || policy == FullAsync || policy == RejectedAsync
+}
+
 // Wallet is a mapping of wallet IDs to VASPs to determine where to send transactions.
 // Provider lookups can happen by wallet address or by email.
 type Wallet struct {
 	gorm.Model
-	Address    string `gorm:"uniqueIndex"`
-	Email      string `gorm:"uniqueIndex"`
-	ProviderID uint   `gorm:"not null"`
-	Provider   VASP   `gorm:"foreignKey:ProviderID"`
-	VaspID     uint   `gorm:"not null"`
-	Vasp       VASP   `gorm:"foreignKey:VaspID"`
+	Address    string     `gorm:"uniqueIndex"`
+	Email      string     `gorm:"uniqueIndex"`
+	Policy     PolicyType `gorm:"column:policy"`
+	ProviderID uint       `gorm:"not null"`
+	Provider   VASP       `gorm:"foreignKey:ProviderID"`
+	VaspID     uint       `gorm:"not null"`
+	Vasp       VASP       `gorm:"foreignKey:VaspID"`
 }
 
 // TableName explicitly defines the name of the table for the model
@@ -274,15 +294,15 @@ func (a Account) LoadIdentity() (person *ivms101.Person, err error) {
 
 // OpenDB opens a connection to a database with retries and returns the gorm database
 // pointer.
-func OpenDB(conf *config.Settings) (db *gorm.DB, err error) {
-	for i := 0; i < conf.MaxRetries+1; i++ {
-		if db, err = gorm.Open(postgres.Open(conf.DatabaseDSN), &gorm.Config{}); err == nil {
+func OpenDB(conf *config.Config) (db *gorm.DB, err error) {
+	for i := 0; i < conf.Database.MaxRetries+1; i++ {
+		if db, err = gorm.Open(postgres.Open(conf.Database.DSN), &gorm.Config{}); err == nil {
 			return db, nil
 		}
 		time.Sleep(time.Second)
 	}
 
-	return db, fmt.Errorf("could not connect to database after %d retries: %s", conf.MaxRetries, err)
+	return db, fmt.Errorf("could not connect to database after %d retries: %s", conf.Database.MaxRetries, err)
 }
 
 // MigrateDB the schema based on the models defined above.
