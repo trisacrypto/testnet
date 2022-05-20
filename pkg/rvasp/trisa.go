@@ -279,6 +279,32 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
+	// Retrieve the wallet for the beneficiary account
+	var wallet db.Wallet
+	if err = s.parent.db.LookupWallet(account.WalletAddress).First(&wallet).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Warn().Str("wallet", account.WalletAddress).Msg("unknown beneficiary wallet")
+			return nil, protocol.Errorf(protocol.UnkownWalletAddress, "could not find beneficiary wallet %q", account.WalletAddress)
+		}
+		log.Error().Err(err).Msg("could not lookup beneficiary wallet")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// Run the scenario for the wallet's configured policy
+	policy := wallet.Policy
+	switch policy {
+	case db.BasicSync:
+		return s.basicSyncTransfer(peer, identity, transaction, account)
+	case db.PartialSync:
+		return s.partialSyncTransfer(peer, identity, transaction, account)
+	case db.FullAsync:
+		return s.fullAsyncTransfer(peer, identity, transaction, account)
+	case db.RejectedAsync:
+		return s.rejectedAsyncTransfer(peer, identity, transaction, account)
+	default:
+		return nil, protocol.Errorf(protocol.InternalError, "unknown policy %s for wallet: %s", policy, account.WalletAddress)
+	}
+
 	// Save the pending transaction on the account
 	// TODO: remove pending transactions
 	account.Pending++
@@ -414,6 +440,33 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 
 	s.parent.updates.Broadcast(0, fmt.Sprintf("%04d new account balance: %s", account.ID, account.Balance), pb.MessageCategory_LEDGER)
 	return out, nil
+}
+
+// In the Basic Synchronous scenario:
+// 1. The beneficiary receives a request from the originator containing: the originator
+//	  identity, the beneficiary identity, and the complete transaction details.
+// 2. The beneficiary acknowledges the transfer by returning the complete payload with
+//	  a received_at timestamp.
+func (s *TRISA) basicSyncTransfer(peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
+	// TODO: Implement this
+	return nil, protocol.Errorf(protocol.Unimplemented, "basic_sync transfer is not implemented")
+}
+
+// For the beneficiary, the Partial Synchronous scenario is identical to the Basic
+// Synchronous scenario, although the beneficiary will not receive the beneficiary
+// identity from the originator.
+func (s *TRISA) partialSyncTransfer(peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
+	// TODO: Implement this
+	return nil, protocol.Errorf(protocol.Unimplemented, "partial_sync transfer is not implemented")
+}
+
+// In the Full Asynchronous scenario:
+// 1. The beneficiary receives a request from the originator containing the originator
+//	  identity and a partial transaction which does not include the transaction ID.
+// 2. The beneficiary responds with a request containing the beneficiary identity and
+func (s *TRISA) fullAsyncTransfer(peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
+	// TODO: Implement this
+	return nil, protocol.Errorf(protocol.Unimplemented, "full_async transfer is not implemented")
 }
 
 // ConfirmAddress allows the rVASP to respond to proof-of-control requests.
