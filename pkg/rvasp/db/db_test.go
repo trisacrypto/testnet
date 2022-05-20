@@ -147,6 +147,21 @@ func (s *dbTestSuite) TestLookupIdentity() {
 	require.Equal(id, identity.ID)
 }
 
+func (s *dbTestSuite) TestLookupWallet() {
+	require := s.Require()
+	address := "18nxAxBktHZDrMoJ3N2fk9imLX8xNnYbNh"
+	id := s.db.GetVASP().ID
+
+	// Wallet lookups should be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "wallets" WHERE vasp_id = $1 AND address = $2`)
+	s.mock.ExpectQuery(query).WithArgs(id, address).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var wallet db.Wallet
+	tx := s.db.LookupWallet(address).First(&wallet)
+	require.NoError(tx.Error)
+	require.Equal(id, wallet.ID)
+}
+
 func (s *dbTestSuite) TestTransactions() {
 	require := s.Require()
 	email := "mary@alicevasp.us"
