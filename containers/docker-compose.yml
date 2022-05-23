@@ -43,7 +43,7 @@ services:
       - GDS_ADMIN_ENABLED=false
       - GDS_MEMBERS_ENABLED=true
       - GDS_MEMBERS_BIND_ADDR=:4435
-      - GDS_MEMBERS_INSECURE=false
+      - GDS_MEMBERS_INSECURE=true
       - GDS_MEMBERS_CERTS=/certs/cert.pem
       - GDS_MEMBERS_CERT_POOL=/certs/chain.pem
       - GDS_DATABASE_URL=leveldb:////data
