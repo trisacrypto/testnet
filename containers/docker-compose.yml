@@ -39,7 +39,7 @@ services:
       - GDS_API_ENABLED=true
       - GDS_BIND_ADDR=:4433
       - GDS_ADMIN_ENABLED=false
-      - GDS_MEMBERS_ENABLED=true
+      - GDS_MEMBERS_ENABLED=false
       - GDS_MEMBERS_INSECURE=true
       - GDS_DATABASE_URL=leveldb:////data
       - GDS_DATABASE_REINDEX_ON_BOOT=false
