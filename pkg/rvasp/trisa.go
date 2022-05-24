@@ -428,7 +428,8 @@ func (s *TRISA) partialSyncTransfer(in *protocol.SecureEnvelope, peer *peers.Pee
 
 	// Encode and encrypt the payload information to return the secure envelope
 	payload := &protocol.Payload{
-		SentAt: time.Now().Format(time.RFC3339),
+		SentAt:     time.Now().Format(time.RFC3339),
+		ReceivedAt: time.Now().Format(time.RFC3339),
 	}
 	if payload.Identity, err = anypb.New(identity); err != nil {
 		log.Error().Err(err).Msg("could not dump payload identity")
