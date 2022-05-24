@@ -191,9 +191,9 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (*pb.Tra
 	case db.PartialSync:
 		return s.partialSyncTransfer(req, account)
 	case db.FullAsync:
-		return s.AsyncTransfer(req, account)
+		return s.asyncTransfer(req, account)
 	case db.RejectedAsync:
-		return s.AsyncTransfer(req, account)
+		return s.asyncTransfer(req, account)
 	default:
 		return nil, status.Errorf(codes.FailedPrecondition, "unknown policy '%s' for wallet '%s'", policy, account.Wallet.Address)
 	}
@@ -592,7 +592,7 @@ func (s *Server) partialSyncTransfer(req *pb.TransferRequest, account db.Account
 	return rep, nil
 }
 
-// AsyncTransfer performs the first part of an asynchronous transfer with a beneficiary
+// asyncTransfer performs the first part of an asynchronous transfer with a beneficiary
 // 1. The originator sends a request containing at least the originator identity and a
 //    partial transaction which does not include the transaction ID.
 // 2. The originator receives a pending protocol message with NotBefore and NotAfter
@@ -604,7 +604,7 @@ func (s *Server) partialSyncTransfer(req *pb.TransferRequest, account db.Account
 // 5. The originator sends a new request with the transaction ID filled in.
 // 6. The originator validates the echoed response from the beneficiary and returns
 //    an error if necessary.
-func (s *Server) AsyncTransfer(req *pb.TransferRequest, account db.Account) (rep *pb.TransferReply, err error) {
+func (s *Server) asyncTransfer(req *pb.TransferRequest, account db.Account) (rep *pb.TransferReply, err error) {
 	rep = &pb.TransferReply{}
 
 	// Fetch the beneficiary Wallet
