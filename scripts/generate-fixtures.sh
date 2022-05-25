@@ -48,9 +48,9 @@ certs issue -c fixtures/certs/ca.gz -o fixtures/certs/evil/cert.pem -n $EVIL_END
 
 # Generate the rVASP fixtures from the template
 mkdir -p fixtures/vasps
-python scripts/gds-fixture.py -t scripts/template.json -o fixtures/vasps/alice.json -n $ALICE_NAME -i $ALICE_ID -e $ALICE_ENDPOINT:$TRISA_PORT
-python scripts/gds-fixture.py -t scripts/template.json -o fixtures/vasps/bob.json -n $BOB_NAME -i $BOB_ID -e $BOB_ENDPOINT:$TRISA_PORT
-python scripts/gds-fixture.py -t scripts/template.json -o fixtures/vasps/evil.json -n $EVIL_NAME -i $EVIL_ID -e $EVIL_ENDPOINT:$TRISA_PORT
+python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/alice.json -n $ALICE_NAME -i $ALICE_ID -e $ALICE_ENDPOINT:$TRISA_PORT
+python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/bob.json -n $BOB_NAME -i $BOB_ID -e $BOB_ENDPOINT:$TRISA_PORT
+python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/evil.json -n $EVIL_NAME -i $EVIL_ID -e $EVIL_ENDPOINT:$TRISA_PORT
 
 # Store the fixtures in the GDS database
 gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$ALICE_ID fixtures/vasps/alice.json
@@ -58,4 +58,6 @@ gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$BOB_ID fixtures/vasps/bob.json
 gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$EVIL_ID fixtures/vasps/evil.json
 
 # Confirm the keys in the database
+echo ""
+echo "Keys in the generated GDS database:"
 gdsutil ldb:keys -d $GDS_DSN

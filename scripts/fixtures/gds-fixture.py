@@ -27,5 +27,7 @@ def main():
     args = parser.parse_args()
     generate_fixtures(args.template, args.output, args.name, args.id, args.endpoint)
 
+    print('GDS VASP fixture generated at {}'.format(args.output))
+
 if __name__ == '__main__':
     main()
