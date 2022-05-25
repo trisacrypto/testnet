@@ -77,6 +77,28 @@ func createTransferPayload(identity *ivms101.IdentityPayload, transaction *gener
 	return payload, nil
 }
 
+func createPendingPayload(pending *generic.Pending) (payload *protocol.Payload, err error) {
+	// Create the payload
+	payload = &protocol.Payload{
+		SentAt: time.Now().Format(time.RFC3339),
+	}
+
+	if pending == nil {
+		return nil, fmt.Errorf("nil pending message supplied")
+	}
+
+	if payload.Identity, err = anypb.New(&ivms101.IdentityPayload{}); err != nil {
+		return nil, fmt.Errorf("could not dump payload identity: %s", err)
+	}
+
+	if payload.Transaction, err = anypb.New(pending); err != nil {
+		log.Error().Err(err).Msg("could not dump pending message")
+		return nil, fmt.Errorf("could not dump pending message: %s", err)
+	}
+
+	return payload, nil
+}
+
 // Parse the identity payload out of a TRISA transfer payload.
 func parseIdentityPayload(payload *protocol.Payload) (identity *ivms101.IdentityPayload, err error) {
 	if payload.Identity == nil {

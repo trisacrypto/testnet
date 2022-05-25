@@ -4,11 +4,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 	"github.com/trisacrypto/testnet/pkg/rvasp/config"
 	"github.com/trisacrypto/testnet/pkg/rvasp/jsonpb"
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/trisacrypto/trisa/pkg/ivms101"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -92,6 +96,55 @@ func (d *DB) LookupWallet(address string) *gorm.DB {
 	return d.Query().Where("address = ?", address)
 }
 
+// CreateTransaction returns a new Transaction from the originator and beneficiary
+// wallet addresses, ready to be modified and/or stored in the database.
+func (d *DB) CreateTransaction(originator string, beneficiary string) (*Transaction, error) {
+	var originatorIdentity, beneficiaryIdentity Identity
+
+	// Fetch originator identity record
+	if err := d.LookupIdentity(originator).FirstOrInit(&originatorIdentity, Identity{}).Error; err != nil {
+		log.Error().Err(err).Msg("could not lookup originator identity")
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup originator identity: %s", err)
+	}
+
+	// If originator identity does not exist then create it
+	if originatorIdentity.ID == 0 {
+		originatorIdentity.WalletAddress = originator
+		originatorIdentity.Vasp = d.vasp
+
+		if err := d.Create(&originatorIdentity).Error; err != nil {
+			log.Error().Err(err).Msg("could not save originator identity")
+			return nil, status.Errorf(codes.FailedPrecondition, "could not save originator identity: %s", err)
+		}
+	}
+
+	// Fetch beneficiary identity record
+	if err := d.LookupIdentity(beneficiary).FirstOrInit(&beneficiaryIdentity, Identity{}).Error; err != nil {
+		log.Error().Err(err).Msg("could not lookup beneficiary identity")
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup beneficiary identity: %s", err)
+	}
+
+	// If the beneficiary identity does not exist then create it
+	if beneficiaryIdentity.ID == 0 {
+		beneficiaryIdentity.WalletAddress = beneficiary
+		beneficiaryIdentity.Vasp = d.vasp
+
+		if err := d.Create(&beneficiaryIdentity).Error; err != nil {
+			log.Error().Err(err).Msg("could not save beneficiary identity")
+			return nil, status.Errorf(codes.FailedPrecondition, "could not save beneficiary identity: %s", err)
+		}
+	}
+
+	return &Transaction{
+		Envelope:    uuid.New().String(),
+		Originator:  originatorIdentity,
+		Beneficiary: beneficiaryIdentity,
+		State:       TransactionInitiated,
+		Timestamp:   time.Now(),
+		Vasp:        d.vasp,
+	}, nil
+}
+
 // VASP is a record of known partner VASPs and caches TRISA protocol information. This
 // table also contains IVMS101 data that identifies the VASP (but only for the local
 // VASP - we assume that VASPs do not have IVMS101 data on each other and have to use
@@ -173,6 +226,7 @@ type TransactionState uint
 
 const (
 	TransactionInvalid TransactionState = iota
+	TransactionInitiated
 	TransactionPending
 	TransactionFailed
 	TransactionExpired
@@ -234,6 +288,15 @@ func (a Account) BalanceFloat() float32 {
 	return float32(bal)
 }
 
+// Return the wallet associated with the account.
+func (a Account) GetWallet(db *DB) (wallet *Wallet, err error) {
+	wallet = &Wallet{}
+	if err = db.Query().Where("address = ?", a.WalletAddress).First(wallet).Error; err != nil {
+		return nil, err
+	}
+	return wallet, nil
+}
+
 // Transactions returns an ordered list of transactions associated with the account
 // ordered by the timestamp of the transaction, listing any pending transactions at the
 // top. This function may also support pagination and limiting functions, which is why
@@ -248,25 +311,16 @@ func (a Account) Transactions(db *DB) (records []Transaction, err error) {
 // Return the account associated with the transaction.
 func (t Transaction) GetAccount(db *DB) (account *Account, err error) {
 	account = &Account{}
-	if err = db.Query().Where("account_id = ?", t.AccountID).First(account).Error; err != nil {
+	if err = db.Query().Where("id = ?", t.AccountID).First(account).Error; err != nil {
 		return nil, err
 	}
 	return account, nil
 }
 
-// Return the account wallet associated with the transaction.
-func (t Transaction) Wallet(db *DB) (wallet *Wallet, err error) {
-	wallet = &Wallet{}
-	if err = db.Query().Where("account_id = ?", t.AccountID).First(wallet).Error; err != nil {
-		return nil, err
-	}
-	return wallet, nil
-}
-
 // Return the originator associated with the transaction.
 func (t Transaction) GetOriginator(db *DB) (identity *Identity, err error) {
 	identity = &Identity{}
-	if err = db.Query().Where("originator_id = ?", t.OriginatorID).First(identity).Error; err != nil {
+	if err = db.Query().Where("id = ?", t.OriginatorID).First(identity).Error; err != nil {
 		return nil, err
 	}
 	return identity, nil
@@ -275,7 +329,7 @@ func (t Transaction) GetOriginator(db *DB) (identity *Identity, err error) {
 // Return the originator address associated with the transaction.
 func (t Transaction) GetBeneficiary(db *DB) (identity *Identity, err error) {
 	identity = &Identity{}
-	if err = db.Query().Where("beneficiary_id = ?", t.BeneficiaryID).First(identity).Error; err != nil {
+	if err = db.Query().Where("id = ?", t.BeneficiaryID).First(identity).Error; err != nil {
 		return nil, err
 	}
 	return identity, nil

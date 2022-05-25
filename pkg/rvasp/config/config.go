@@ -20,8 +20,8 @@ type Config struct {
 	FixturesPath   string          `envconfig:"RVASP_FIXTURES_PATH"`
 	CertPath       string          `envconfig:"RVASP_CERT_PATH"`
 	TrustChainPath string          `envconfig:"RVASP_TRUST_CHAIN_PATH"`
-	AsyncInterval  time.Duration   `envconfig:"RVASP_ASYNC_INTERVAL" default:"1s"`
-	AsyncNotBefore time.Duration   `envconfig:"RVASP_ASYNC_NOT_BEFORE" default:"2s"`
+	AsyncInterval  time.Duration   `envconfig:"RVASP_ASYNC_INTERVAL" default:"1m"`
+	AsyncNotBefore time.Duration   `envconfig:"RVASP_ASYNC_NOT_BEFORE" default:"5m"`
 	AsyncNotAfter  time.Duration   `envconfig:"RVASP_ASYNC_NOT_AFTER" default:"1h"`
 	ConsoleLog     bool            `envconfig:"RVASP_CONSOLE_LOG" default:"false"`
 	LogLevel       LogLevelDecoder `envconfig:"RVASP_LOG_LEVEL" default:"info"`
