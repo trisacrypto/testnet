@@ -82,6 +82,11 @@ func (d *DB) LookupPending() *gorm.DB {
 	return d.Query().Where("state = ?", TransactionPending)
 }
 
+// LookupTransaction by envelope ID.
+func (d *DB) LookupTransaction(envelope string) *gorm.DB {
+	return d.Query().Where("envelope = ?", envelope)
+}
+
 // LookupWallet by wallet address.
 func (d *DB) LookupWallet(address string) *gorm.DB {
 	return d.Query().Where("address = ?", address)
@@ -179,6 +184,7 @@ const (
 // protocol and the envelope ID that uniquely identifies the message chain.
 type Transaction struct {
 	gorm.Model
+	TxID          string           `gorm:"not null"`
 	Envelope      string           `gorm:"not null"`
 	AccountID     uint             `gorm:"not null"`
 	Account       Account          `gorm:"foreignKey:AccountID"`
@@ -237,6 +243,42 @@ func (a Account) Transactions(db *DB) (records []Transaction, err error) {
 		return nil, err
 	}
 	return records, nil
+}
+
+// Return the account associated with the transaction.
+func (t Transaction) GetAccount(db *DB) (account *Account, err error) {
+	account = &Account{}
+	if err = db.Query().Where("account_id = ?", t.AccountID).First(account).Error; err != nil {
+		return nil, err
+	}
+	return account, nil
+}
+
+// Return the account wallet associated with the transaction.
+func (t Transaction) Wallet(db *DB) (wallet *Wallet, err error) {
+	wallet = &Wallet{}
+	if err = db.Query().Where("account_id = ?", t.AccountID).First(wallet).Error; err != nil {
+		return nil, err
+	}
+	return wallet, nil
+}
+
+// Return the originator associated with the transaction.
+func (t Transaction) GetOriginator(db *DB) (identity *Identity, err error) {
+	identity = &Identity{}
+	if err = db.Query().Where("originator_id = ?", t.OriginatorID).First(identity).Error; err != nil {
+		return nil, err
+	}
+	return identity, nil
+}
+
+// Return the originator address associated with the transaction.
+func (t Transaction) GetBeneficiary(db *DB) (identity *Identity, err error) {
+	identity = &Identity{}
+	if err = db.Query().Where("beneficiary_id = ?", t.BeneficiaryID).First(identity).Error; err != nil {
+		return nil, err
+	}
+	return identity, nil
 }
 
 // AmountFloat converts the amount decmial into an exact two precision float32 for
