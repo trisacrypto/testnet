@@ -65,9 +65,6 @@ services:
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
       - RVASP_GDS_URL=gds:4433
       - RVASP_DATABASE_MAX_RETRIES=5
-      - RVASP_ASYNC_INTERVAL
-      - RVASP_ASYNC_NOT_BEFORE
-      - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/alice:/certs
 
@@ -86,9 +83,6 @@ services:
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
       - RVASP_GDS_URL=gds:4433
       - RVASP_DATABASE_MAX_RETRIES=5
-      - RVASP_ASYNC_INTERVAL
-      - RVASP_ASYNC_NOT_BEFORE
-      - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/bob:/certs
 
@@ -107,8 +101,5 @@ services:
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
       - RVASP_GDS_URL=gds:4433
       - RVASP_DATABASE_MAX_RETRIES=5
-      - RVASP_ASYNC_INTERVAL
-      - RVASP_ASYNC_NOT_BEFORE
-      - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/evil:/certs
