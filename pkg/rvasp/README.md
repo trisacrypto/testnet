@@ -27,6 +27,14 @@ To get started using the rVASP, you can run the local server as follows:
 $ go run ./cmd/rvasp serve
 ```
 
+Alternatively, multiple rVASPs can be run concurrently using docker compose.
+
+```
+$ ./scripts/generate-fixtures.sh
+$ ./containers/build.sh
+$ docker compose -f ./containters/docker-compose.yml up
+```
+
 The server should now be listening for TRISADemo RPC messages. To send messages using the python API, make sure you can import the modules from `rvaspy` - the simplest way to do this is to install the package in editable mode as follows:
 
 ```
@@ -38,7 +46,7 @@ This will use the `setup.py` file in the `rvaspy` directory to install the packa
 ```python
 import rvaspy
 
-api = rvaspy.connect("localhost:4434")
+api = rvaspy.connect("localhost:6434")
 
 cmds = [
     api.account_request("robert@bobvasp.co.uk"),
@@ -51,18 +59,46 @@ for msg in api.stub.LiveUpdates(iter(cmds)):
 
 Note that the `RVASP` api client is not fully implemented yet.
 
-## Containers
+## Configuration
 
-We are currently not using a container repository, so to build the docker images locally, please run the following steps in order:
+The identity and operation of the rVASPs is defined in the `pkg/rvasp/fixtures` directory. This must contain two files, `vasps.json` and `wallets.json`.
 
-1. Build the root Docker image tagged as `trisacrypto/rvasp:latest`
-2. Build the alice, bob, and evil containers in `containers/`, tagging them appropriately
-3. Use `docker-compose` to run the three rVASPs locally
+### vasps.json
 
-To simplify the build process, we have added a script that builds all 4 images. You can execute the building script as follows:
+This defines how rVASPs are addressed and their ivms101 identity information. It consists of a list of JSON objects with the fields:
 
-```
-$ ./containers/rebuild.sh
-```
+`common_name`: Common name of the rVASP
+`legal_person`: ivms101 identity information of the rVASP
 
-Then all that's needed is to run `docker-compose up` to get the robot VASPs running locally.
+### wallets.json
+
+This defines the wallets and accounts in the rVASP database. It consists of a list of ordered entries for each wallet:
+
+1. The wallet address
+2. The email address of the associated account
+3. The index of the VASP in `vasps.json`, starting at 1
+4. The originator policy for outgoing transfers
+5. The beneficiary policy for incoming transfers
+6. The ivms101 information for the associated account
+
+### Wallet Policies
+
+The rVASPs are designed to support different configured transfer policies without having to rebuild them. This is implemented by associating wallets with policies. The supported policies are defined below:
+
+#### Originator (Outgoing) Policies
+
+`send_partial`: Send a transfer request to the beneficiary containing partial beneficiary identity information.
+
+`send_full`: Send a transfer request to the beneficiary containing the full beneficiary identity information.
+
+`send_error`: Send a TRISA error to the beneficiary.
+
+#### Beneificiary (Incoming) Policies
+
+`sync_repair`: Complete the beneficiary identity information in the received payload and return the payload to the originator.
+
+`sync_require`: Send a synchronous response to the originator if the full beneficiary identity information exists in the payload, otherwise send a TRISA rejection error.
+
+`async_repair`: Send a pending response to the originator with ReplyNotBefore and ReplyNotAfter timestamps. After a period of time within that time range, initiate a transfer to the originator containing the full beneficiary identity information to complete the transaction.
+
+`async_reject`: Send a pending response to the originator with ReplyNotBefore and ReplyNotAfter timestamps. After a period of time within that time range, send a TRISA rejection error to the originator.
