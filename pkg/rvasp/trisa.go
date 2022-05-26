@@ -216,7 +216,19 @@ func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer
 }
 
 func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *protocol.SecureEnvelope) (out *protocol.SecureEnvelope, err error) {
-	// TODO: Check for TRISA rejection errors here so we can handle them appropriately
+	// Check for TRISA rejection errors
+	reject, isErr := envelope.Check(in)
+	if isErr {
+		if reject != nil {
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
+				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+			}
+			return out, nil
+		}
+		log.Error().Err(err).Msg("TRISA protocol error while checking envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+	}
+
 	// Check the algorithms to make sure they're supported
 	if in.EncryptionAlgorithm != "AES256-GCM" || in.HmacAlgorithm != "HMAC-SHA256" {
 		log.Warn().
@@ -655,17 +667,10 @@ func (s *TRISA) rejectedAsyncTransfer(tx db.Transaction) (err error) {
 		return fmt.Errorf("could not perform TRISA exchange: %s", err)
 	}
 
-	// Open the response envelope with local private keys
-	_, reject, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.sign))
-	if err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
-		return fmt.Errorf("TRISA protocol error: %s", err)
-	}
-
-	// Envelope should be echoed back
-	if reject == nil {
-		log.Error().Msg("TRISA protocol error: expected rejection message")
-		return fmt.Errorf("TRISA protocol error: expected rejection message")
+	// Check for the TRISA rejection error
+	if state := envelope.Status(msg); state != envelope.Error {
+		log.Error().Msg("TRISA protocol error while opening envelope")
+		return fmt.Errorf("expected TRISA rejection error, received envelope in state %d", state)
 	}
 
 	return nil
