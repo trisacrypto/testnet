@@ -185,6 +185,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (*pb.Tra
 
 	// Run the scenario for the wallet's configured policy
 	policy := wallet.Policy
+	log.Debug().Str("wallet", account.WalletAddress).Str("policy", string(policy)).Msg("initiating transfer")
 	switch policy {
 	case db.BasicSync:
 		// The basic sync scenario performs a synchronous transfer with the beneficiary
@@ -208,6 +209,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (*pb.Tra
 		// transfer.
 		return s.initAsyncTransfer(req, account)
 	default:
+		log.Error().Str("wallet", account.WalletAddress).Str("policy", string(policy)).Msg("unknown policy")
 		return nil, status.Errorf(codes.FailedPrecondition, "unknown policy '%s' for wallet '%s'", policy, account.WalletAddress)
 	}
 }
@@ -281,7 +283,7 @@ func (s *Server) syncTransfer(req *pb.TransferRequest, account db.Account, valid
 
 	// Create a new Transaction in the database
 	var xfer *db.Transaction
-	if xfer, err = s.db.CreateTransaction(account.WalletAddress, beneficiary.Address); err != nil {
+	if xfer, err = s.db.MakeTransaction(account.WalletAddress, beneficiary.Address); err != nil {
 		return nil, err
 	}
 	xfer.Account = account
@@ -448,7 +450,7 @@ func (s *Server) initAsyncTransfer(req *pb.TransferRequest, account db.Account) 
 
 	// Create a new Transaction in the database
 	var xfer *db.Transaction
-	if xfer, err = s.db.CreateTransaction(account.WalletAddress, beneficiary.Address); err != nil {
+	if xfer, err = s.db.MakeTransaction(account.WalletAddress, beneficiary.Address); err != nil {
 		return nil, err
 	}
 	xfer.Account = account

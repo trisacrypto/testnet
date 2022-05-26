@@ -54,6 +54,7 @@ func (s *Server) createIdentityPayload(originatorAccount db.Account, beneficiary
 
 // Create a TRISA transfer payload from an IVMS101 identity payload and a TRISA
 // transaction payload.
+// TODO: Refactor to a "builder" pattern to make this easier to use.
 func createTransferPayload(identity *ivms101.IdentityPayload, transaction *generic.Transaction) (payload *protocol.Payload, err error) {
 	// Create the payload
 	payload = &protocol.Payload{
@@ -77,7 +78,7 @@ func createTransferPayload(identity *ivms101.IdentityPayload, transaction *gener
 	return payload, nil
 }
 
-func createPendingPayload(pending *generic.Pending) (payload *protocol.Payload, err error) {
+func createPendingPayload(pending *generic.Pending, identity *ivms101.IdentityPayload) (payload *protocol.Payload, err error) {
 	// Create the payload
 	payload = &protocol.Payload{
 		SentAt: time.Now().Format(time.RFC3339),
@@ -87,8 +88,13 @@ func createPendingPayload(pending *generic.Pending) (payload *protocol.Payload, 
 		return nil, fmt.Errorf("nil pending message supplied")
 	}
 
-	if payload.Identity, err = anypb.New(&ivms101.IdentityPayload{}); err != nil {
-		return nil, fmt.Errorf("could not dump payload identity: %s", err)
+	if identity == nil {
+		return nil, fmt.Errorf("nil identity payload supplied")
+	}
+
+	if payload.Identity, err = anypb.New(identity); err != nil {
+		log.Error().Err(err).Msg("could not dump identity payload")
+		return nil, fmt.Errorf("could not dump identity payload: %s", err)
 	}
 
 	if payload.Transaction, err = anypb.New(pending); err != nil {

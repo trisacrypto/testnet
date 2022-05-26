@@ -96,9 +96,10 @@ func (d *DB) LookupWallet(address string) *gorm.DB {
 	return d.Query().Where("address = ?", address)
 }
 
-// CreateTransaction returns a new Transaction from the originator and beneficiary
-// wallet addresses, ready to be modified and/or stored in the database.
-func (d *DB) CreateTransaction(originator string, beneficiary string) (*Transaction, error) {
+// MakeTransaction returns a new Transaction from the originator and beneficiary
+// wallet addresses. Note: this does not store the transaction in the database to allow
+// the caller to modify the transaction fields before storage.
+func (d *DB) MakeTransaction(originator string, beneficiary string) (*Transaction, error) {
 	var originatorIdentity, beneficiaryIdentity Identity
 
 	// Fetch originator identity record
@@ -236,6 +237,7 @@ const (
 // Transaction holds exchange information to send money from one account to another. It
 // also contains the decrypted identity payload that was sent as part of the TRISA
 // protocol and the envelope ID that uniquely identifies the message chain.
+// TODO: Add a field for the transaction payload marshaled as a string.
 type Transaction struct {
 	gorm.Model
 	TxID          string           `gorm:"not null"`

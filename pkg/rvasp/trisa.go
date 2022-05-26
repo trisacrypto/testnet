@@ -375,7 +375,7 @@ func (s *TRISA) syncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, iden
 
 	// Save the completed transaction in the database
 	var ach *db.Transaction
-	if ach, err = s.parent.db.CreateTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
+	if ach, err = s.parent.db.MakeTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
 		log.Error().Err(err).Msg("could not create transaction")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
@@ -448,7 +448,7 @@ func (s *TRISA) initAsyncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer,
 
 	// Create a local pending transaction
 	var xfer *db.Transaction
-	if xfer, err = s.parent.db.CreateTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
+	if xfer, err = s.parent.db.MakeTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
 		log.Error().Err(err).Msg("could not create transaction")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
@@ -503,7 +503,7 @@ func (s *TRISA) initAsyncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer,
 	}
 
 	var payload *protocol.Payload
-	if payload, err = createPendingPayload(pending); err != nil {
+	if payload, err = createPendingPayload(pending, identity); err != nil {
 		log.Error().Err(err).Msg("could not create pending payload")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
