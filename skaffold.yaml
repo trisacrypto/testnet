@@ -16,27 +16,6 @@ build:
     context: .
     docker:
       dockerfile: containers/rvasp/Dockerfile
-  - image: trisa/rvasp-alice
-    context: .
-    requires:
-    - image: trisa/rvasp
-      alias: BASE
-    docker:
-      dockerfile: containers/rvasp/alice/Dockerfile
-  - image: trisa/rvasp-bob
-    context: .
-    requires:
-    - image: trisa/rvasp
-      alias: BASE
-    docker:
-      dockerfile: containers/rvasp/bob/Dockerfile
-  - image: trisa/rvasp-evil
-    context: .
-    requires:
-    - image: trisa/rvasp
-      alias: BASE
-    docker:
-      dockerfile: containers/rvasp/evil/Dockerfile
   local:
     push: true
     useDockerCLI: true
