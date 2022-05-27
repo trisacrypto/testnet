@@ -11,7 +11,7 @@ require (
 	github.com/shopspring/decimal v1.3.1
 	github.com/stretchr/testify v1.7.1
 	github.com/trisacrypto/directory v1.3.1
-	github.com/trisacrypto/trisa v0.3.4
+	github.com/trisacrypto/trisa v0.3.5
 	github.com/urfave/cli v1.22.5
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0

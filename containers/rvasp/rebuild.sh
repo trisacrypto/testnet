@@ -56,10 +56,14 @@ GIT_REVISION=$(git rev-parse --short HEAD)
 
 # Build the base rvasp image
 docker build --platform linux/amd64 --build-arg GIT_REVISION=${GIT_REVISION} -t trisa/rvasp:$TAG -f $DIR/Dockerfile $REPO
+docker build --platform linux/amd64 -t trisa/rvasp-migrate:$TAG -f $DIR/../db/Dockerfile $REPO
 
 # Retag the alice, bob, and evil images
 docker tag trisa/rvasp:$TAG gcr.io/trisa-gds/rvasp:$TAG
+docker tag trisa/rvasp-migrate:$TAG gcr.io/trisa-gds/rvasp-migrate:$TAG
 
 docker push trisa/rvasp:$TAG
+docker push trisa/rvasp-migrate:$TAG
 
 docker push gcr.io/trisa-gds/rvasp:$TAG
+docker push gcr.io/trisa-gds/rvasp-migrate:$TAG

@@ -44,13 +44,13 @@ certs issue -c fixtures/certs/ca.gz -o fixtures/certs/bob/cert.pem -n $BOB_ENDPO
 
 certs init -c fixtures/certs/ca.evil.gz
 mkdir -p fixtures/certs/evil
-certs issue -c fixtures/certs/ca.gz -o fixtures/certs/evil/cert.pem -n $EVIL_ENDPOINT -O localhost -C $COUNTRY_CODE
+certs issue -c fixtures/certs/ca.evil.gz -o fixtures/certs/evil/cert.pem -n $EVIL_ENDPOINT -O localhost -C $COUNTRY_CODE
 
 # Generate the rVASP fixtures from the template
 mkdir -p fixtures/vasps
-python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/alice.json -n $ALICE_NAME -i $ALICE_ID -e $ALICE_ENDPOINT:$TRISA_PORT
-python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/bob.json -n $BOB_NAME -i $BOB_ID -e $BOB_ENDPOINT:$TRISA_PORT
-python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/evil.json -n $EVIL_NAME -i $EVIL_ID -e $EVIL_ENDPOINT:$TRISA_PORT
+python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/alice.json -n $ALICE_NAME -p $ALICE_ENDPOINT -i $ALICE_ID -e $ALICE_ENDPOINT:$TRISA_PORT
+python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/bob.json -n $BOB_NAME -p $BOB_ENDPOINT -i $BOB_ID -e $BOB_ENDPOINT:$TRISA_PORT
+python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/evil.json -n $EVIL_NAME -p $EVIL_ENDPOINT -i $EVIL_ID -e $EVIL_ENDPOINT:$TRISA_PORT
 
 # Store the fixtures in the GDS database
 gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$ALICE_ID fixtures/vasps/alice.json

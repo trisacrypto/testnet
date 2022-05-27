@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"gorm.io/gorm"
 )
@@ -98,6 +99,8 @@ func (s *TRISA) Serve() (err error) {
 
 	go func() {
 		defer sock.Close()
+
+		go s.AsyncHandler(nil)
 
 		log.Info().
 			Str("listen", s.parent.conf.TRISABindAddr).
@@ -213,6 +216,19 @@ func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer
 }
 
 func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *protocol.SecureEnvelope) (out *protocol.SecureEnvelope, err error) {
+	// Check for TRISA rejection errors
+	reject, isErr := envelope.Check(in)
+	if isErr {
+		if reject != nil {
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
+				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+			}
+			return out, nil
+		}
+		log.Error().Err(err).Msg("TRISA protocol error while checking envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+	}
+
 	// Check the algorithms to make sure they're supported
 	if in.EncryptionAlgorithm != "AES256-GCM" || in.HmacAlgorithm != "HMAC-SHA256" {
 		log.Warn().
@@ -237,28 +253,38 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
-	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
-		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
-		return nil, protocol.Errorf(protocol.UnparseableIdentity, "rVASP requires ivms101.IdentityPayload payload identity type")
+	var identity *ivms101.IdentityPayload
+	if identity, err = parseIdentityPayload(payload); err != nil {
+		log.Warn().Err(err).Msg("could not parse identity payload")
+		return nil, protocol.Errorf(protocol.UnparseableIdentity, "could not parse identity payload")
 	}
 
-	if payload.Transaction.TypeUrl != "type.googleapis.com/trisa.data.generic.v1beta1.Transaction" {
-		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
-		return nil, protocol.Errorf(protocol.UnparseableTransaction, "rVASP requires trisa.data.generic.v1beta1.Transaction payload transaction type")
+	var transaction *generic.Transaction
+	if transaction, err = parseTransactionPayload(payload); err != nil {
+		log.Warn().Err(err).Msg("could not parse transaction payload")
+		return nil, protocol.Errorf(protocol.UnparseableTransaction, "could not parse transaction payload")
 	}
 
-	identity := &ivms101.IdentityPayload{}
-	transaction := &generic.Transaction{}
-
-	if err = payload.Identity.UnmarshalTo(identity); err != nil {
-		log.Error().Err(err).Msg("could not unmarshal identity")
-		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal identity")
-	}
-	if err = payload.Transaction.UnmarshalTo(transaction); err != nil {
-		log.Error().Err(err).Msg("could not unmarshal transaction")
-		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "could not unmarshal transaction")
-	}
 	s.parent.updates.Broadcast(0, fmt.Sprintf("secure envelope %s opened and payload decrypted and parsed", in.Id), pb.MessageCategory_TRISAP2P)
+
+	// Check if we are the originator of the transaction
+	var localIdentity *ivms101.Person
+	if localIdentity, err = s.parent.vasp.LoadIdentity(); err != nil {
+		log.Warn().Err(err).Msg("could not load local VASP identity")
+		return nil, protocol.Errorf(protocol.InternalError, "could not load local VASP identity")
+	}
+
+	// For async transactions the originator receives a transfer request from the
+	// beneficiary, so call the originator handler to continue the transaction.
+	if proto.Equal(localIdentity, identity.OriginatingVasp.OriginatingVasp) {
+		// We need the remote peer's endpoint in order to initiate async transactions
+		// with the beneficiary.
+		if peer, err = s.parent.peers.Search(peer.String()); err != nil {
+			log.Warn().Err(err).Msg("could not lookup remote peer")
+			return nil, protocol.Errorf(protocol.InternalError, "could not lookup remote peer")
+		}
+		return s.parent.fullAsyncTransfer(peer, payload, identity, transaction, in.Id)
+	}
 
 	// Lookup the beneficiary in the local VASP database.
 	var accountAddress string
@@ -294,41 +320,37 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	policy := wallet.Policy
 	switch policy {
 	case db.BasicSync:
-		return s.basicSyncTransfer(in, peer, identity, transaction, account)
+		// The basic sync scenario responds to a synchronous transfer request from the
+		// originator.
+		return s.syncTransfer(in, peer, identity, transaction, account)
 	case db.PartialSync:
-		return s.partialSyncTransfer(in, peer, identity, transaction, account)
+		// The basic sync scenario responds to a synchronous transfer request from the
+		// originator.
+		return s.syncTransfer(in, peer, identity, transaction, account)
 	case db.FullAsync:
-		return s.fullAsyncTransfer(in, peer, identity, transaction, account)
+		// The full async scenario responds to an asynchronous transfer request from
+		// the originator by sending a pending response to the originator.
+		return s.initAsyncTransfer(in, peer, identity, transaction, account)
 	case db.RejectedAsync:
-		return s.rejectedAsyncTransfer(in, peer, identity, transaction, account)
+		// The rejected async scenario responds to an asynchronous transfer request
+		// from the originator by sending a pending response to the originator. The
+		// transaction will be eventually rejected by the AsyncHandler routine.
+		return s.initAsyncTransfer(in, peer, identity, transaction, account)
 	default:
 		return nil, protocol.Errorf(protocol.InternalError, "unknown policy '%s' for wallet '%s'", policy, account.WalletAddress)
 	}
 }
 
-// In the Basic Synchronous scenario:
-// 1. The beneficiary receives a request from the originator containing: the originator
-//	  identity, the beneficiary identity, and the complete transaction details.
-// 2. The beneficiary acknowledges the transfer by returning the complete payload with
-//	  a received_at timestamp.
-func (s *TRISA) basicSyncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
-	// TODO: Implement this
-	return nil, protocol.Errorf(protocol.Unimplemented, "basic_sync transfer is not implemented")
-}
-
-// For the beneficiary, the Partial Synchronous scenario is identical to the Basic
-// Synchronous scenario, although the beneficiary will not receive the beneficiary
-// identity from the originator.
-func (s *TRISA) partialSyncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
+// syncTransfer responds to a synchronous transfer request from the originator.
+func (s *TRISA) syncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
 	// Save the pending transaction on the account
-	// TODO: remove pending transactions
 	account.Pending++
 	if err = s.parent.db.Save(&account).Error; err != nil {
 		log.Error().Err(err).Msg("could not save beneficiary account")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
-	// Update the identity with the beneficiary information.
+	// Update the identity with the beneficiary information
 	identity.BeneficiaryVasp = &ivms101.BeneficiaryVasp{}
 	if identity.BeneficiaryVasp.BeneficiaryVasp, err = s.parent.vasp.LoadIdentity(); err != nil {
 		log.Error().Err(err).Msg("could not load beneficiary vasp")
@@ -347,60 +369,21 @@ func (s *TRISA) partialSyncTransfer(in *protocol.SecureEnvelope, peer *peers.Pee
 	}
 	identity.Beneficiary.BeneficiaryPersons = append(identity.Beneficiary.BeneficiaryPersons, beneficiary)
 
-	// Update the transactionwith beneficiary information
+	// Update the transaction with beneficiary information
 	transaction.Beneficiary = account.WalletAddress
 	transaction.Timestamp = time.Now().Format(time.RFC3339)
 
-	// Fetch originator identity record
-	var originatorIdentity db.Identity
-	if err = s.parent.db.LookupIdentity(transaction.Originator).FirstOrInit(&originatorIdentity, db.Identity{}).Error; err != nil {
-		log.Error().Err(err).Msg("could not lookup originator identity")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
-
-	// If originator identity does not exist then create it
-	if originatorIdentity.ID == 0 {
-		originatorIdentity.WalletAddress = transaction.Originator
-		originatorIdentity.Vasp = s.parent.vasp
-
-		if err = s.parent.db.Create(&originatorIdentity).Error; err != nil {
-			log.Error().Err(err).Msg("could not save originator identity")
-			return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-		}
-	}
-
-	// Fetch beneficiary identity record
-	var beneficiaryIdentity db.Identity
-	if err = s.parent.db.LookupIdentity(transaction.Beneficiary).FirstOrInit(&beneficiaryIdentity, db.Identity{}).Error; err != nil {
-		log.Error().Err(err).Msg("could not lookup identity")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
-
-	// If the beneficiary identity does not exist then create it
-	if beneficiaryIdentity.ID == 0 {
-		beneficiaryIdentity.WalletAddress = transaction.Beneficiary
-		beneficiaryIdentity.Email = account.Email
-		beneficiaryIdentity.Provider = s.parent.vasp.Name
-		beneficiaryIdentity.Vasp = s.parent.vasp
-
-		if err = s.parent.db.Create(&beneficiaryIdentity).Error; err != nil {
-			log.Error().Err(err).Msg("could not save beneficiary identity")
-			return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-		}
-	}
-
 	// Save the completed transaction in the database
-	ach := db.Transaction{
-		Envelope:    in.Id,
-		Account:     account,
-		Originator:  originatorIdentity,
-		Beneficiary: beneficiaryIdentity,
-		Amount:      decimal.NewFromFloat(transaction.Amount),
-		Debit:       false,
-		State:       db.TransactionCompleted,
-		Timestamp:   time.Now(),
-		Vasp:        s.parent.vasp,
+	var ach *db.Transaction
+	if ach, err = s.parent.db.MakeTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
+		log.Error().Err(err).Msg("could not create transaction")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
+	ach.Envelope = in.Id
+	ach.Account = account
+	ach.Amount = decimal.NewFromFloat(transaction.Amount)
+	ach.Debit = false
+	ach.State = db.TransactionCompleted
 
 	var achBytes []byte
 	if achBytes, err = protojson.Marshal(identity); err != nil {
@@ -415,7 +398,7 @@ func (s *TRISA) partialSyncTransfer(in *protocol.SecureEnvelope, peer *peers.Pee
 	}
 
 	// Update the account information
-	account.Balance.Add(decimal.NewFromFloat(transaction.Amount))
+	account.Balance = account.Balance.Add(decimal.NewFromFloat(transaction.Amount))
 	account.Completed++
 	account.Pending--
 	if err = s.parent.db.Save(&account).Error; err != nil {
@@ -458,33 +441,239 @@ func (s *TRISA) partialSyncTransfer(in *protocol.SecureEnvelope, peer *peers.Pee
 	return out, nil
 }
 
-// In the Full Asynchronous scenario:
-// 1. The beneficiary receives a request from the originator containing the originator
-//	  identity and a partial transaction which does not include the transaction ID.
-// 2. The beneficiary responds with a pending protocol message containing NotBefore and
-//	  NotAfter timestamps, and stores the pending transaction in the database.
-// 3. After a certain time period between NotBefore and NotAfter, the beneficiary
-//	  initiates a transfer request to the originator containing the beneficiary
-//	  information and a received_at timestamp, validating the response from the
-//	  originator.
-// 4. The beneficiary receives a request from the originator with the transaction ID
-//	  filled in and echoes the message back to the originator.
-func (s *TRISA) fullAsyncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
-	// TODO: Implement this
-	return nil, protocol.Errorf(protocol.Unimplemented, "full_async transfer is not implemented")
+// initAsyncTransfer responds to an asynchronous transfer request from the originator
+// by saving a pending transaction in the database and sending a pending response.
+func (s *TRISA) initAsyncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
+	now := time.Now()
+
+	// Create a local pending transaction
+	var xfer *db.Transaction
+	if xfer, err = s.parent.db.MakeTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
+		log.Error().Err(err).Msg("could not create transaction")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+	xfer.TxID = transaction.Txid
+	xfer.Envelope = in.Id
+	xfer.Account = account
+	xfer.Amount = decimal.NewFromFloat(transaction.Amount)
+	xfer.Debit = false
+	xfer.NotBefore = now.Add(s.parent.conf.AsyncNotBefore)
+	xfer.NotAfter = now.Add(s.parent.conf.AsyncNotAfter)
+	xfer.State = db.TransactionPending
+
+	// Marshal the identity info into the local transaction
+	var identityBytes []byte
+	if identityBytes, err = protojson.Marshal(identity); err != nil {
+		log.Error().Err(err).Msg("could not marshal identity")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+	xfer.Identity = string(identityBytes)
+
+	// Save the pending transaction in the database
+	if err = s.parent.db.Create(&xfer).Error; err != nil {
+		log.Error().Err(err).Msg("could not create transaction in database")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// Save the pending account in the database
+	account.Pending++
+	if err = s.parent.db.Save(&account).Error; err != nil {
+		log.Error().Err(err).Msg("could not update beneficiary account")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// Cache the common name of the originator in the database for later retrieval
+	var originator *db.Identity
+	if originator, err = xfer.GetOriginator(s.parent.db); err != nil {
+		log.Error().Err(err).Msg("could not get originator identity")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	originator.Provider = peer.Info().CommonName
+	if err = s.parent.db.Save(&originator).Error; err != nil {
+		log.Error().Err(err).Msg("could not update originator identity")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	// Create a pending protocol message with NotBefore and NotAfter timestamps
+	pending := &generic.Pending{
+		EnvelopeId:     xfer.Envelope,
+		ReplyNotBefore: xfer.NotBefore.Format(time.RFC3339),
+		ReplyNotAfter:  xfer.NotAfter.Format(time.RFC3339),
+	}
+
+	var payload *protocol.Payload
+	if payload, err = createPendingPayload(pending, identity); err != nil {
+		log.Error().Err(err).Msg("could not create pending payload")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+
+	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(peer.SigningKey()))
+	if err != nil {
+		if reject != nil {
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
+				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+			}
+			return out, nil
+		}
+		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+	}
+
+	return out, nil
 }
 
-// In the Rejected Asynchronous scenario:
-// 1. The beneficiary receives a request from the originator containing the originator
-//	  identity and a partial transaction which does not include the transaction ID.
-// 2. The beneficiary responds with a pending protocol message containing NotBefore and
-//	  NotAfter timestamps, and stores the pending transaction in the database.
-// 3. After a certain time period between NotBefore and NotAfter, the beneficiary
-//	  sends a reject message to the originator.
-// 4. The beneficiary validates the echoed response from the originator.
-func (s *TRISA) rejectedAsyncTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
-	// TODO: Implement this
-	return nil, protocol.Errorf(protocol.Unimplemented, "rejected_async transfer is not implemented")
+// fullAsyncTransfer handles a pending transaction in the database by performing an
+// envelope transfer with the originator and updating the database accordingly.
+func (s *TRISA) fullAsyncTransfer(tx db.Transaction) (err error) {
+	// Fetch the originator address
+	var originator *db.Identity
+	if originator, err = tx.GetOriginator(s.parent.db); err != nil {
+		log.Error().Err(err).Msg("could not fetch originator address")
+		return fmt.Errorf("could not fetch originator address")
+	}
+
+	// Fetch the beneficiary address
+	var beneficiary *db.Identity
+	if beneficiary, err = tx.GetBeneficiary(s.parent.db); err != nil {
+		log.Error().Err(err).Msg("could not fetch beneficiary address")
+		return fmt.Errorf("could not fetch beneficiary address")
+	}
+
+	// Create the identity for the payload
+	identity := &ivms101.IdentityPayload{}
+	if err = protojson.Unmarshal([]byte(tx.Identity), identity); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal identity from transaction")
+		return fmt.Errorf("could not unmarshal identity from transaction: %s", err)
+	}
+
+	// Create the transaction for the payload
+	transaction := &generic.Transaction{
+		Txid:        tx.TxID,
+		Originator:  originator.WalletAddress,
+		Beneficiary: beneficiary.WalletAddress,
+		Amount:      float64(tx.AmountFloat()),
+		Timestamp:   tx.Timestamp.Format(time.RFC3339),
+	}
+
+	// Create the payload
+	var payload *protocol.Payload
+	if payload, err = createTransferPayload(identity, transaction); err != nil {
+		log.Error().Err(err).Msg("could not create transfer payload")
+		return fmt.Errorf("could not create transfer payload: %s", err)
+	}
+	payload.ReceivedAt = time.Now().Format(time.RFC3339)
+
+	// Conduct a GDS lookup if necessary to get the endpoint
+	var peer *peers.Peer
+	if peer, err = s.parent.peers.Search(originator.Provider); err != nil {
+		log.Error().Err(err).Msg("could not search peer from directory service")
+		return fmt.Errorf("could not search peer from directory service: %s", err)
+	}
+
+	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
+	var signKey *rsa.PublicKey
+	if signKey, err = peer.ExchangeKeys(true); err != nil {
+		log.Error().Err(err).Msg("could not exchange keys with remote peer")
+		return fmt.Errorf("could not exchange keys with remote peer: %s", err)
+	}
+
+	// Secure the envelope with the remote originator's signing keys
+	msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(tx.Envelope), envelope.WithRSAPublicKey(signKey))
+	if err != nil {
+		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		return fmt.Errorf("TRISA protocol error: %s", err)
+	}
+
+	// Conduct the TRISA transfer, handle errors
+	if msg, err = peer.Transfer(msg); err != nil {
+		log.Error().Err(err).Msg("could not perform TRISA exchange")
+		return fmt.Errorf("could not perform TRISA exchange: %s", err)
+	}
+
+	// Open the response envelope with local private keys
+	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.sign))
+	if err != nil {
+		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		return fmt.Errorf("TRISA protocol error: %s", err)
+	}
+
+	if transaction, err = parseTransactionPayload(payload); err != nil {
+		log.Error().Err(err).Msg("could not parse returned transaction payload")
+		return fmt.Errorf("could not parse returned transaction payload: %s", err)
+	}
+
+	if transaction.Txid != "" {
+		// This is a complete transaction so update the database
+		var account *db.Account
+		if account, err = tx.GetAccount(s.parent.db); err != nil {
+			log.Error().Err(err).Msg("could not fetch account from database")
+			return fmt.Errorf("could not fetch account from database: %s", err)
+		}
+
+		account.Balance = account.Balance.Add(decimal.NewFromFloat(transaction.Amount))
+		account.Completed++
+		account.Pending--
+		if err = s.parent.db.Save(&account).Error; err != nil {
+			log.Error().Err(err).Msg("could not save beneficiary account")
+			return fmt.Errorf("could not save beneficiary account: %s", err)
+		}
+
+		msg := fmt.Sprintf("ready for transaction %s: %.2f transfering from %s to %s", transaction.Txid, transaction.Amount, transaction.Originator, transaction.Beneficiary)
+		s.parent.updates.Broadcast(0, msg, pb.MessageCategory_BLOCKCHAIN)
+	}
+	return nil
+}
+
+// rejectedAsyncTransfer rejects a pending transaction in the database by sending a
+// TRISA rejection to the originator.
+func (s *TRISA) rejectedAsyncTransfer(tx db.Transaction) (err error) {
+	var (
+		reject     *protocol.Error
+		msg        *protocol.SecureEnvelope
+		originator *db.Identity
+	)
+
+	// Fetch the originator address
+	if originator, err = tx.GetOriginator(s.parent.db); err != nil {
+		log.Error().Err(err).Msg("could not fetch originator address")
+		return fmt.Errorf("could not fetch originator address")
+	}
+
+	// Conduct a GDS lookup if necessary to get the endpoint
+	var peer *peers.Peer
+	if peer, err = s.parent.peers.Search(originator.Provider); err != nil {
+		log.Error().Err(err).Msg("could not search peer from directory service")
+		return fmt.Errorf("could not search peer from directory service: %s", err)
+	}
+
+	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
+	var signKey *rsa.PublicKey
+	if signKey, err = peer.ExchangeKeys(true); err != nil {
+		log.Error().Err(err).Msg("could not exchange keys with remote peer")
+		return fmt.Errorf("could not exchange keys with remote peer: %s", err)
+	}
+
+	// Create the rejection message
+	reject = protocol.Errorf(protocol.Rejected, "rejected by beneficiary")
+	if msg, err = envelope.Reject(reject, envelope.WithEnvelopeID(tx.Envelope), envelope.WithRSAPublicKey(signKey)); err != nil {
+		log.Error().Err(err).Msg("TRISA protocol error while creating reject envelope")
+		return fmt.Errorf("TRISA protocol error: %s", err)
+	}
+
+	// Conduct the TRISA transfer, handle errors
+	if msg, err = peer.Transfer(msg); err != nil {
+		log.Error().Err(err).Msg("could not perform TRISA exchange")
+		return fmt.Errorf("could not perform TRISA exchange: %s", err)
+	}
+
+	// Check for the TRISA rejection error
+	if state := envelope.Status(msg); state != envelope.Error {
+		log.Error().Msg("TRISA protocol error while opening envelope")
+		return fmt.Errorf("expected TRISA rejection error, received envelope in state %d", state)
+	}
+
+	return nil
 }
 
 // ConfirmAddress allows the rVASP to respond to proof-of-control requests.
