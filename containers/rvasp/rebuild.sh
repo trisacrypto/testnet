@@ -51,28 +51,15 @@ fi
 # Set some helpful variables
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 REPO=$(realpath "$DIR/../..")
-CONTAINERS=$REPO/containers/rvasp
+
+GIT_REVISION=$(git rev-parse --short HEAD)
 
 # Build the base rvasp image
-docker build --platform linux/amd64 -t trisa/rvasp:$TAG -f $CONTAINERS/Dockerfile $REPO
-
-# Build the alice, bob, and evil images
-docker build --platform linux/amd64 -t trisa/rvasp-alice:$TAG  -f $CONTAINERS/alice/Dockerfile --build-arg BASE=trisa/rvasp:$TAG $REPO
-docker build --platform linux/amd64 -t trisa/rvasp-bob:$TAG -f $CONTAINERS/bob/Dockerfile --build-arg BASE=trisa/rvasp:$TAG $REPO
-docker build --platform linux/amd64 -t trisa/rvasp-evil:$TAG -f $CONTAINERS/evil/Dockerfile --build-arg BASE=trisa/rvasp:$TAG $REPO
+docker build --platform linux/amd64 --build-arg GIT_REVISION=${GIT_REVISION} -t trisa/rvasp:$TAG -f $DIR/Dockerfile $REPO
 
 # Retag the alice, bob, and evil images
 docker tag trisa/rvasp:$TAG gcr.io/trisa-gds/rvasp:$TAG
-docker tag trisa/rvasp-alice:$TAG gcr.io/trisa-gds/rvasp-alice:$TAG
-docker tag trisa/rvasp-bob:$TAG gcr.io/trisa-gds/rvasp-bob:$TAG
-docker tag trisa/rvasp-evil:$TAG gcr.io/trisa-gds/rvasp-evil:$TAG
 
 docker push trisa/rvasp:$TAG
-docker push trisa/rvasp-alice:$TAG
-docker push trisa/rvasp-bob:$TAG
-docker push trisa/rvasp-evil:$TAG
 
 docker push gcr.io/trisa-gds/rvasp:$TAG
-docker push gcr.io/trisa-gds/rvasp-alice:$TAG
-docker push gcr.io/trisa-gds/rvasp-bob:$TAG
-docker push gcr.io/trisa-gds/rvasp-evil:$TAG
