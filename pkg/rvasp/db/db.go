@@ -71,9 +71,21 @@ func (d *DB) LookupAccount(account string) *gorm.DB {
 	return d.Query().Where("email = ?", account).Or("wallet_address = ?", account)
 }
 
+// LookupAnyAccount by email address or wallet address, not restricted to the local
+// rVASP.
+func (d *DB) LookupAnyAccount(account string) *gorm.DB {
+	return d.db.Where("email = ?", account).Or("wallet_address = ?", account)
+}
+
 // LookupBeneficiary by email address or wallet address.
 func (d *DB) LookupBeneficiary(beneficiary string) *gorm.DB {
 	return d.Query().Preload("Provider").Where("email = ?", beneficiary).Or("address = ?", beneficiary)
+}
+
+// LookupAnyBeneficiary by email address or wallet address, not restricted to the local
+// rVASP.
+func (d *DB) LookupAnyBeneficiary(beneficiary string) *gorm.DB {
+	return d.db.Preload("Provider").Where("email = ?", beneficiary).Or("address = ?", beneficiary)
 }
 
 // LookupIdentity by wallet address.
@@ -286,6 +298,15 @@ func (Identity) TableName() string {
 func (a Account) BalanceFloat() float32 {
 	bal, _ := a.Balance.Truncate(2).Float64()
 	return float32(bal)
+}
+
+// Return the VASP associated with the account.
+func (a Account) GetVASP(d *DB) (vasp *VASP, err error) {
+	vasp = &VASP{}
+	if err = d.db.Where("id = ?", a.VaspID).First(vasp).Error; err != nil {
+		return nil, err
+	}
+	return
 }
 
 // Return the wallet associated with the account.

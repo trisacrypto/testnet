@@ -15,10 +15,12 @@ import (
 )
 
 // Create an IVMS101 identity payload for a TRISA transfer.
-func (s *Server) createIdentityPayload(originatorAccount db.Account, beneficiaryAddress string) (identity *ivms101.IdentityPayload, err error) {
+func (s *Server) createIdentityPayload(originatorAccount db.Account, beneficiaryAccount db.Account) (identity *ivms101.IdentityPayload, err error) {
 	identity = &ivms101.IdentityPayload{
 		Originator:      &ivms101.Originator{},
 		OriginatingVasp: &ivms101.OriginatingVasp{},
+		Beneficiary:     &ivms101.Beneficiary{},
+		BeneficiaryVasp: &ivms101.BeneficiaryVasp{},
 	}
 
 	// Create the originator identity
@@ -38,15 +40,37 @@ func (s *Server) createIdentityPayload(originatorAccount db.Account, beneficiary
 	}
 	identity.Originator.OriginatorPersons = append(identity.Originator.OriginatorPersons, originator)
 
-	// Create the beneficiary identity if the address was provided
-	if beneficiaryAddress != "" {
-		identity.BeneficiaryVasp = &ivms101.BeneficiaryVasp{}
-		identity.BeneficiaryVasp.BeneficiaryVasp = &ivms101.Person{}
+	// Create the beneficiary VASP identity information if provided
+	if beneficiaryAccount.VaspID != 0 {
+		var beneficiaryVasp *db.VASP
+		if beneficiaryVasp, err = beneficiaryAccount.GetVASP(s.db); err != nil {
+			log.Error().Err(err).Msg("could not fetch beneficiary from database")
+			return nil, status.Errorf(codes.Internal, "could not load fetch beneficiary from database: %s", err)
+		}
+
+		// Create the beneficiary identity
+		if identity.BeneficiaryVasp.BeneficiaryVasp, err = beneficiaryVasp.LoadIdentity(); err != nil {
+			log.Error().Err(err).Msg("could not load beneficiary identity")
+			return nil, status.Errorf(codes.Internal, "could not load beneficiary identity: %s", err)
+		}
+	}
+
+	// Create the beneficiary account information if provided
+	if beneficiaryAccount.WalletAddress != "" {
 		identity.Beneficiary = &ivms101.Beneficiary{
 			BeneficiaryPersons: make([]*ivms101.Person, 0, 1),
-			AccountNumbers:     []string{beneficiaryAddress},
+			AccountNumbers:     []string{beneficiaryAccount.WalletAddress},
 		}
-		identity.Beneficiary.BeneficiaryPersons = append(identity.Beneficiary.BeneficiaryPersons, &ivms101.Person{})
+	}
+
+	// Create the beneficiary identity if provided
+	if beneficiaryAccount.IVMS101 != "" {
+		var beneficiary *ivms101.Person
+		if beneficiary, err = beneficiaryAccount.LoadIdentity(); err != nil {
+			log.Error().Err(err).Msg("could not load beneficiary identity")
+			return nil, status.Errorf(codes.Internal, "could not load beneficiary identity: %s", err)
+		}
+		identity.Beneficiary.BeneficiaryPersons = append(identity.Beneficiary.BeneficiaryPersons, beneficiary)
 	}
 
 	return identity, nil

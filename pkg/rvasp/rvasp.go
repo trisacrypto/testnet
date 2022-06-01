@@ -222,7 +222,7 @@ func (s *Server) fetchBeneficiaryWallet(req *pb.TransferRequest) (wallet *db.Wal
 	} else {
 		// Lookup beneficiary wallet from the database and confirm it belongs to a remote RVASP
 		wallet = &db.Wallet{}
-		if err = s.db.LookupBeneficiary(req.Beneficiary).First(wallet).Error; err != nil {
+		if err = s.db.LookupAnyBeneficiary(req.Beneficiary).First(wallet).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				log.Info().Str("beneficiary", req.Beneficiary).Msg("not found")
 				return nil, status.Error(codes.NotFound, "beneficiary not found (use external_demo?)")
@@ -302,16 +302,22 @@ func (s *Server) sendTransfer(req *pb.TransferRequest, account db.Account, parti
 		Timestamp:   xfer.Timestamp.Format(time.RFC3339),
 	}
 
-	// If partial is specified then don't populate the full beneficiary identity
-	var beneficiaryAddress string
+	var beneficiaryAccount db.Account
 	if partial {
-		beneficiaryAddress = ""
+		// If partial is specified then only populate the benefiiary address
+		beneficiaryAccount = db.Account{
+			WalletAddress: beneficiary.Address,
+		}
 	} else {
-		beneficiaryAddress = beneficiary.Address
+		// If partial is false then retrieve the full beneficiary account
+		if err = s.db.LookupAnyAccount(beneficiary.Address).First(&beneficiaryAccount).Error; err != nil {
+			log.Error().Err(err).Msg("could not lookup remote beneficiary account")
+			return nil, status.Errorf(codes.FailedPrecondition, "could not lookup remote beneficiary account: %s", err)
+		}
 	}
 
 	var identity *ivms101.IdentityPayload
-	if identity, err = s.createIdentityPayload(account, beneficiaryAddress); err != nil {
+	if identity, err = s.createIdentityPayload(account, beneficiaryAccount); err != nil {
 		return nil, err
 	}
 
