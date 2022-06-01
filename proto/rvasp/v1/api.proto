@@ -51,14 +51,14 @@ message Transaction {
 
 // Describes the current state of a transaction.
 enum TransactionState {
-    INVALID = 0;
-    AWAITING = 1;
-    PENDING_SENT = 2;
-    PENDING_ACKNOWLEDGED = 3;
-    ACCEPTED = 4;
-    FAILED = 5;
-    EXPIRED = 6;
-    COMPLETED = 7;
+    INVALID = 0; // Not a valid transaction state
+    AWAITING = 1; // (Async) Originator is awaiting a response from the beneficiary
+    PENDING_SENT = 2; // (Async) Beneficiary has sent a pending message to the originator
+    PENDING_ACKNOWLEDGED = 3; // (Async) Beneficiary has acknowledged the originator transaction
+    ACCEPTED = 4; // (Async) Originator has received the transaction acknowledgement from the beneficiary
+    FAILED = 5; // The transaction has failed
+    EXPIRED = 6; // The asynchronous transaction has expired before completion
+    COMPLETED = 7; // The transaction is completed
 }
 
 // Initiates a transfer from the specified account to the specified wallet address or
