@@ -452,7 +452,7 @@ func (s *Server) sendError(req *pb.TransferRequest, account db.Account) (rep *pb
 		return nil, status.Errorf(codes.Internal, "could not search peer from directory service: %s", err)
 	}
 
-	reject := protocol.Errorf(protocol.InternalError, "mock TRISA error")
+	reject := protocol.Errorf(protocol.ComplianceCheckFail, "rVASP mock compliance check failed")
 	var msg *protocol.SecureEnvelope
 	if msg, err = envelope.Reject(reject); err != nil {
 		log.Error().Err(err).Msg("could not create TRISA error envelope")
