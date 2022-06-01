@@ -3,7 +3,8 @@
         "18nxAxBktHZDrMoJ3N2fk9imLX8xNnYbNh",
         "robert@bobvasp.co.uk",
         1,
-        "basic_sync",
+        "SendPartial",
+        "SyncRepair",
         {
             "natural_person": {
                 "name": {
@@ -40,7 +41,8 @@
         "1LgtLYkpaXhHDu1Ngh7x9fcBs5KuThbSzw",
         "george@bobvasp.co.uk",
         1,
-        "partial_sync",
+        "SendFull",
+        "SyncRequire",
         {
             "natural_person": {
                 "name": {
@@ -77,7 +79,8 @@
         "14WU745djqecaJ1gmtWQGeMCFim1W5MNp3",
         "larry@bobvasp.co.uk",
         1,
-        "full_async",
+        "SendFull",
+        "AsyncRepair",
         {
             "natural_person": {
                 "name": {
@@ -118,7 +121,8 @@
         "1Hzej6a2VG7C8iCAD5DAdN72cZH5THSMt9",
         "fred@bobvasp.co.uk",
         1,
-        "rejected_async",
+        "SendError",
+        "AsyncReject",
         {
             "natural_person": {
                 "name": {
@@ -159,7 +163,8 @@
        "1ASkqdo1hvydosVRvRv2j6eNnWpWLHucMX",
        "mary@alicevasp.us",
        2,
-       "basic_sync",
+       "SendPartial",
+       "SyncRepair",
         {
             "natural_person": {
                 "name": {
@@ -201,7 +206,8 @@
         "1MRCxvEpBoY8qajrmNTSrcfXSZ2wsrGeha",
         "alice@alicevasp.us",
         2,
-        "partial_sync",
+        "SendFull",
+        "SyncRequire",
         {
             "natural_person": {
                 "name": {
@@ -239,7 +245,8 @@
         "14HmBSwec8XrcWge9Zi1ZngNia64u3Wd2v",
         "jane@alicevasp.us",
         2,
-        "full_async",
+        "SendFull",
+        "AsyncRepair",
         {
             "natural_person": {
                 "name": {
@@ -277,7 +284,8 @@
         "19nFejdNSUhzkAAdwAvP3wc53o8dL326QQ",
         "sarah@alicevasp.us",
         2,
-        "rejected_async",
+        "SendError",
+        "AsyncReject",
         {
             "natural_person": {
                 "name": {
@@ -315,7 +323,8 @@
         "1PFTsUQrRqvmFkJunfuQbSC2k9p4RfxYLF",
         "voldemort@evilvasp.gg",
         3,
-        "basic_sync",
+        "SendPartial",
+        "SyncRepair",
         {
             "natural_person": {
                 "name": {
@@ -355,7 +364,8 @@
         "172n89jLjXKmFJni1vwV5EzxKRXuAAoxUz",
         "launderer@evilvasp.gg",
         3,
-        "partial_sync",
+        "SendFull",
+        "SyncRequire",
         {
             "natural_person": {
                 "name": {
@@ -396,7 +406,8 @@
         "182kF4mb5SW4KGEvBSbyXTpDWy8rK1Dpu",
         "badnews@evilvasp.gg",
         3,
-        "full_async",
+        "SendFull",
+        "SyncRequire",
         {
             "natural_person": {
                 "name": {
@@ -434,7 +445,8 @@
         "1AsF1fMSaXPzz3dkBPyq81wrPQUKtT2tiz",
         "gambler@evilvasp.gg",
         3,
-        "rejected_async",
+        "SendError",
+        "AsyncReject",
         {
             "natural_person": {
                 "name": {

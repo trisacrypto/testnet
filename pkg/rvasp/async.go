@@ -6,6 +6,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/trisacrypto/testnet/pkg/rvasp/db"
+	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 )
 
 // AsyncHandler is a go routine that periodically reads pending messages off the
@@ -47,7 +48,7 @@ func (s *TRISA) AsyncHandler(stop <-chan struct{}) {
 			// Verify pending transaction has not expired
 			if now.After(tx.NotAfter) {
 				log.Info().Uint("id", tx.ID).Time("not_after", tx.NotAfter).Msg("transaction expired")
-				tx.State = db.TransactionExpired
+				tx.State = pb.TransactionState_EXPIRED
 				if err = s.parent.db.Save(&tx).Error; err != nil {
 					log.Error().Err(err).Uint("id", tx.ID).Msg("could not save expired transaction")
 				}
@@ -55,17 +56,12 @@ func (s *TRISA) AsyncHandler(stop <-chan struct{}) {
 			}
 
 			// Acknowledge the transaction with the originator
-			if err = s.acknowledgeTransaction(tx); err != nil {
+			if err = s.acknowledgeTransaction(&tx); err != nil {
 				log.Error().Err(err).Uint("id", tx.ID).Msg("could not acknowledge transaction")
-				tx.State = db.TransactionFailed
-				if err = s.parent.db.Save(&tx).Error; err != nil {
-					log.Error().Err(err).Uint("id", tx.ID).Msg("could not save failed transaction")
-				}
-				continue
+				tx.State = pb.TransactionState_FAILED
 			}
 
-			// Mark the transaction as completed
-			tx.State = db.TransactionCompleted
+			// Save the updated transaction in the database
 			if err = s.parent.db.Save(&tx).Error; err != nil {
 				log.Error().Err(err).Uint("id", tx.ID).Msg("could not save completed transaction")
 			}
@@ -75,7 +71,7 @@ func (s *TRISA) AsyncHandler(stop <-chan struct{}) {
 
 // acknowledgeTransaction acknowledges a received transaction by initiating a transfer
 // with the originator depending on the configured policy in the beneficiary wallet.
-func (s *TRISA) acknowledgeTransaction(tx db.Transaction) (err error) {
+func (s *TRISA) acknowledgeTransaction(tx *db.Transaction) (err error) {
 	// Retrieve the local account for the transaction
 	var account *db.Account
 	if account, err = tx.GetAccount(s.parent.db); err != nil {
@@ -90,12 +86,12 @@ func (s *TRISA) acknowledgeTransaction(tx db.Transaction) (err error) {
 		return err
 	}
 
-	policy := wallet.Policy
+	policy := wallet.BeneficiaryPolicy
 	switch policy {
-	case db.FullAsync:
-		return s.fullAsyncTransfer(tx)
-	case db.RejectedAsync:
-		return s.rejectedAsyncTransfer(tx)
+	case db.AsyncRepair:
+		return s.sendAsync(tx)
+	case db.AsyncReject:
+		return s.sendRejected(tx)
 	default:
 		return fmt.Errorf("unknown policy '%s' for wallet '%s'", policy, wallet.Address)
 	}
