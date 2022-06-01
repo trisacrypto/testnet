@@ -31,7 +31,8 @@ type Config struct {
 
 // GDSConfig is the configuration for connecting to GDS
 type GDSConfig struct {
-	URL string `split_words:"true" default:"api.trisatest.net:443"`
+	URL      string `split_words:"true" default:"api.trisatest.net:443"`
+	Insecure bool   `split_words:"true" default:"false"`
 }
 
 // DatabaseConfig is the configuration for connecting to the RVASP database

@@ -79,7 +79,11 @@ func New(conf *config.Config) (s *Server, err error) {
 
 	// Create the remote peers using the same credentials as the TRISA service
 	s.peers = peers.New(s.trisa.certs, s.trisa.chain, s.conf.GDS.URL)
-	s.peers.Connect(grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	// Connect to GDS without credentials if insecure is set
+	if s.conf.GDS.Insecure {
+		s.peers.Connect(grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
 	s.updates = NewUpdateManager()
 	return s, nil
 }
