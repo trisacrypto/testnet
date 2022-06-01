@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/trisacrypto/testnet/pkg/rvasp/db"
+	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 )
 
 const (
@@ -145,6 +146,20 @@ func (s *dbTestSuite) TestLookupIdentity() {
 	tx := s.db.LookupIdentity(address).First(&identity)
 	require.NoError(tx.Error)
 	require.Equal(id, identity.ID)
+}
+
+func (s *dbTestSuite) TestLookupPending() {
+	require := s.Require()
+	id := s.db.GetVASP().ID
+
+	// Transaction lookups should be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "transactions" WHERE vasp_id = $1 AND state in ($2, $3)`)
+	s.mock.ExpectQuery(query).WithArgs(id, pb.TransactionState_PENDING_SENT, pb.TransactionState_PENDING_ACKNOWLEDGED).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var transaction db.Transaction
+	tx := s.db.LookupPending().First(&transaction)
+	require.NoError(tx.Error)
+	require.Equal(id, transaction.ID)
 }
 
 func (s *dbTestSuite) TestLookupWallet() {

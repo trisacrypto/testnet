@@ -81,7 +81,8 @@ func createTransferPayload(identity *ivms101.IdentityPayload, transaction *gener
 func createPendingPayload(pending *generic.Pending, identity *ivms101.IdentityPayload) (payload *protocol.Payload, err error) {
 	// Create the payload
 	payload = &protocol.Payload{
-		SentAt: time.Now().Format(time.RFC3339),
+		SentAt:     time.Now().Format(time.RFC3339),
+		ReceivedAt: time.Now().Format(time.RFC3339),
 	}
 
 	if pending == nil {
@@ -105,74 +106,50 @@ func createPendingPayload(pending *generic.Pending, identity *ivms101.IdentityPa
 	return payload, nil
 }
 
-// Parse the identity payload out of a TRISA transfer payload.
-func parseIdentityPayload(payload *protocol.Payload) (identity *ivms101.IdentityPayload, err error) {
-	if payload.Identity == nil {
-		return nil, fmt.Errorf("missing identity payload")
+// Parse a TRISA transfer payload, returning the identity payload and either the
+// transaction payload or the pending message.
+func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.IdentityPayload, transaction *generic.Transaction, pending *generic.Pending, err error) {
+	// Verify the received_at timestamp if this is a response payload
+	if response && payload.ReceivedAt == "" {
+		log.Warn().Msg("missing received at timestamp")
+		return nil, nil, nil, fmt.Errorf("missing received_at timestamp")
 	}
 
-	// Verify the returned payload type
-	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
-		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unsupported identity type")
-		return nil, fmt.Errorf("unsupported identity type: %s", payload.Identity.TypeUrl)
+	// Payload must contain an identity
+	if payload.Identity == nil {
+		log.Warn().Msg("payload does not contain an identity")
+		return nil, nil, nil, fmt.Errorf("missing identity payload")
 	}
 
 	// Parse the identity payload
+	if payload.Identity.TypeUrl != "type.googleapis.com/ivms101.IdentityPayload" {
+		log.Warn().Str("type", payload.Identity.TypeUrl).Msg("unexpected identity payload type")
+		return nil, nil, nil, fmt.Errorf("unexpected identity payload type: %s", payload.Identity.TypeUrl)
+	}
+
 	identity = &ivms101.IdentityPayload{}
 	if err = payload.Identity.UnmarshalTo(identity); err != nil {
 		log.Error().Err(err).Msg("could not unmarshal identity")
-		return nil, fmt.Errorf("could non unmarshal identity: %s", err)
+		return nil, nil, nil, fmt.Errorf("could non unmarshal identity: %s", err)
 	}
 
-	return identity, nil
-}
-
-// Parse the transaction payload out of a TRISA transfer payload.
-func parseTransactionPayload(payload *protocol.Payload) (transaction *generic.Transaction, err error) {
-	if payload.Transaction == nil {
-		return nil, fmt.Errorf("missing transaction payload")
+	// Parse the message type
+	switch payload.Transaction.TypeUrl {
+	case "type.googleapis.com/trisa.data.generic.v1beta1.Transaction":
+		transaction = &generic.Transaction{}
+		if err = payload.Transaction.UnmarshalTo(transaction); err != nil {
+			log.Error().Err(err).Msg("could not unmarshal transaction")
+			return nil, nil, nil, fmt.Errorf("could not unmarshal transaction: %s", err)
+		}
+	case "type.googleapis.com/trisa.data.generic.v1beta1.Pending":
+		pending = &generic.Pending{}
+		if err = payload.Transaction.UnmarshalTo(pending); err != nil {
+			log.Error().Err(err).Msg("could not unmarshal pending message")
+			return nil, nil, nil, fmt.Errorf("could not unmarshal pending message: %s", err)
+		}
+	default:
+		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unexpected transaction payload type")
+		return nil, nil, nil, fmt.Errorf("unexpected transaction payload type: %s", payload.Transaction.TypeUrl)
 	}
-
-	// Verify the returned payload type
-	if payload.Transaction.TypeUrl != "type.googleapis.com/trisa.data.generic.v1beta1.Transaction" {
-		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported transaction type")
-		return nil, fmt.Errorf("unsupported transaction type: %s", payload.Transaction.TypeUrl)
-	}
-
-	// Parse the transaction payload
-	transaction = &generic.Transaction{}
-	if err = payload.Transaction.UnmarshalTo(transaction); err != nil {
-		log.Error().Err(err).Msg("could not unmarshal transaction")
-		return nil, fmt.Errorf("could not unmarshal transaction: %s", err)
-	}
-
-	return transaction, nil
-}
-
-// Parse a pending message out of a TRISA transfer payload.
-func parsePendingMessage(payload *protocol.Payload) (pending *generic.Pending, err error) {
-	if payload.Transaction == nil {
-		return nil, fmt.Errorf("missing transaction payload")
-	}
-
-	// Verify the returned payload type
-	if payload.Transaction.TypeUrl != "type.googleapis.com/trisa.data.generic.v1beta1.Pending" {
-		log.Warn().Str("type", payload.Transaction.TypeUrl).Msg("unsupported pending type")
-		return nil, fmt.Errorf("unsupported pending type: %s", payload.Transaction.TypeUrl)
-	}
-
-	// Parse the pending payload
-	pending = &generic.Pending{}
-	if err = payload.Transaction.UnmarshalTo(pending); err != nil {
-		log.Error().Err(err).Msg("could not unmarshal pending")
-		return nil, fmt.Errorf("could not unmarshal pending: %s", err)
-	}
-
-	// Timestamps should be filled in
-	if pending.ReplyNotBefore == "" || pending.ReplyNotAfter == "" {
-		log.Error().Msg("missing ReplyNotBefore or ReplyNotAfter timestamp in pending message")
-		return nil, fmt.Errorf("missing ReplyNotBefore or ReplyNotAfter timestamp in pending message")
-	}
-
-	return pending, nil
+	return identity, transaction, pending, nil
 }

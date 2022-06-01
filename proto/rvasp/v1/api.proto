@@ -46,6 +46,19 @@ message Transaction {
     string timestamp = 4;       // timestamp of completion on the account provider side
     string envelope = 5;        // envelope ID from TRISA (not included between TRISA peers)
     string identity = 6;        // identity payload from TRISA (not included between TRISA peers)
+    TransactionState state = 7; // state of the transaction
+}
+
+// Describes the current state of a transaction.
+enum TransactionState {
+    INVALID = 0; // Not a valid transaction state
+    AWAITING = 1; // (Async) Originator is awaiting a response from the beneficiary
+    PENDING_SENT = 2; // (Async) Beneficiary has sent a pending message to the originator
+    PENDING_ACKNOWLEDGED = 3; // (Async) Beneficiary has acknowledged the originator transaction
+    ACCEPTED = 4; // (Async) Originator has received the transaction acknowledgement from the beneficiary
+    FAILED = 5; // The transaction has failed
+    EXPIRED = 6; // The asynchronous transaction has expired before completion
+    COMPLETED = 7; // The transaction is completed
 }
 
 // Initiates a transfer from the specified account to the specified wallet address or

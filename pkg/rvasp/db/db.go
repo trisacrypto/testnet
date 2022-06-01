@@ -83,7 +83,7 @@ func (d *DB) LookupIdentity(walletAddress string) *gorm.DB {
 
 // LookupPending returns the pending transactions.
 func (d *DB) LookupPending() *gorm.DB {
-	return d.Query().Where("state = ?", TransactionPending)
+	return d.Query().Where("state in (?, ?)", pb.TransactionState_PENDING_SENT, pb.TransactionState_PENDING_ACKNOWLEDGED)
 }
 
 // LookupTransaction by envelope ID.
@@ -99,13 +99,13 @@ func (d *DB) LookupWallet(address string) *gorm.DB {
 // MakeTransaction returns a new Transaction from the originator and beneficiary
 // wallet addresses. Note: this does not store the transaction in the database to allow
 // the caller to modify the transaction fields before storage.
-func (d *DB) MakeTransaction(originator string, beneficiary string) (*Transaction, error) {
+func (d *DB) MakeTransaction(originator string, beneficiary string) (Transaction, error) {
 	var originatorIdentity, beneficiaryIdentity Identity
 
 	// Fetch originator identity record
 	if err := d.LookupIdentity(originator).FirstOrInit(&originatorIdentity, Identity{}).Error; err != nil {
 		log.Error().Err(err).Msg("could not lookup originator identity")
-		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup originator identity: %s", err)
+		return Transaction{}, status.Errorf(codes.FailedPrecondition, "could not lookup originator identity: %s", err)
 	}
 
 	// If originator identity does not exist then create it
@@ -115,14 +115,14 @@ func (d *DB) MakeTransaction(originator string, beneficiary string) (*Transactio
 
 		if err := d.Create(&originatorIdentity).Error; err != nil {
 			log.Error().Err(err).Msg("could not save originator identity")
-			return nil, status.Errorf(codes.FailedPrecondition, "could not save originator identity: %s", err)
+			return Transaction{}, status.Errorf(codes.FailedPrecondition, "could not save originator identity: %s", err)
 		}
 	}
 
 	// Fetch beneficiary identity record
 	if err := d.LookupIdentity(beneficiary).FirstOrInit(&beneficiaryIdentity, Identity{}).Error; err != nil {
 		log.Error().Err(err).Msg("could not lookup beneficiary identity")
-		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup beneficiary identity: %s", err)
+		return Transaction{}, status.Errorf(codes.FailedPrecondition, "could not lookup beneficiary identity: %s", err)
 	}
 
 	// If the beneficiary identity does not exist then create it
@@ -132,15 +132,15 @@ func (d *DB) MakeTransaction(originator string, beneficiary string) (*Transactio
 
 		if err := d.Create(&beneficiaryIdentity).Error; err != nil {
 			log.Error().Err(err).Msg("could not save beneficiary identity")
-			return nil, status.Errorf(codes.FailedPrecondition, "could not save beneficiary identity: %s", err)
+			return Transaction{}, status.Errorf(codes.FailedPrecondition, "could not save beneficiary identity: %s", err)
 		}
 	}
 
-	return &Transaction{
+	return Transaction{
 		Envelope:    uuid.New().String(),
 		Originator:  originatorIdentity,
 		Beneficiary: beneficiaryIdentity,
-		State:       TransactionInitiated,
+		State:       pb.TransactionState_AWAITING,
 		Timestamp:   time.Now(),
 		Vasp:        d.vasp,
 	}, nil
@@ -171,28 +171,37 @@ func (VASP) TableName() string {
 type PolicyType string
 
 const (
-	BasicSync     PolicyType = "basic_sync"
-	PartialSync   PolicyType = "partial_sync"
-	FullAsync     PolicyType = "full_async"
-	RejectedAsync PolicyType = "rejected_async"
+	SendPartial PolicyType = "SendPartial"
+	SendFull    PolicyType = "SendFull"
+	SendError   PolicyType = "SendError"
+	SyncRepair  PolicyType = "SyncRepair"
+	SyncRequire PolicyType = "SyncRequire"
+	AsyncRepair PolicyType = "AsyncRepair"
+	AsyncReject PolicyType = "AsyncReject"
 )
 
-// Returns True if this is a valid policy
-func isValidPolicy(policy PolicyType) bool {
-	return policy == BasicSync || policy == PartialSync || policy == FullAsync || policy == RejectedAsync
+// Returns True if this is a valid policy for the originator
+func isValidOriginatorPolicy(policy PolicyType) bool {
+	return policy == SendPartial || policy == SendFull || policy == SendError
+}
+
+// Returns True if this is a valid policy for the beneficiary
+func isValidBeneficiaryPolicy(policy PolicyType) bool {
+	return policy == SyncRepair || policy == SyncRequire || policy == AsyncRepair || policy == AsyncReject
 }
 
 // Wallet is a mapping of wallet IDs to VASPs to determine where to send transactions.
 // Provider lookups can happen by wallet address or by email.
 type Wallet struct {
 	gorm.Model
-	Address    string     `gorm:"uniqueIndex"`
-	Email      string     `gorm:"uniqueIndex"`
-	Policy     PolicyType `gorm:"column:policy"`
-	ProviderID uint       `gorm:"not null"`
-	Provider   VASP       `gorm:"foreignKey:ProviderID"`
-	VaspID     uint       `gorm:"not null"`
-	Vasp       VASP       `gorm:"foreignKey:VaspID"`
+	Address           string     `gorm:"uniqueIndex"`
+	Email             string     `gorm:"uniqueIndex"`
+	OriginatorPolicy  PolicyType `gorm:"column:originator_policy"`
+	BeneficiaryPolicy PolicyType `gorm:"column:beneficiary_policy"`
+	ProviderID        uint       `gorm:"not null"`
+	Provider          VASP       `gorm:"foreignKey:ProviderID"`
+	VaspID            uint       `gorm:"not null"`
+	Vasp              VASP       `gorm:"foreignKey:VaspID"`
 }
 
 // TableName explicitly defines the name of the table for the model
@@ -223,40 +232,29 @@ func (Account) TableName() string {
 	return "accounts"
 }
 
-type TransactionState uint
-
-const (
-	TransactionInvalid TransactionState = iota
-	TransactionInitiated
-	TransactionPending
-	TransactionFailed
-	TransactionExpired
-	TransactionCompleted
-)
-
 // Transaction holds exchange information to send money from one account to another. It
 // also contains the decrypted identity payload that was sent as part of the TRISA
 // protocol and the envelope ID that uniquely identifies the message chain.
 // TODO: Add a field for the transaction payload marshaled as a string.
 type Transaction struct {
 	gorm.Model
-	TxID          string           `gorm:"not null"`
-	Envelope      string           `gorm:"not null"`
-	AccountID     uint             `gorm:"not null"`
-	Account       Account          `gorm:"foreignKey:AccountID"`
-	OriginatorID  uint             `gorm:"column:originator_id;not null"`
-	Originator    Identity         `gorm:"foreignKey:OriginatorID"`
-	BeneficiaryID uint             `gorm:"column:beneficiary_id;not null"`
-	Beneficiary   Identity         `gorm:"foreignKey:BeneficiaryID"`
-	Amount        decimal.Decimal  `gorm:"type:numeric(15,2)"`
-	Debit         bool             `gorm:"not null"`
-	State         TransactionState `gorm:"not null;default:0"`
-	Timestamp     time.Time        `gorm:"not null"`
-	NotBefore     time.Time        `gorm:"not null"`
-	NotAfter      time.Time        `gorm:"not null"`
-	Identity      string           `gorm:"not null"`
-	VaspID        uint             `gorm:"not null"`
-	Vasp          VASP             `gorm:"foreignKey:VaspID"`
+	TxID          string              `gorm:"not null"`
+	Envelope      string              `gorm:"not null"`
+	AccountID     uint                `gorm:"not null"`
+	Account       Account             `gorm:"foreignKey:AccountID"`
+	OriginatorID  uint                `gorm:"column:originator_id;not null"`
+	Originator    Identity            `gorm:"foreignKey:OriginatorID"`
+	BeneficiaryID uint                `gorm:"column:beneficiary_id;not null"`
+	Beneficiary   Identity            `gorm:"foreignKey:BeneficiaryID"`
+	Amount        decimal.Decimal     `gorm:"type:numeric(15,2)"`
+	Debit         bool                `gorm:"not null"`
+	State         pb.TransactionState `gorm:"not null;default:0"`
+	Timestamp     time.Time           `gorm:"not null"`
+	NotBefore     time.Time           `gorm:"not null"`
+	NotAfter      time.Time           `gorm:"not null"`
+	Identity      string              `gorm:"not null"`
+	VaspID        uint                `gorm:"not null"`
+	Vasp          VASP                `gorm:"foreignKey:VaspID"`
 }
 
 // TableName explicitly defines the name of the table for the model
@@ -361,6 +359,7 @@ func (t Transaction) Proto() *pb.Transaction {
 		Timestamp: t.Timestamp.Format(time.RFC3339),
 		Envelope:  t.Envelope,
 		Identity:  t.Identity,
+		State:     t.State,
 	}
 }
 
