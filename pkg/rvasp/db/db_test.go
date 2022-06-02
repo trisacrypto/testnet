@@ -118,6 +118,21 @@ func (s *dbTestSuite) TestLookupAccount() {
 	require.Equal(id, account.ID)
 }
 
+func (s *dbTestSuite) TestLookupAnyAccount() {
+	require := s.Require()
+	email := "mary@alicevasp.us"
+	id := s.db.GetVASP().ID
+
+	// LookupAnyAccount should not be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "accounts" WHERE (email = $1 OR wallet_address = $2)`)
+	s.mock.ExpectQuery(query).WithArgs(email, email).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var account db.Account
+	tx := s.db.LookupAnyAccount(email).First(&account)
+	require.NoError(tx.Error)
+	require.Equal(id, account.ID)
+}
+
 func (s *dbTestSuite) TestLookupBeneficiary() {
 	require := s.Require()
 	beneficiary := "mary@alicevasp.us"
@@ -129,6 +144,21 @@ func (s *dbTestSuite) TestLookupBeneficiary() {
 
 	var wallet db.Wallet
 	tx := s.db.LookupBeneficiary(beneficiary).First(&wallet)
+	require.NoError(tx.Error)
+	require.Equal(id, wallet.ID)
+}
+
+func (s *dbTestSuite) TestLookupAnyBeneficiary() {
+	require := s.Require()
+	beneficiary := "mary@alicevasp.us"
+	id := s.db.GetVASP().ID
+
+	// LookupAnyBeneficiary lookups should not be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "wallets" WHERE (email = $1 OR address = $2)`)
+	s.mock.ExpectQuery(query).WithArgs(beneficiary, beneficiary).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var wallet db.Wallet
+	tx := s.db.LookupAnyBeneficiary(beneficiary).First(&wallet)
 	require.NoError(tx.Error)
 	require.Equal(id, wallet.ID)
 }
