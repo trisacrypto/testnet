@@ -479,5 +479,162 @@
                 "country_of_residence": "AU"
             }
         }
+    ],
+    [
+        "2jZ5Hm5WGjSUj3nwzyaFSJFkypHgsfaoLC",
+        "spiderman@charlievasp.vg",
+        4,
+        "SendPartial",
+        "SyncRepair",
+        {
+            "natural_person": {
+                "name": {
+                    "name_identifiers": [{
+                        "primary_identifier": "Parker",
+                        "secondary_identifier": "Peter",
+                        "name_identifier_type": 3
+                    }, {
+                        "primary_identifier": "Spiderman",
+                        "secondary_identifier": "",
+                        "name_identifier_type": 0
+                    }]
+                },
+                "geographic_addresses": [{
+                    "address_type": 0,
+                    "street_name": "Ingram Street",
+                    "building_number": "20",
+                    "town_name": "New York City",
+                    "country": "United States"
+                }],
+                "national_identification": {
+                    "national_identifier": "304402330",
+                    "national_identifier_type": 1,
+                    "country_of_issue": "US",
+                    "registration_authority": "RA000405"
+                },
+                "customer_identification": "",
+                "date_and_place_of_birth": {
+                    "date_of_birth": "1990-12-31",
+                    "place_of_birth": "New York City, New York"
+                },
+                "country_of_residence": "US"
+            }
+        }
+    ],
+    [
+        "YDDm1FWL5u6H5LiEPtx33gTageKmp1Ihcq",
+        "batman@charlievasp.vg",
+        4,
+        "SendFull",
+        "SyncRequire",
+        {
+            "natural_person": {
+                "name": {
+                    "name_identifiers": [{
+                        "primary_identifier": "Wayne",
+                        "secondary_identifier": "Bruce",
+                        "name_identifier_type": 4
+                    }, {
+                        "primary_identifier": "Batman",
+                        "secondary_identifier": "",
+                        "name_identifier_type": 1
+                    }]
+                },
+                "geographic_addresses": [{
+                    "address_type": 0,
+                    "street_name": "Mountain Drive",
+                    "building_number": "1007",
+                    "town_name": "Gotham",
+                    "country": "US"
+                }],
+                "national_identification": {
+                    "national_identifier": "529452906",
+                    "national_identifier_type": 1,
+                    "country_of_issue": "US",
+                    "registration_authority": "RA000499"
+                },
+                "customer_identification": "",
+                "date_and_place_of_birth": {
+                    "date_of_birth": "1960-04-20",
+                    "place_of_birth": "Gotham"
+                },
+                "country_of_residence": "US"
+            }
+        }
+    ],
+    [
+        "uHeJaU0U47e9KrVzmtabXkAWZX2TIG8cKP",
+        "superman@charlievasp.vg",
+        4,
+        "SendFull",
+        "SyncRequire",
+        {
+            "natural_person": {
+                "name": {
+                    "name_identifiers": [{
+                        "primary_identifier": "Kent",
+                        "secondary_identifier": "Clark",
+                        "name_identifier_type": 1
+                    }]
+                },
+                "geographic_addresses": [{
+                    "address_type": 0,
+                    "street_name": "Sullivan Place",
+                    "building_number": "1938",
+                    "town_name": "Metropolis",
+                    "country": "United States"
+                }],
+                "national_identification": {
+                    "national_identifier": "201490313",
+                    "national_identifier_type": 1,
+                    "country_of_issue": "US",
+                    "registration_authority": "RA000595"
+                },
+                "customer_identification": "",
+                "date_and_place_of_birth": {
+                    "date_of_birth": "1950-09-21",
+                    "place_of_birth": "Krypton"
+                },
+                "country_of_residence": "US"
+            }
+        }
+    ],
+    [
+        "5gH90ZiQIKH2TjP27ZwfwWKGUphveKZ8ab",
+        "morbius@charlievasp.vg",
+        4,
+        "SendError",
+        "AsyncReject",
+        {
+            "natural_person": {
+                "name": {
+                    "name_identifiers": [{
+                        "primary_identifier": "Morbius",
+                        "secondary_identifier": "Michael",
+                        "name_identifier_type": 1
+                    }]
+                },
+                "geographic_addresses": [{
+                    "address_type": 0,
+                    "street_name": "Vampire Lane",
+                    "building_number": "123",
+                    "town_name": "New York City",
+                    "country_sub_division": "NY",
+                    "country": "US"
+                }],
+                "national_identification": {
+                    "national_identifier": "f5892485",
+                    "national_identifier_type": 1,
+                    "country_of_issue": "GR",
+                    "registration_authority": "RA000696"
+                },
+                "customer_identification": "",
+                "date_and_place_of_birth": {
+                    "date_of_birth": "1986-06-18",
+                    "place_of_birth": "Nafplio, Greece"
+                },
+                "country_of_residence": "US"
+            }
+        }
     ]
 ]
