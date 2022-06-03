@@ -2,11 +2,13 @@ package rvasp
 
 import (
 	"crypto/rsa"
+	"path/filepath"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/trisacrypto/testnet/pkg/rvasp/config"
 	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 	protocol "github.com/trisacrypto/trisa/pkg/trisa/api/v1beta1"
+	"github.com/trisacrypto/trisa/pkg/trisa/mtls"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"github.com/trisacrypto/trisa/pkg/trust"
 	"github.com/trisacrypto/trisa/pkg/trust/mock"
@@ -21,6 +23,9 @@ func NewMock() (s *Server, t *TRISA, peers *peers.Peers, mockDB sqlmock.Sqlmock,
 		return nil, nil, nil, nil, nil, err
 	}
 
+	conf.CertPath = filepath.Join("testdata", "cert.pem")
+	conf.TrustChainPath = filepath.Join("testdata", "cert.pem")
+
 	s = &Server{conf: conf, echan: make(chan error, 1)}
 	if s.db, mockDB, err = db.NewDBMock("alice"); err != nil {
 		return nil, nil, nil, nil, nil, err
@@ -30,6 +35,8 @@ func NewMock() (s *Server, t *TRISA, peers *peers.Peers, mockDB sqlmock.Sqlmock,
 	if s.trisa, err = NewTRISAMock(s); err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
+
+	s.updates = NewUpdateManager()
 
 	return s, s.trisa, s.peers, mockDB, s.trisa.sign, nil
 }
@@ -52,11 +59,29 @@ func NewTRISAMock(parent *Server) (s *TRISA, err error) {
 	parent.peers = peers.NewMock(private, pool, conf.GDS.URL)
 
 	s = &TRISA{parent: parent}
-	if s.sign, err = private.GetRSAKeys(); err != nil {
+
+	var sz *trust.Serializer
+	if sz, err = trust.NewSerializer(false); err != nil {
 		return nil, err
 	}
 
-	s.srv = grpc.NewServer()
+	if s.certs, err = sz.ReadFile(conf.CertPath); err != nil {
+		return nil, err
+	}
+
+	if s.chain, err = sz.ReadPoolFile(conf.TrustChainPath); err != nil {
+		return nil, err
+	}
+
+	if s.sign, err = s.certs.GetRSAKeys(); err != nil {
+		return nil, err
+	}
+
+	var creds grpc.ServerOption
+	if creds, err = mtls.ServerCreds(s.certs, s.chain); err != nil {
+		return nil, err
+	}
+	s.srv = grpc.NewServer(creds)
 	protocol.RegisterTRISANetworkServer(s.srv, s)
 
 	return s, nil

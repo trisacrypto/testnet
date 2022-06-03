@@ -2,9 +2,11 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"regexp"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/trisacrypto/trisa/pkg/ivms101"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -19,9 +21,14 @@ func NewDBMock(vasp string) (d *DB, mock sqlmock.Sqlmock, err error) {
 		return nil, nil, err
 	}
 
+	var person []byte
+	if person, err = json.Marshal(&ivms101.Person{}); err != nil {
+		return nil, nil, err
+	}
+
 	// Fetch mocked VASP info from the "database"
 	query := regexp.QuoteMeta(`SELECT * FROM "vasps" WHERE name = $1`)
-	mock.ExpectQuery(query).WithArgs(vasp).WillReturnRows(mock.NewRows([]string{"id", "name"}).AddRow(42, vasp))
+	mock.ExpectQuery(query).WithArgs(vasp).WillReturnRows(mock.NewRows([]string{"id", "name", "ivms101"}).AddRow(42, vasp, string(person)))
 
 	if err = d.db.Where("name = ?", vasp).First(&d.vasp).Error; err != nil {
 		return nil, nil, err

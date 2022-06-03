@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -18,7 +19,9 @@ import (
 	protocol "github.com/trisacrypto/trisa/pkg/trisa/api/v1beta1"
 	generic "github.com/trisacrypto/trisa/pkg/trisa/data/generic/v1beta1"
 	"github.com/trisacrypto/trisa/pkg/trisa/envelope"
+	"github.com/trisacrypto/trisa/pkg/trisa/mtls"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
+	"github.com/trisacrypto/trisa/pkg/trust"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
@@ -130,8 +133,22 @@ func (s *rVASPTestSuite) TestValidTransfer() {
 		fmt.Printf("unexpected peer transport credentials type: %T", rec.AuthInfo)
 	}
 
+	CertPath := filepath.Join("testdata", "cert.pem")
+	TrustChainPath := filepath.Join("testdata", "cert.pem")
+
+	sz, err := trust.NewSerializer(false)
+	require.NoError(err)
+
+	certs, err := sz.ReadFile(CertPath)
+	require.NoError(err)
+
+	chain, err := sz.ReadPoolFile(TrustChainPath)
+	require.NoError(err)
+
 	// Start the gRPC client.
-	require.NoError(s.grpc.Connect(ctx))
+	creds, err := mtls.ClientCreds("localhost", certs, chain)
+	require.NoError(err)
+	require.NoError(s.grpc.Connect(creds))
 	defer s.grpc.Close()
 	client := protocol.NewTRISANetworkClient(s.grpc.Conn)
 

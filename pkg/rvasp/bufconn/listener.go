@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -25,8 +24,8 @@ func New(bufSize int) *GRPCListener {
 	}
 }
 
-func (g *GRPCListener) Connect(ctx context.Context) (err error) {
-	if g.Conn, err = grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(g.dialer), grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
+func (g *GRPCListener) Connect(creds grpc.DialOption) (err error) {
+	if g.Conn, err = grpc.DialContext(context.Background(), "test-peer", grpc.WithContextDialer(g.dialer), creds); err != nil {
 		return err
 	}
 	return nil
