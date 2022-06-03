@@ -169,6 +169,13 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 	switch tx := msgTx.(type) {
 	case *generic.Transaction:
 		transaction = tx
+
+		// Verify the received_at timestamp if this is an accepted response payload
+		// NOTE: pending messages and intermediate messages will not contain received_at
+		if response && payload.ReceivedAt == "" {
+			log.Warn().Msg("missing received at timestamp")
+			return nil, nil, nil, fmt.Errorf("missing received_at timestamp")
+		}
 	case *generic.Pending:
 		pending = tx
 	default:
