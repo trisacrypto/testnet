@@ -567,7 +567,7 @@
         "superman@charlievasp.vg",
         4,
         "SendFull",
-        "ASyncRepair",
+        "AsyncRepair",
         {
             "natural_person": {
                 "name": {
