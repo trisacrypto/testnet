@@ -25,8 +25,7 @@ func New(bufSize int) *GRPCListener {
 	}
 }
 
-func (g *GRPCListener) Connect() (err error) {
-	ctx := context.Background()
+func (g *GRPCListener) Connect(ctx context.Context) (err error) {
 	if g.Conn, err = grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(g.dialer), grpc.WithTransportCredentials(insecure.NewCredentials())); err != nil {
 		return err
 	}
