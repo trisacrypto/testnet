@@ -97,21 +97,25 @@ func (s *TRISA) Serve() (err error) {
 		return fmt.Errorf("trisa service could not listen on %q", s.parent.conf.TRISABindAddr)
 	}
 
-	go func() {
-		defer sock.Close()
+	go s.AsyncHandler(nil)
 
-		go s.AsyncHandler(nil)
+	go s.Run(sock)
 
-		log.Info().
-			Str("listen", s.parent.conf.TRISABindAddr).
-			Msg("trisa server started")
-
-		if err := s.srv.Serve(sock); err != nil {
-			s.parent.echan <- err
-		}
-	}()
+	log.Info().
+		Str("listen", s.parent.conf.TRISABindAddr).
+		Msg("trisa server started")
 
 	return nil
+}
+
+// Run the gRPC server. This method is extracted from the Serve function so that it can
+// be run in its own go routine and to allow tests to Run a bufconn server without
+// starting a live server with all of the various go routines and channels running.
+func (s *TRISA) Run(sock net.Listener) {
+	defer sock.Close()
+	if err := s.srv.Serve(sock); err != nil {
+		s.parent.echan <- err
+	}
 }
 
 // Shutdown the TRISA server gracefully
