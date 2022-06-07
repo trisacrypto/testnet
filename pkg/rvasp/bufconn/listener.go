@@ -25,7 +25,7 @@ func New(bufSize int) *GRPCListener {
 }
 
 func (g *GRPCListener) Connect(creds grpc.DialOption) (err error) {
-	if g.Conn, err = grpc.DialContext(context.Background(), "test-peer", grpc.WithContextDialer(g.dialer), creds); err != nil {
+	if g.Conn, err = grpc.DialContext(context.Background(), "alice", grpc.WithContextDialer(g.dialer), creds); err != nil {
 		return err
 	}
 	return nil

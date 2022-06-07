@@ -159,6 +159,12 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 		return nil, nil, nil, fmt.Errorf("could non unmarshal identity: %s", err)
 	}
 
+	// Validate identity fields
+	if identity.Originator == nil || identity.OriginatingVasp == nil || identity.BeneficiaryVasp == nil || identity.Beneficiary == nil {
+		log.Warn().Msg("incomplete identity payload")
+		return nil, nil, nil, fmt.Errorf("incomplete identity payload")
+	}
+
 	// Parse the transaction message type
 	var msgTx proto.Message
 	if msgTx, err = payload.Transaction.UnmarshalNew(); err != nil {

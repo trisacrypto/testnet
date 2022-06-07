@@ -1,9 +1,6 @@
 package rvasp
 
 import (
-	"crypto/rsa"
-	"path/filepath"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/trisacrypto/testnet/pkg/rvasp/config"
 	"github.com/trisacrypto/testnet/pkg/rvasp/db"
@@ -11,78 +8,72 @@ import (
 	"github.com/trisacrypto/trisa/pkg/trisa/mtls"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"github.com/trisacrypto/trisa/pkg/trust"
-	"github.com/trisacrypto/trisa/pkg/trust/mock"
 	"google.golang.org/grpc"
-	"software.sslmate.com/src/go-pkcs12"
 )
 
-// NewMock returns a mock rVASP server that can be used for testing.
-func NewMock() (s *Server, t *TRISA, peers *peers.Peers, mockDB sqlmock.Sqlmock, key *rsa.PrivateKey, err error) {
-	var conf *config.Config
-	if conf, err = config.New(); err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-
-	conf.CertPath = filepath.Join("testdata", "cert.pem")
-	conf.TrustChainPath = filepath.Join("testdata", "cert.pem")
-
-	s = &Server{conf: conf, echan: make(chan error, 1)}
-	if s.db, mockDB, err = db.NewDBMock("alice"); err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	s.vasp = s.db.GetVASP()
-
-	if s.trisa, err = NewTRISAMock(s); err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-
-	s.updates = NewUpdateManager()
-
-	return s, s.trisa, s.peers, mockDB, s.trisa.sign, nil
-}
-
 // NewTRISAMock returns a mock TRISA server that can be used for testing.
-func NewTRISAMock(parent *Server) (s *TRISA, err error) {
-	conf := parent.conf
-
-	var pfxData []byte
-	if pfxData, err = mock.Chain(); err != nil {
-		return nil, err
+func NewTRISAMock(conf *config.Config) (s *TRISA, remotePeers *peers.Peers, mockDB sqlmock.Sqlmock, certs *trust.Provider, chain trust.ProviderPool, err error) {
+	// Create the parent server
+	var parent *Server
+	if parent, mockDB, err = NewServerMock(conf); err != nil {
+		return nil, nil, nil, nil, nil, err
 	}
 
-	var private *trust.Provider
-	if private, err = trust.Decrypt(pfxData, pkcs12.DefaultPassword); err != nil {
-		return nil, err
-	}
-
-	pool := trust.NewPool(private)
-	parent.peers = peers.NewMock(private, pool, conf.GDS.URL)
-
+	// Create the mock TRISA server from the parent server
 	s = &TRISA{parent: parent}
 
-	var sz *trust.Serializer
-	if sz, err = trust.NewSerializer(false); err != nil {
-		return nil, err
-	}
-
-	if s.certs, err = sz.ReadFile(conf.CertPath); err != nil {
-		return nil, err
-	}
-
-	if s.chain, err = sz.ReadPoolFile(conf.TrustChainPath); err != nil {
-		return nil, err
+	if s.certs, s.chain, err = loadCerts(conf); err != nil {
+		return nil, nil, nil, nil, nil, err
 	}
 
 	if s.sign, err = s.certs.GetRSAKeys(); err != nil {
-		return nil, err
+		return nil, nil, nil, nil, nil, err
 	}
+
+	// Create a mock remote peer cache
+	remotePeers = peers.NewMock(s.certs, s.chain, conf.GDS.URL)
+	remotePeers.Add(&peers.PeerInfo{
+		CommonName: "alice",
+		SigningKey: &s.sign.PublicKey,
+	})
+	parent.peers = remotePeers
 
 	var creds grpc.ServerOption
 	if creds, err = mtls.ServerCreds(s.certs, s.chain); err != nil {
-		return nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	s.srv = grpc.NewServer(creds)
 	protocol.RegisterTRISANetworkServer(s.srv, s)
 
-	return s, nil
+	return s, remotePeers, mockDB, s.certs, s.chain, nil
+}
+
+// NewServerMock returns a mock rVASP server that can be used for testing.
+func NewServerMock(conf *config.Config) (s *Server, mockDB sqlmock.Sqlmock, err error) {
+	s = &Server{conf: conf, echan: make(chan error, 1)}
+	if s.db, mockDB, err = db.NewDBMock("alice"); err != nil {
+		return nil, nil, err
+	}
+	s.vasp = s.db.GetVASP()
+	s.updates = NewUpdateManager()
+	return s, mockDB, nil
+}
+
+// Load certificates from the configuration
+func loadCerts(conf *config.Config) (certs *trust.Provider, chain trust.ProviderPool, err error) {
+	// Load the certificate from disk
+	var sz *trust.Serializer
+	if sz, err = trust.NewSerializer(false); err != nil {
+		return nil, nil, err
+	}
+
+	if certs, err = sz.ReadFile(conf.CertPath); err != nil {
+		return nil, nil, err
+	}
+
+	if chain, err = sz.ReadPoolFile(conf.TrustChainPath); err != nil {
+		return nil, nil, err
+	}
+
+	return certs, chain, nil
 }
