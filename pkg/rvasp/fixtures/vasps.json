@@ -97,5 +97,41 @@
             },
             "country_of_registration": "GG"
         }
+    },
+    {
+        "common_name": "api.charlie.vaspbot.net",
+        "legal_person": {
+            "country_of_registration": "VG",
+            "geographic_addresses": [
+                {
+                    "address_line": [
+                        "127 Blackburn Highway",
+                        "",
+                        "VG1110, East End"
+                    ],
+                    "address_type": "ADDRESS_TYPE_CODE_BIZZ",
+                    "country": "VG"
+                }],
+            "name": {
+                "local_name_identifiers": [],
+                "name_identifiers": [
+                    {
+                        "legal_person_name": "Charlie Crypto Exchange PTE, LTD","legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"
+                    },
+                    {
+                        "legal_person_name":"CharlieVASP","legal_person_name_identifier_type":"LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+                    },
+                    {
+                        "legal_person_name":"CCEx","legal_person_name_identifier_type":"LEGAL_PERSON_NAME_TYPE_CODE_MISC"
+                    }
+                ],
+                "phonetic_name_identifiers": []
+            },
+            "national_identification": {
+                "country_of_issue": "",
+                "national_identifier": "564573110",
+                "national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_TXID","registration_authority":"RA777777"
+            }
+        }
     }
 ]

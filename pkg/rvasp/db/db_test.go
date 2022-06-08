@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/trisacrypto/testnet/pkg/rvasp/db"
+	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 )
 
 const (
@@ -117,6 +118,21 @@ func (s *dbTestSuite) TestLookupAccount() {
 	require.Equal(id, account.ID)
 }
 
+func (s *dbTestSuite) TestLookupAnyAccount() {
+	require := s.Require()
+	email := "mary@alicevasp.us"
+	id := s.db.GetVASP().ID
+
+	// LookupAnyAccount should not be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "accounts" WHERE (email = $1 OR wallet_address = $2)`)
+	s.mock.ExpectQuery(query).WithArgs(email, email).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var account db.Account
+	tx := s.db.LookupAnyAccount(email).First(&account)
+	require.NoError(tx.Error)
+	require.Equal(id, account.ID)
+}
+
 func (s *dbTestSuite) TestLookupBeneficiary() {
 	require := s.Require()
 	beneficiary := "mary@alicevasp.us"
@@ -128,6 +144,21 @@ func (s *dbTestSuite) TestLookupBeneficiary() {
 
 	var wallet db.Wallet
 	tx := s.db.LookupBeneficiary(beneficiary).First(&wallet)
+	require.NoError(tx.Error)
+	require.Equal(id, wallet.ID)
+}
+
+func (s *dbTestSuite) TestLookupAnyBeneficiary() {
+	require := s.Require()
+	beneficiary := "mary@alicevasp.us"
+	id := s.db.GetVASP().ID
+
+	// LookupAnyBeneficiary lookups should not be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "wallets" WHERE (email = $1 OR address = $2)`)
+	s.mock.ExpectQuery(query).WithArgs(beneficiary, beneficiary).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var wallet db.Wallet
+	tx := s.db.LookupAnyBeneficiary(beneficiary).First(&wallet)
 	require.NoError(tx.Error)
 	require.Equal(id, wallet.ID)
 }
@@ -145,6 +176,20 @@ func (s *dbTestSuite) TestLookupIdentity() {
 	tx := s.db.LookupIdentity(address).First(&identity)
 	require.NoError(tx.Error)
 	require.Equal(id, identity.ID)
+}
+
+func (s *dbTestSuite) TestLookupPending() {
+	require := s.Require()
+	id := s.db.GetVASP().ID
+
+	// Transaction lookups should be limited to the configured VASP
+	query := regexp.QuoteMeta(`SELECT * FROM "transactions" WHERE vasp_id = $1 AND state in ($2, $3)`)
+	s.mock.ExpectQuery(query).WithArgs(id, pb.TransactionState_PENDING_SENT, pb.TransactionState_PENDING_ACKNOWLEDGED).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+
+	var transaction db.Transaction
+	tx := s.db.LookupPending().First(&transaction)
+	require.NoError(tx.Error)
+	require.Equal(id, transaction.ID)
 }
 
 func (s *dbTestSuite) TestLookupWallet() {

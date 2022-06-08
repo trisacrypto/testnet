@@ -12,13 +12,13 @@ func TestLoadVASPs(t *testing.T) {
 	vasps, err := LoadVASPs(FIXTURES_PATH)
 	require.NoError(t, err)
 
-	require.Equal(t, 3, len(vasps))
+	require.Equal(t, 4, len(vasps))
 }
 
 func TestLoadWallets(t *testing.T) {
 	wallets, accounts, err := LoadWallets(FIXTURES_PATH)
 	require.NoError(t, err)
 
-	require.Equal(t, 12, len(wallets))
-	require.Equal(t, 12, len(accounts))
+	require.Equal(t, 16, len(wallets))
+	require.Equal(t, 16, len(accounts))
 }

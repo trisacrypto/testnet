@@ -64,7 +64,11 @@ services:
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
       - RVASP_GDS_URL=gds:4433
+      - RVASP_GDS_INSECURE=true
       - RVASP_DATABASE_MAX_RETRIES=5
+      - RVASP_ASYNC_INTERVAL
+      - RVASP_ASYNC_NOT_BEFORE
+      - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/alice:/certs
 
@@ -82,7 +86,11 @@ services:
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
       - RVASP_GDS_URL=gds:4433
+      - RVASP_GDS_INSECURE=true
       - RVASP_DATABASE_MAX_RETRIES=5
+      - RVASP_ASYNC_INTERVAL
+      - RVASP_ASYNC_NOT_BEFORE
+      - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/bob:/certs
 
@@ -100,6 +108,32 @@ services:
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
       - RVASP_GDS_URL=gds:4433
+      - RVASP_GDS_INSECURE=true
       - RVASP_DATABASE_MAX_RETRIES=5
+      - RVASP_ASYNC_INTERVAL
+      - RVASP_ASYNC_NOT_BEFORE
+      - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/evil:/certs
+
+  charlie:
+    image: trisa/rvasp:latest
+    depends_on:
+      - migrate
+      - gds
+    ports:
+      - 8434:4434
+      - 8435:4435
+    environment:
+      - RVASP_NAME=api.charlie.vaspbot.net
+      - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
+      - RVASP_CERT_PATH=/certs/cert.pem
+      - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
+      - RVASP_GDS_URL=gds:4433
+      - RVASP_GDS_INSECURE=true
+      - RVASP_DATABASE_MAX_RETRIES=5
+      - RVASP_ASYNC_INTERVAL
+      - RVASP_ASYNC_NOT_BEFORE
+      - RVASP_ASYNC_NOT_AFTER
+    volumes:
+      - ../fixtures/certs/charlie:/certs
