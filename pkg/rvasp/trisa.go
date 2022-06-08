@@ -628,7 +628,7 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 		return fmt.Errorf("TRISA protocol error: %s", err)
 	}
 
-	if identity, transaction, _, err = parsePayload(payload, true); err != nil {
+	if _, transaction, _, err = parsePayload(payload, true); err != nil {
 		log.Error().Err(err).Msg("TRISA protocol error while parsing payload")
 		return fmt.Errorf("TRISA protocol error while parsing payload: %s", err)
 	}
