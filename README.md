@@ -26,10 +26,10 @@ This repository consists of a monorepo that is designed to facilitate all TRISA 
 
 ## Generate Protocol Buffers
 
-To regenerate the Go and Javascript code from the protocol buffers:
+To regenerate the Go and Python code from the protocol buffers:
 
 ```
 $ go generate ./...
 ```
 
-The go generate directives are stored in `pb/pb.go`. The directives create grpc Go in the `pb` package as well as grpc-web in the `web/src/pb` directory.
+The go generate directives are stored in `pkg/rvasp/pb/v1/pb.go`. The directives create grpc Go in the `pb` package and grpc Python in the `rvaspy` module.

@@ -12,11 +12,17 @@ To regenerate the Go and Python code from the protocol buffers:
 $ go generate ./...
 ```
 
-This will generate the Go code in `pb/` and the Python code in `pb/rvaspy`. Alternatively you can manually generate the code to specify different directories using the following commands:
+This will generate the Go code in `pkg/rvasp/pb/v1` and the Python code in `lib/python/rvaspy/rvaspy`. Alternatively you can manually generate the code to specify different directories using the following commands:
 
 ```
 $ protoc -I . --go_out=plugins=grpc:. api.proto
 $ python -m grpc_tools.protoc -I . --python_out=./rvaspy --grpc_python_out=./rvaspy api.proto
+```
+
+Note: After generating the Python protocol buffers you must edit the import line in `lib/python/rvaspy/rvaspy/api_pb2_grpc.py` to the following in order to correctly use the library.
+
+```
+import rvaspy.api_pb2 as api__pb2
 ```
 
 ## Quick Start

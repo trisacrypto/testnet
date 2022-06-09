@@ -5,7 +5,7 @@ import (
 )
 
 //go:generate protoc -I=../../../../proto --go_out=. --go_opt=module=github.com/trisacrypto/testnet/pkg/rvasp/pb/v1 --go-grpc_out=. --go-grpc_opt=module=github.com/trisacrypto/testnet/pkg/rvasp/pb/v1 rvasp/v1/api.proto
-//go:generate python -m grpc_tools.protoc -I=../../../../proto/rvasp/v1 --python_out=../../../../lib/python/rvaspy/rvaspy --grpc_python_out=../../../../lib/python/rvaspy/rvaspy api.proto
+//go:generate python3 -m grpc_tools.protoc -I=../../../../proto/rvasp/v1 --python_out=../../../../lib/python/rvaspy/rvaspy --grpc_python_out=../../../../lib/python/rvaspy/rvaspy api.proto
 
 // Error codes for quick reference and lookups
 const (

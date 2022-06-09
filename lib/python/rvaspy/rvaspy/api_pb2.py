@@ -20,9 +20,65 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=b'Z2github.com/trisacrypto/testnet/pkg/rvasp/pb/v1;api',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\tapi.proto\x12\x08rvasp.v1\"&\n\x05\x45rror\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x0f\n\x07message\x18\x02 \x01(\t\"B\n\x07\x41\x63\x63ount\x12\x16\n\x0ewallet_address\x18\x01 \x01(\t\x12\r\n\x05\x65mail\x18\x02 \x01(\t\x12\x10\n\x08provider\x18\x03 \x01(\t\"\xa3\x01\n\x0bTransaction\x12%\n\noriginator\x18\x01 \x01(\x0b\x32\x11.rvasp.v1.Account\x12&\n\x0b\x62\x65neficiary\x18\x02 \x01(\x0b\x32\x11.rvasp.v1.Account\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x02\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12\x10\n\x08\x65nvelope\x18\x05 \x01(\t\x12\x10\n\x08identity\x18\x06 \x01(\t\"\xad\x01\n\x0fTransferRequest\x12\x0f\n\x07\x61\x63\x63ount\x18\x01 \x01(\t\x12\x13\n\x0b\x62\x65neficiary\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x02\x12\x18\n\x10originating_vasp\x18\x04 \x01(\t\x12\x18\n\x10\x62\x65neficiary_vasp\x18\x05 \x01(\t\x12\x19\n\x11\x63heck_beneficiary\x18\x06 \x01(\x08\x12\x15\n\rexternal_demo\x18\x07 \x01(\x08\"[\n\rTransferReply\x12\x1e\n\x05\x65rror\x18\x01 \x01(\x0b\x32\x0f.rvasp.v1.Error\x12*\n\x0btransaction\x18\x02 \x01(\x0b\x32\x15.rvasp.v1.Transaction\"Z\n\x0e\x41\x63\x63ountRequest\x12\x0f\n\x07\x61\x63\x63ount\x18\x01 \x01(\t\x12\x17\n\x0fno_transactions\x18\x02 \x01(\x08\x12\x0c\n\x04page\x18\x03 \x01(\r\x12\x10\n\x08per_page\x18\x04 \x01(\r\"\xc5\x01\n\x0c\x41\x63\x63ountReply\x12\x1e\n\x05\x65rror\x18\x01 \x01(\x0b\x32\x0f.rvasp.v1.Error\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\x16\n\x0ewallet_address\x18\x04 \x01(\t\x12\x0f\n\x07\x62\x61lance\x18\x05 \x01(\x02\x12\x11\n\tcompleted\x18\x06 \x01(\x04\x12\x0f\n\x07pending\x18\x07 \x01(\x04\x12+\n\x0ctransactions\x18\x08 \x03(\x0b\x32\x15.rvasp.v1.Transaction\"\xa9\x01\n\x07\x43ommand\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.rvasp.v1.RPC\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0e\n\x06\x63lient\x18\x03 \x01(\t\x12-\n\x08transfer\x18\x0b \x01(\x0b\x32\x19.rvasp.v1.TransferRequestH\x00\x12+\n\x07\x61\x63\x63ount\x18\x0c \x01(\x0b\x32\x18.rvasp.v1.AccountRequestH\x00\x42\t\n\x07request\"\xe3\x01\n\x07Message\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.rvasp.v1.RPC\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0e\n\x06update\x18\x03 \x01(\t\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12+\n\x08\x63\x61tegory\x18\x05 \x01(\x0e\x32\x19.rvasp.v1.MessageCategory\x12+\n\x08transfer\x18\x0b \x01(\x0b\x32\x17.rvasp.v1.TransferReplyH\x00\x12)\n\x07\x61\x63\x63ount\x18\x0c \x01(\x0b\x32\x16.rvasp.v1.AccountReplyH\x00\x42\x07\n\x05reply*+\n\x03RPC\x12\t\n\x05NORPC\x10\x00\x12\x0c\n\x08TRANSFER\x10\x01\x12\x0b\n\x07\x41\x43\x43OUNT\x10\x02*S\n\x0fMessageCategory\x12\n\n\x06LEDGER\x10\x00\x12\x0b\n\x07TRISADS\x10\x01\x12\x0c\n\x08TRISAP2P\x10\x02\x12\x0e\n\nBLOCKCHAIN\x10\x03\x12\t\n\x05\x45RROR\x10\x04\x32\x44\n\tTRISADemo\x12\x37\n\x0bLiveUpdates\x12\x11.rvasp.v1.Command\x1a\x11.rvasp.v1.Message(\x01\x30\x01\x32\x95\x01\n\x10TRISAIntegration\x12>\n\x08Transfer\x12\x19.rvasp.v1.TransferRequest\x1a\x17.rvasp.v1.TransferReply\x12\x41\n\rAccountStatus\x12\x18.rvasp.v1.AccountRequest\x1a\x16.rvasp.v1.AccountReplyB4Z2github.com/trisacrypto/testnet/pkg/rvasp/pb/v1;apib\x06proto3'
+  serialized_pb=b'\n\tapi.proto\x12\x08rvasp.v1\"&\n\x05\x45rror\x12\x0c\n\x04\x63ode\x18\x01 \x01(\x05\x12\x0f\n\x07message\x18\x02 \x01(\t\"B\n\x07\x41\x63\x63ount\x12\x16\n\x0ewallet_address\x18\x01 \x01(\t\x12\r\n\x05\x65mail\x18\x02 \x01(\t\x12\x10\n\x08provider\x18\x03 \x01(\t\"\xce\x01\n\x0bTransaction\x12%\n\noriginator\x18\x01 \x01(\x0b\x32\x11.rvasp.v1.Account\x12&\n\x0b\x62\x65neficiary\x18\x02 \x01(\x0b\x32\x11.rvasp.v1.Account\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x02\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12\x10\n\x08\x65nvelope\x18\x05 \x01(\t\x12\x10\n\x08identity\x18\x06 \x01(\t\x12)\n\x05state\x18\x07 \x01(\x0e\x32\x1a.rvasp.v1.TransactionState\"\xad\x01\n\x0fTransferRequest\x12\x0f\n\x07\x61\x63\x63ount\x18\x01 \x01(\t\x12\x13\n\x0b\x62\x65neficiary\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x02\x12\x18\n\x10originating_vasp\x18\x04 \x01(\t\x12\x18\n\x10\x62\x65neficiary_vasp\x18\x05 \x01(\t\x12\x19\n\x11\x63heck_beneficiary\x18\x06 \x01(\x08\x12\x15\n\rexternal_demo\x18\x07 \x01(\x08\"[\n\rTransferReply\x12\x1e\n\x05\x65rror\x18\x01 \x01(\x0b\x32\x0f.rvasp.v1.Error\x12*\n\x0btransaction\x18\x02 \x01(\x0b\x32\x15.rvasp.v1.Transaction\"Z\n\x0e\x41\x63\x63ountRequest\x12\x0f\n\x07\x61\x63\x63ount\x18\x01 \x01(\t\x12\x17\n\x0fno_transactions\x18\x02 \x01(\x08\x12\x0c\n\x04page\x18\x03 \x01(\r\x12\x10\n\x08per_page\x18\x04 \x01(\r\"\xc5\x01\n\x0c\x41\x63\x63ountReply\x12\x1e\n\x05\x65rror\x18\x01 \x01(\x0b\x32\x0f.rvasp.v1.Error\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\x16\n\x0ewallet_address\x18\x04 \x01(\t\x12\x0f\n\x07\x62\x61lance\x18\x05 \x01(\x02\x12\x11\n\tcompleted\x18\x06 \x01(\x04\x12\x0f\n\x07pending\x18\x07 \x01(\x04\x12+\n\x0ctransactions\x18\x08 \x03(\x0b\x32\x15.rvasp.v1.Transaction\"\xa9\x01\n\x07\x43ommand\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.rvasp.v1.RPC\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0e\n\x06\x63lient\x18\x03 \x01(\t\x12-\n\x08transfer\x18\x0b \x01(\x0b\x32\x19.rvasp.v1.TransferRequestH\x00\x12+\n\x07\x61\x63\x63ount\x18\x0c \x01(\x0b\x32\x18.rvasp.v1.AccountRequestH\x00\x42\t\n\x07request\"\xe3\x01\n\x07Message\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.rvasp.v1.RPC\x12\n\n\x02id\x18\x02 \x01(\x04\x12\x0e\n\x06update\x18\x03 \x01(\t\x12\x11\n\ttimestamp\x18\x04 \x01(\t\x12+\n\x08\x63\x61tegory\x18\x05 \x01(\x0e\x32\x19.rvasp.v1.MessageCategory\x12+\n\x08transfer\x18\x0b \x01(\x0b\x32\x17.rvasp.v1.TransferReplyH\x00\x12)\n\x07\x61\x63\x63ount\x18\x0c \x01(\x0b\x32\x16.rvasp.v1.AccountReplyH\x00\x42\x07\n\x05reply*\x8f\x01\n\x10TransactionState\x12\x0b\n\x07INVALID\x10\x00\x12\x0c\n\x08\x41WAITING\x10\x01\x12\x10\n\x0cPENDING_SENT\x10\x02\x12\x18\n\x14PENDING_ACKNOWLEDGED\x10\x03\x12\x0c\n\x08\x41\x43\x43\x45PTED\x10\x04\x12\n\n\x06\x46\x41ILED\x10\x05\x12\x0b\n\x07\x45XPIRED\x10\x06\x12\r\n\tCOMPLETED\x10\x07*+\n\x03RPC\x12\t\n\x05NORPC\x10\x00\x12\x0c\n\x08TRANSFER\x10\x01\x12\x0b\n\x07\x41\x43\x43OUNT\x10\x02*S\n\x0fMessageCategory\x12\n\n\x06LEDGER\x10\x00\x12\x0b\n\x07TRISADS\x10\x01\x12\x0c\n\x08TRISAP2P\x10\x02\x12\x0e\n\nBLOCKCHAIN\x10\x03\x12\t\n\x05\x45RROR\x10\x04\x32\x44\n\tTRISADemo\x12\x37\n\x0bLiveUpdates\x12\x11.rvasp.v1.Command\x1a\x11.rvasp.v1.Message(\x01\x30\x01\x32\x95\x01\n\x10TRISAIntegration\x12>\n\x08Transfer\x12\x19.rvasp.v1.TransferRequest\x1a\x17.rvasp.v1.TransferReply\x12\x41\n\rAccountStatus\x12\x18.rvasp.v1.AccountRequest\x1a\x16.rvasp.v1.AccountReplyB4Z2github.com/trisacrypto/testnet/pkg/rvasp/pb/v1;apib\x06proto3'
 )
 
+_TRANSACTIONSTATE = _descriptor.EnumDescriptor(
+  name='TransactionState',
+  full_name='rvasp.v1.TransactionState',
+  filename=None,
+  file=DESCRIPTOR,
+  create_key=_descriptor._internal_create_key,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='INVALID', index=0, number=0,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='AWAITING', index=1, number=1,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='PENDING_SENT', index=2, number=2,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='PENDING_ACKNOWLEDGED', index=3, number=3,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='ACCEPTED', index=4, number=4,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='FAILED', index=5, number=5,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='EXPIRED', index=6, number=6,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='COMPLETED', index=7, number=7,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=1304,
+  serialized_end=1447,
+)
+_sym_db.RegisterEnumDescriptor(_TRANSACTIONSTATE)
+
+TransactionState = enum_type_wrapper.EnumTypeWrapper(_TRANSACTIONSTATE)
 _RPC = _descriptor.EnumDescriptor(
   name='RPC',
   full_name='rvasp.v1.RPC',
@@ -48,8 +104,8 @@ _RPC = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1260,
-  serialized_end=1303,
+  serialized_start=1449,
+  serialized_end=1492,
 )
 _sym_db.RegisterEnumDescriptor(_RPC)
 
@@ -89,12 +145,20 @@ _MESSAGECATEGORY = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1305,
-  serialized_end=1388,
+  serialized_start=1494,
+  serialized_end=1577,
 )
 _sym_db.RegisterEnumDescriptor(_MESSAGECATEGORY)
 
 MessageCategory = enum_type_wrapper.EnumTypeWrapper(_MESSAGECATEGORY)
+INVALID = 0
+AWAITING = 1
+PENDING_SENT = 2
+PENDING_ACKNOWLEDGED = 3
+ACCEPTED = 4
+FAILED = 5
+EXPIRED = 6
+COMPLETED = 7
 NORPC = 0
 TRANSFER = 1
 ACCOUNT = 2
@@ -241,6 +305,13 @@ _TRANSACTION = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='state', full_name='rvasp.v1.Transaction.state', index=6,
+      number=7, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -254,7 +325,7 @@ _TRANSACTION = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=132,
-  serialized_end=295,
+  serialized_end=338,
 )
 
 
@@ -327,8 +398,8 @@ _TRANSFERREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=298,
-  serialized_end=471,
+  serialized_start=341,
+  serialized_end=514,
 )
 
 
@@ -366,8 +437,8 @@ _TRANSFERREPLY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=473,
-  serialized_end=564,
+  serialized_start=516,
+  serialized_end=607,
 )
 
 
@@ -419,8 +490,8 @@ _ACCOUNTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=566,
-  serialized_end=656,
+  serialized_start=609,
+  serialized_end=699,
 )
 
 
@@ -500,8 +571,8 @@ _ACCOUNTREPLY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=659,
-  serialized_end=856,
+  serialized_start=702,
+  serialized_end=899,
 )
 
 
@@ -565,8 +636,8 @@ _COMMAND = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=859,
-  serialized_end=1028,
+  serialized_start=902,
+  serialized_end=1071,
 )
 
 
@@ -644,12 +715,13 @@ _MESSAGE = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=1031,
-  serialized_end=1258,
+  serialized_start=1074,
+  serialized_end=1301,
 )
 
 _TRANSACTION.fields_by_name['originator'].message_type = _ACCOUNT
 _TRANSACTION.fields_by_name['beneficiary'].message_type = _ACCOUNT
+_TRANSACTION.fields_by_name['state'].enum_type = _TRANSACTIONSTATE
 _TRANSFERREPLY.fields_by_name['error'].message_type = _ERROR
 _TRANSFERREPLY.fields_by_name['transaction'].message_type = _TRANSACTION
 _ACCOUNTREPLY.fields_by_name['error'].message_type = _ERROR
@@ -682,6 +754,7 @@ DESCRIPTOR.message_types_by_name['AccountRequest'] = _ACCOUNTREQUEST
 DESCRIPTOR.message_types_by_name['AccountReply'] = _ACCOUNTREPLY
 DESCRIPTOR.message_types_by_name['Command'] = _COMMAND
 DESCRIPTOR.message_types_by_name['Message'] = _MESSAGE
+DESCRIPTOR.enum_types_by_name['TransactionState'] = _TRANSACTIONSTATE
 DESCRIPTOR.enum_types_by_name['RPC'] = _RPC
 DESCRIPTOR.enum_types_by_name['MessageCategory'] = _MESSAGECATEGORY
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -759,8 +832,8 @@ _TRISADEMO = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1390,
-  serialized_end=1458,
+  serialized_start=1579,
+  serialized_end=1647,
   methods=[
   _descriptor.MethodDescriptor(
     name='LiveUpdates',
@@ -785,8 +858,8 @@ _TRISAINTEGRATION = _descriptor.ServiceDescriptor(
   index=1,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1461,
-  serialized_end=1610,
+  serialized_start=1650,
+  serialized_end=1799,
   methods=[
   _descriptor.MethodDescriptor(
     name='Transfer',

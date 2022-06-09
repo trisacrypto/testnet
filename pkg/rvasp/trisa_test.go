@@ -18,7 +18,6 @@ import (
 	"github.com/trisacrypto/trisa/pkg/trisa/mtls"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"github.com/trisacrypto/trisa/pkg/trust"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -36,7 +35,6 @@ type rVASPTestSuite struct {
 	certs *trust.Provider
 	chain trust.ProviderPool
 	peers *peers.Peers
-	creds grpc.DialOption
 	conf  *config.Config
 }
 
@@ -108,6 +106,7 @@ func (s *rVASPTestSuite) TestValidTransfer() {
 		Beneficiary: beneficiaryAddress,
 	}
 	payload.Transaction, err = anypb.New(transaction)
+	require.NoError(err)
 
 	// Preload the beneficiary address and policy fetches
 	s.db.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"wallet_address"}).AddRow(beneficiaryAddress))
@@ -208,6 +207,7 @@ func (s *rVASPTestSuite) TestInvalidTransfer() {
 		Beneficiary: beneficiaryAddress,
 	}
 	payload.Transaction, err = anypb.New(transaction)
+	require.NoError(err)
 
 	// Preload the beneficiary address and policy fetches
 	s.db.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"wallet_address"}).AddRow(beneficiaryAddress))

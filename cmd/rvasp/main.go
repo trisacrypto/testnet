@@ -15,6 +15,7 @@ import (
 	pb "github.com/trisacrypto/testnet/pkg/rvasp/pb/v1"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -456,7 +457,7 @@ func stream(c *cli.Context) (err error) {
 // helper function to create the GRPC client with default options
 func makeClient(c *cli.Context) (_ pb.TRISAIntegrationClient, err error) {
 	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithInsecure())
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	var cc *grpc.ClientConn
 	if cc, err = grpc.Dial(c.String("endpoint"), opts...); err != nil {
@@ -467,7 +468,7 @@ func makeClient(c *cli.Context) (_ pb.TRISAIntegrationClient, err error) {
 
 func makeDemoClient(c *cli.Context) (_ pb.TRISADemoClient, err error) {
 	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithInsecure())
+	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	var cc *grpc.ClientConn
 	if cc, err = grpc.Dial(c.String("endpoint"), opts...); err != nil {
