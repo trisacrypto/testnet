@@ -12,7 +12,7 @@ gevent-websocket==0.10.1
 greenlet==0.4.16
 gunicorn==20.0.4
 itsdangerous==1.1.0
-Jinja2==2.11.2
+Jinja2==2.11.3
 jsons==1.2.0
 MarkupSafe==1.1.1
 marshmallow==3.8.0
