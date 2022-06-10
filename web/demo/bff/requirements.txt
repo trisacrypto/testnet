@@ -2,7 +2,7 @@ aniso8601==8.0.0
 click==7.1.2
 dataclasses-json==0.5.2
 dnspython==1.16.0
-eventlet==0.27.0
+eventlet==0.31.0
 Flask==1.1.2
 Flask-Cors==3.0.9
 Flask-RESTful==0.3.8
