@@ -137,3 +137,33 @@ services:
       - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/charlie:/certs
+
+  vaspdirectory:
+    build:
+      context: ../
+      dockerfile: ./containers/placeholder/trisads/Dockerfile
+    image: trisa/placeholder:trisads
+    ports:
+      - 8080:80
+    profiles:
+      - placeholder
+
+  vaspbot:
+    build:
+      context: ../
+      dockerfile: ./containers/placeholder/vaspbot/Dockerfile
+    image: trisa/placeholder:vaspbot
+    ports:
+      - 8081:80
+    profiles:
+      - placeholder
+
+  trisatest:
+    build:
+      context: ../
+      dockerfile: ./containers/placeholder/landing/Dockerfile
+    image: trisa/placeholder:landing
+    ports:
+      - 8082:80
+    profiles:
+      - placeholder
