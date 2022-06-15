@@ -634,6 +634,15 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 		return fmt.Errorf("TRISA protocol error while parsing payload: %s", err)
 	}
 
+	if transaction == nil {
+		// We expected an echo from the counterparty to conclude an async but got back
+		// a pending or other type of correctly parsed response.
+		log.Warn().
+			Str("transaction_type", payload.Transaction.TypeUrl).
+			Msg("unexpected transaction reply to async completion")
+		return fmt.Errorf("received %q payload expected a generic Transaction echo", payload.Transaction.TypeUrl)
+	}
+
 	switch tx.State {
 	case pb.TransactionState_PENDING_SENT:
 		// The first handshake is complete so move the transaction to the next state
