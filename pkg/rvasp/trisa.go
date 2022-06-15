@@ -88,7 +88,8 @@ func (s *TRISA) Serve() (err error) {
 		return err
 	}
 
-	s.srv = grpc.NewServer(creds)
+	// Create a new gRPC server with panic recovery and tracing middleware
+	s.srv = grpc.NewServer(creds, grpc.UnaryInterceptor(UnaryTraceInterceptor), grpc.StreamInterceptor(StreamTraceInterceptor))
 	protocol.RegisterTRISANetworkServer(s.srv, s)
 	protocol.RegisterTRISAHealthServer(s.srv, s)
 
@@ -142,12 +143,21 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 
 	// Check signing key is available to send an encrypted response
 	if peer.SigningKey() == nil {
-		log.Warn().Str("peer", peer.String()).Msg("no remote signing key available")
-		s.parent.updates.Broadcast(0, "no remote signing key available, key exchange required", pb.MessageCategory_TRISAP2P)
-		return nil, &protocol.Error{
-			Code:    protocol.NoSigningKey,
-			Message: "please retry transfer after key exchange",
-			Retry:   true,
+		log.Warn().Str("peer", peer.String()).Msg("no remote signing key available, attempting key exchange")
+		s.parent.updates.Broadcast(0, "no remote signing key available, attempting key exchange", pb.MessageCategory_TRISAP2P)
+
+		if _, err = peer.ExchangeKeys(false); err != nil {
+			log.Warn().Err(err).Str("peer", peer.String()).Msg("no remote signing key available, key exchange failed")
+			s.parent.updates.Broadcast(0, fmt.Sprintf("key exchange failed: %s", err), pb.MessageCategory_TRISAP2P)
+		}
+
+		// Second check for signing keys, if they're not available then reject messages
+		if peer.SigningKey() == nil {
+			return nil, &protocol.Error{
+				Code:    protocol.NoSigningKey,
+				Message: "please retry transfer after key exchange",
+				Retry:   true,
+			}
 		}
 	}
 
@@ -171,12 +181,21 @@ func (s *TRISA) TransferStream(stream protocol.TRISANetwork_TransferStreamServer
 
 	// Check signing key is available to send an encrypted response
 	if peer.SigningKey() == nil {
-		log.Warn().Str("peer", peer.String()).Msg("no remote signing key available")
-		s.parent.updates.Broadcast(0, "no remote signing key available, key exchange required", pb.MessageCategory_TRISAP2P)
-		return &protocol.Error{
-			Code:    protocol.NoSigningKey,
-			Message: "please retry transfer after key exchange",
-			Retry:   true,
+		log.Warn().Str("peer", peer.String()).Msg("no remote signing key available, attempting key exchange")
+		s.parent.updates.Broadcast(0, "no remote signing key available, attempting key exchange", pb.MessageCategory_TRISAP2P)
+
+		if _, err = peer.ExchangeKeys(false); err != nil {
+			log.Warn().Err(err).Str("peer", peer.String()).Msg("no remote signing key available, key exchange failed")
+			s.parent.updates.Broadcast(0, fmt.Sprintf("key exchange failed: %s", err), pb.MessageCategory_TRISAP2P)
+		}
+
+		// Second check for signing keys, if they're not available then reject messages
+		if peer.SigningKey() == nil {
+			return &protocol.Error{
+				Code:    protocol.NoSigningKey,
+				Message: "please retry transfer after key exchange",
+				Retry:   true,
+			}
 		}
 	}
 
@@ -631,6 +650,15 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 	if _, transaction, _, err = parsePayload(payload, true); err != nil {
 		log.Error().Err(err).Msg("TRISA protocol error while parsing payload")
 		return fmt.Errorf("TRISA protocol error while parsing payload: %s", err)
+	}
+
+	if transaction == nil {
+		// We expected an echo from the counterparty to conclude an async but got back
+		// a pending or other type of correctly parsed response.
+		log.Warn().
+			Str("transaction_type", payload.Transaction.TypeUrl).
+			Msg("unexpected transaction reply to async completion")
+		return fmt.Errorf("received %q payload expected a generic Transaction echo", payload.Transaction.TypeUrl)
 	}
 
 	switch tx.State {

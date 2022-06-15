@@ -106,8 +106,8 @@ type Server struct {
 
 // Serve GRPC requests on the specified address.
 func (s *Server) Serve() (err error) {
-	// Initialize the gRPC server
-	s.srv = grpc.NewServer()
+	// Initialize the gRPC server with panic recovery and tracing
+	s.srv = grpc.NewServer(grpc.UnaryInterceptor(UnaryTraceInterceptor), grpc.StreamInterceptor(StreamTraceInterceptor))
 	pb.RegisterTRISADemoServer(s.srv, s)
 	pb.RegisterTRISAIntegrationServer(s.srv, s)
 

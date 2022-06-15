@@ -255,6 +255,10 @@ func initdb(c *cli.Context) (err error) {
 		conf.Database.DSN = dsn
 	}
 
+	if conf.Database.DSN == "" {
+		return cli.NewExitError("rvasp database dsn required", 1)
+	}
+
 	if fixtures := c.String("fixtures"); fixtures != "" {
 		conf.FixturesPath = fixtures
 	}
