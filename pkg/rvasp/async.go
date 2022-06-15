@@ -40,7 +40,7 @@ func (s *TRISA) AsyncHandler(stop <-chan struct{}) {
 		}
 
 		// Execute the handle async go routine with cancellation signals
-		log.Debug().Msg("checking for pending transactions and handling them")
+		log.Debug().Msg("checking for pending transactions to handle async")
 		ctx, cancel = context.WithTimeout(context.Background(), s.parent.conf.AsyncInterval)
 		go s.handleAsync(ctx)
 	}
