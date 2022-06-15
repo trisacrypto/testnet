@@ -88,7 +88,8 @@ func (s *TRISA) Serve() (err error) {
 		return err
 	}
 
-	s.srv = grpc.NewServer(creds)
+	// Create a new gRPC server with panic recovery and tracing middleware
+	s.srv = grpc.NewServer(creds, grpc.UnaryInterceptor(UnaryTraceInterceptor), grpc.StreamInterceptor(StreamTraceInterceptor))
 	protocol.RegisterTRISANetworkServer(s.srv, s)
 	protocol.RegisterTRISAHealthServer(s.srv, s)
 
