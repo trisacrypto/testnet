@@ -250,7 +250,6 @@ func (Account) TableName() string {
 // TODO: Add a field for the transaction payload marshaled as a string.
 type Transaction struct {
 	gorm.Model
-	TxID          string              `gorm:"not null"`
 	Envelope      string              `gorm:"not null"`
 	AccountID     uint                `gorm:"not null"`
 	Account       Account             `gorm:"foreignKey:AccountID"`
@@ -258,13 +257,14 @@ type Transaction struct {
 	Originator    Identity            `gorm:"foreignKey:OriginatorID"`
 	BeneficiaryID uint                `gorm:"column:beneficiary_id;not null"`
 	Beneficiary   Identity            `gorm:"foreignKey:BeneficiaryID"`
-	Amount        decimal.Decimal     `gorm:"type:numeric(15,2)"`
+	Amount        decimal.Decimal     `gorm:"type:decimal(15,8)"`
 	Debit         bool                `gorm:"not null"`
 	State         pb.TransactionState `gorm:"not null;default:0"`
 	Timestamp     time.Time           `gorm:"not null"`
 	NotBefore     time.Time           `gorm:"not null"`
 	NotAfter      time.Time           `gorm:"not null"`
 	Identity      string              `gorm:"not null"`
+	Transaction   string              `gorm:"not null"`
 	VaspID        uint                `gorm:"not null"`
 	Vasp          VASP                `gorm:"foreignKey:VaspID"`
 }

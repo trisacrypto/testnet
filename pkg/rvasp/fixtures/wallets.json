@@ -407,7 +407,7 @@
         "badnews@evilvasp.gg",
         3,
         "SendFull",
-        "SyncRequire",
+        "AsyncRepair",
         {
             "natural_person": {
                 "name": {

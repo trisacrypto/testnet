@@ -362,6 +362,29 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	}
 }
 
+// Repair the identity payload in a received transfer request by filling in the
+// beneficiary identity information.
+func (s *TRISA) repairBeneficiary(identity *ivms101.IdentityPayload, account db.Account) (err error) {
+	identity.BeneficiaryVasp = &ivms101.BeneficiaryVasp{}
+	if identity.BeneficiaryVasp.BeneficiaryVasp, err = s.parent.vasp.LoadIdentity(); err != nil {
+		log.Error().Err(err).Msg("could not load beneficiary vasp")
+		return err
+	}
+
+	identity.Beneficiary = &ivms101.Beneficiary{
+		BeneficiaryPersons: make([]*ivms101.Person, 0, 1),
+		AccountNumbers:     []string{account.WalletAddress},
+	}
+
+	var beneficiary *ivms101.Person
+	if beneficiary, err = account.LoadIdentity(); err != nil {
+		log.Error().Err(err).Msg("could not load beneficiary account identity")
+		return err
+	}
+	identity.Beneficiary.BeneficiaryPersons = append(identity.Beneficiary.BeneficiaryPersons, beneficiary)
+	return nil
+}
+
 // respondTransfer responds to a transfer request from the originator by sending back
 // the payload with the beneficiary identity information. If requireBeneficiary is
 // true, the beneficiary identity must be filled in, or the transfer is rejected. If
@@ -381,24 +404,8 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: missing beneficiary vasp identity")
 		}
 	} else {
-		// Update the identity with the beneficiary information
-		identity.BeneficiaryVasp = &ivms101.BeneficiaryVasp{}
-		if identity.BeneficiaryVasp.BeneficiaryVasp, err = s.parent.vasp.LoadIdentity(); err != nil {
-			log.Error().Err(err).Msg("could not load beneficiary vasp")
-			return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-		}
-
-		identity.Beneficiary = &ivms101.Beneficiary{
-			BeneficiaryPersons: make([]*ivms101.Person, 0, 1),
-			AccountNumbers:     []string{account.WalletAddress},
-		}
-
-		var beneficiary *ivms101.Person
-		if beneficiary, err = account.LoadIdentity(); err != nil {
-			log.Error().Err(err).Msg("could not load beneficiary")
-			return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-		}
-		identity.Beneficiary.BeneficiaryPersons = append(identity.Beneficiary.BeneficiaryPersons, beneficiary)
+		// Fill in the beneficiary identity information for the repair policy
+		s.repairBeneficiary(identity, account)
 	}
 
 	// Update the transaction with beneficiary information
@@ -487,7 +494,6 @@ func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, id
 				log.Error().Err(err).Msg("could not construct transaction")
 				return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 			}
-			xfer.TxID = transaction.Txid
 			xfer.Envelope = in.Id
 			xfer.Account = account
 			xfer.Amount = decimal.NewFromFloat(transaction.Amount)
@@ -511,12 +517,19 @@ func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, id
 	xfer.NotAfter = now.Add(s.parent.conf.AsyncNotAfter)
 
 	// Marshal the identity info into the local transaction
-	var identityBytes []byte
-	if identityBytes, err = protojson.Marshal(identity); err != nil {
+	var data []byte
+	if data, err = protojson.Marshal(identity); err != nil {
 		log.Error().Err(err).Msg("could not marshal identity")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
-	xfer.Identity = string(identityBytes)
+	xfer.Identity = string(data)
+
+	// Marshal the generic.Transaction into the local transaction
+	if data, err = protojson.Marshal(transaction); err != nil {
+		log.Error().Err(err).Msg("could not marshal transaction")
+		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+	}
+	xfer.Transaction = string(data)
 
 	// Save the updated transaction in the database
 	if err = s.parent.db.Save(&xfer).Error; err != nil {
@@ -582,13 +595,6 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 		return fmt.Errorf("could not fetch originator address")
 	}
 
-	// Fetch the beneficiary address
-	var beneficiary *db.Identity
-	if beneficiary, err = tx.GetBeneficiary(s.parent.db); err != nil {
-		log.Error().Err(err).Msg("could not fetch beneficiary address")
-		return fmt.Errorf("could not fetch beneficiary address")
-	}
-
 	// Create the identity for the payload
 	identity := &ivms101.IdentityPayload{}
 	if err = protojson.Unmarshal([]byte(tx.Identity), identity); err != nil {
@@ -596,13 +602,25 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 		return fmt.Errorf("could not unmarshal identity from transaction: %s", err)
 	}
 
-	// Create the transaction for the payload
-	transaction := &generic.Transaction{
-		Txid:        tx.TxID,
-		Originator:  originator.WalletAddress,
-		Beneficiary: beneficiary.WalletAddress,
-		Amount:      float64(tx.AmountFloat()),
-		Timestamp:   tx.Timestamp.Format(time.RFC3339),
+	// Repair the beneficiary information if this is the first handshake
+	if tx.State == pb.TransactionState_PENDING_SENT {
+		var account *db.Account
+		if account, err = tx.GetAccount(s.parent.db); err != nil {
+			log.Error().Err(err).Msg("could not fetch beneficiary account")
+			return fmt.Errorf("could not fetch beneficiary account: %s", err)
+		}
+
+		if err = s.repairBeneficiary(identity, *account); err != nil {
+			log.Error().Err(err).Msg("could not repair beneficiary information")
+			return fmt.Errorf("could not repair beneficiary information: %s", err)
+		}
+	}
+
+	// Create the generic.Transaction for the payload
+	transaction := &generic.Transaction{}
+	if err = protojson.Unmarshal([]byte(tx.Transaction), transaction); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal generic.Transaction from transaction")
+		return fmt.Errorf("could not unmarshal generic.Transaction from transaction: %s", err)
 	}
 
 	// Create the payload
