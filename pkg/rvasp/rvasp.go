@@ -524,8 +524,7 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 	switch xfer.State {
 	case pb.TransactionState_AWAITING:
 		// Fill the transaction with a new TxID to continue the handshake
-		xfer.TxID = uuid.New().String()
-		transaction.Txid = xfer.TxID
+		transaction.Txid = uuid.New().String()
 		if payload, err = createTransferPayload(identity, transaction); err != nil {
 			log.Error().Err(err).Msg("could not create transfer payload")
 			return nil, protocol.Errorf(protocol.InternalError, "could not create transfer payload: %s", err)
@@ -577,6 +576,13 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 			return nil, status.Errorf(codes.Internal, "could not marshal IVMS 101 identity: %s", err)
 		}
 		xfer.Identity = string(data)
+
+		// Update the transaction with the new generic.Transaction
+		if data, err = json.Marshal(transaction); err != nil {
+			log.Error().Err(err).Msg("could not marshal generic.Transaction")
+			return nil, status.Errorf(codes.Internal, "could not marshal generic.Transaction: %s", err)
+		}
+		xfer.Transaction = string(data)
 
 		// Update the Transaction in the database with the pending timestamps
 		if xfer.NotBefore, err = time.Parse(time.RFC3339, pending.ReplyNotBefore); err != nil {
