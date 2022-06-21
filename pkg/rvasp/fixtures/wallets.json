@@ -1,640 +1,624 @@
 [
-    [
-        "18nxAxBktHZDrMoJ3N2fk9imLX8xNnYbNh",
-        "robert@bobvasp.co.uk",
-        1,
-        "SendPartial",
-        "SyncRepair",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Howard",
-                        "secondary_identifier": "Robert",
-                        "name_identifier_type": 1
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Old Bank View",
-                    "building_number": "66",
-                    "post_code": "DD10 9RZ",
-                    "town_name": "Ferryden",
-                    "country": "United Kingdom"
-                }],
-                "national_identification": {
-                    "national_identifier": "629469224",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "GB",
-                    "registration_authority": "RA000591"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1987-04-21",
-                    "place_of_birth": "Oldham, United Kingdom"
-                },
-                "country_of_residence": "GB"
-            }
-        }
-    ],
-    [
-        "1LgtLYkpaXhHDu1Ngh7x9fcBs5KuThbSzw",
-        "george@bobvasp.co.uk",
-        1,
-        "SendFull",
-        "SyncRequire",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Kelley",
-                        "secondary_identifier": "George",
-                        "name_identifier_type": 1
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Colviles Park",
-                    "building_number": "6",
-                    "post_code": "G75 0GZ",
-                    "town_name": "Glasgow",
-                    "country": "United Kingdom"
-                }],
-                "national_identification": {
-                    "national_identifier": "281036797",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "GB",
-                    "registration_authority": "RA000591"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1994-05-03",
-                    "place_of_birth": "Guildford, United Kingdom"
-                },
-                "country_of_residence": "GB"
-            }
-        }
-    ],
-    [
-        "14WU745djqecaJ1gmtWQGeMCFim1W5MNp3",
-        "larry@bobvasp.co.uk",
-        1,
-        "SendFull",
-        "AsyncRepair",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Clark",
-                        "secondary_identifier": "Lawrence",
-                        "name_identifier_type": 3
-                    }, {
-                        "primary_identifier": "Clark",
-                        "secondary_identifier": "Larry",
-                        "name_identifier_type": 0
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Watling St",
-                    "building_number": "249",
-                    "post_code": "WD7 7AL",
-                    "town_name": "Radlett",
-                    "country": "United Kingdom"
-                }],
-                "national_identification": {
-                    "national_identifier": "319560446",
-                    "national_identifier_type": 5,
-                    "country_of_issue": "GB",
-                    "registration_authority": "RA000591"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1986-12-13",
-                    "place_of_birth": "Leeds, United Kingdom"
-                },
-                "country_of_residence": "GB"
-            }
-        }
-    ],
-    [
-        "1Hzej6a2VG7C8iCAD5DAdN72cZH5THSMt9",
-        "fred@bobvasp.co.uk",
-        1,
-        "SendError",
-        "AsyncReject",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Miles",
-                        "secondary_identifier": "Frederick",
-                        "name_identifier_type": 3
-                    }, {
-                        "primary_identifier": "Miles",
-                        "secondary_identifier": "Fred",
-                        "name_identifier_type": 0
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Bishopgate Street",
-                    "building_number": "36",
-                    "post_code": "LA8 5WP",
-                    "town_name": "Sedgwick",
-                    "country": "United Kingdom"
-                }],
-                "national_identification": {
-                    "national_identifier": "CY537660B",
-                    "national_identifier_type": 5,
-                    "country_of_issue": "GB",
-                    "registration_authority": "RA000591"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1973-10-04",
-                    "place_of_birth": "Whilhamshire, United Kingdom"
-                },
-                "country_of_residence": "GB"
-            }
-        }
-    ],
-    [
-       "1ASkqdo1hvydosVRvRv2j6eNnWpWLHucMX",
-       "mary@alicevasp.us",
-       2,
-       "SendPartial",
-       "SyncRepair",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "James",
-                        "secondary_identifier": "Mary",
-                        "name_identifier_type": 2
-                    }, {
-                        "primary_identifier": "Reid",
-                        "secondary_identifier": "Mary",
-                        "name_identifier_type": 3
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Washington Ave",
-                    "building_number": "479",
-                    "post_code": "83204",
-                    "town_name": "Pocatello",
-                    "country_sub_division": "ID",
-                    "country": "US"
-                }],
-                "national_identification": {
-                    "national_identifier": "TV141121H",
-                    "national_identifier_type": 3,
-                    "country_of_issue": "US",
-                    "registration_authority": "RA000607"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1966-08-14",
-                    "place_of_birth": "Pittsfield, MA"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ],
-    [
-        "1MRCxvEpBoY8qajrmNTSrcfXSZ2wsrGeha",
-        "alice@alicevasp.us",
-        2,
-        "SendFull",
-        "SyncRequire",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Sanders",
-                        "secondary_identifier": "Alice",
-                        "name_identifier_type": 3
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Thorne Road",
-                    "building_number": "78",
-                    "post_code": "11801",
-                    "town_name": "Hicksville",
-                    "country_sub_division": "NY",
-                    "country": "US"
-                }],
-                "national_identification": {
-                    "national_identifier": "864 118 996",
-                    "national_identifier_type": 3,
-                    "country_of_issue": "US",
-                    "registration_authority": "RA000628"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1975-02-18",
-                    "place_of_birth": "Defiance, OH"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ],
-    [
-        "14HmBSwec8XrcWge9Zi1ZngNia64u3Wd2v",
-        "jane@alicevasp.us",
-        2,
-        "SendFull",
-        "AsyncRepair",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Price",
-                        "secondary_identifier": "Jane",
-                        "name_identifier_type": 3
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Greystone Street",
-                    "building_number": "28",
-                    "post_code": "38017",
-                    "town_name": "Collierville",
-                    "country_sub_division": "TN",
-                    "country": "US"
-                }],
-                "national_identification": {
-                    "national_identifier": "112502920",
-                    "national_identifier_type": 6,
-                    "country_of_issue": "US",
-                    "registration_authority": "RA000748"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1992-10-04",
-                    "place_of_birth": "West Islip, NY"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ],
-    [
-        "19nFejdNSUhzkAAdwAvP3wc53o8dL326QQ",
-        "sarah@alicevasp.us",
-        2,
-        "SendError",
-        "AsyncReject",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Luellen",
-                        "secondary_identifier": "Sarah",
-                        "name_identifier_type": 3
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Shobe Lane",
-                    "building_number": "69",
-                    "post_code": "80203",
-                    "town_name": "Denver",
-                    "country_sub_division": "CO",
-                    "country": "US"
-                }],
-                "national_identification": {
-                    "national_identifier": "521129251",
-                    "national_identifier_type": 6,
-                    "country_of_issue": "US",
-                    "registration_authority": "RA000748"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1995-01-24",
-                    "place_of_birth": "Salt Lake City, UT"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ],
-    [
-        "1PFTsUQrRqvmFkJunfuQbSC2k9p4RfxYLF",
-        "voldemort@evilvasp.gg",
-        3,
-        "SendPartial",
-        "SyncRepair",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Riddle",
-                        "secondary_identifier": "Tom Marvolo",
-                        "name_identifier_type": 3
-                    }, {
-                        "primary_identifier": "Voldemort",
-                        "secondary_identifier": "",
-                        "name_identifier_type": 0
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Ballagawne Road",
-                    "building_number": "97",
-                    "town_name": "Rushen",
-                    "country": "Isle of Man"
-                }],
-                "national_identification": {
-                    "national_identifier": "304402330",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "IM",
-                    "registration_authority": "RA000405"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1926-12-31",
-                    "place_of_birth": "London, United Kingdom"
-                },
-                "country_of_residence": "IM"
-            }
-        }
-    ],
-    [
-        "172n89jLjXKmFJni1vwV5EzxKRXuAAoxUz",
-        "launderer@evilvasp.gg",
-        3,
-        "SendFull",
-        "SyncRequire",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Sokoloa",
-                        "secondary_identifier": "Radomil",
-                        "name_identifier_type": 4
-                    }, {
-                        "primary_identifier": "Hitler",
-                        "secondary_identifier": "Adolph",
-                        "name_identifier_type": 1
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Комарова Ул., дом 7, кв.",
-                    "building_number": "100",
-                    "town_name": "Красноярск",
-                    "country_sub_division": "Красноярский край",
-                    "country": "RU"
-                }],
-                "national_identification": {
-                    "national_identifier": "529452906",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "RU",
-                    "registration_authority": "RA000499"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1989-04-20",
-                    "place_of_birth": "Braunau am Inn, Austria"
-                },
-                "country_of_residence": "RU"
-            }
-        }
-    ],
-    [
-        "182kF4mb5SW4KGEvBSbyXTpDWy8rK1Dpu",
-        "badnews@evilvasp.gg",
-        3,
-        "SendFull",
-        "AsyncRepair",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Ratched",
-                        "secondary_identifier": "Mildred",
-                        "name_identifier_type": 1
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Overlook Road",
-                    "building_number": "6222",
-                    "post_code": "36618",
-                    "town_name": "Mobile",
-                    "country_sub_division": "AL",
-                    "country": "United States"
-                }],
-                "national_identification": {
-                    "national_identifier": "201490313",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "US",
-                    "registration_authority": "RA000595"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1975-09-21",
-                    "place_of_birth": "Salem, Oregon"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ],
-    [
-        "1AsF1fMSaXPzz3dkBPyq81wrPQUKtT2tiz",
-        "gambler@evilvasp.gg",
-        3,
-        "SendError",
-        "AsyncReject",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Denny",
-                        "secondary_identifier": "Bill",
-                        "name_identifier_type": 1
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Weigall Avenue",
-                    "building_number": "121",
-                    "post_code": "5418",
-                    "town_name": "Mount Bryan",
-                    "country_sub_division": "SA",
-                    "country": "AU"
-                }],
-                "national_identification": {
-                    "national_identifier": "f5892485",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "AU",
-                    "registration_authority": "RA000696"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1991-06-18",
-                    "place_of_birth": "Monte Carlo, Monaco"
-                },
-                "country_of_residence": "AU"
-            }
-        }
-    ],
-    [
-        "2jZ5Hm5WGjSUj3nwzyaFSJFkypHgsfaoLC",
-        "spiderman@charlievasp.vg",
-        4,
-        "SendPartial",
-        "SyncRepair",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Parker",
-                        "secondary_identifier": "Peter",
-                        "name_identifier_type": 3
-                    }, {
-                        "primary_identifier": "Spiderman",
-                        "secondary_identifier": "",
-                        "name_identifier_type": 0
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Ingram Street",
-                    "building_number": "20",
-                    "town_name": "New York City",
-                    "country": "United States"
-                }],
-                "national_identification": {
-                    "national_identifier": "304402330",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "US",
-                    "registration_authority": "RA000405"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1990-12-31",
-                    "place_of_birth": "New York City, New York"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ],
-    [
-        "YDDm1FWL5u6H5LiEPtx33gTageKmp1Ihcq",
-        "batman@charlievasp.vg",
-        4,
-        "SendFull",
-        "SyncRequire",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Wayne",
-                        "secondary_identifier": "Bruce",
-                        "name_identifier_type": 4
-                    }, {
-                        "primary_identifier": "Batman",
-                        "secondary_identifier": "",
-                        "name_identifier_type": 1
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Mountain Drive",
-                    "building_number": "1007",
-                    "town_name": "Gotham",
-                    "country": "US"
-                }],
-                "national_identification": {
-                    "national_identifier": "529452906",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "US",
-                    "registration_authority": "RA000499"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1960-04-20",
-                    "place_of_birth": "Gotham"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ],
-    [
-        "uHeJaU0U47e9KrVzmtabXkAWZX2TIG8cKP",
-        "superman@charlievasp.vg",
-        4,
-        "SendFull",
-        "AsyncRepair",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Kent",
-                        "secondary_identifier": "Clark",
-                        "name_identifier_type": 1
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Sullivan Place",
-                    "building_number": "1938",
-                    "town_name": "Metropolis",
-                    "country": "United States"
-                }],
-                "national_identification": {
-                    "national_identifier": "201490313",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "US",
-                    "registration_authority": "RA000595"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1950-09-21",
-                    "place_of_birth": "Krypton"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ],
-    [
-        "5gH90ZiQIKH2TjP27ZwfwWKGUphveKZ8ab",
-        "morbius@charlievasp.vg",
-        4,
-        "SendError",
-        "AsyncReject",
-        {
-            "natural_person": {
-                "name": {
-                    "name_identifiers": [{
-                        "primary_identifier": "Morbius",
-                        "secondary_identifier": "Michael",
-                        "name_identifier_type": 1
-                    }]
-                },
-                "geographic_addresses": [{
-                    "address_type": 0,
-                    "street_name": "Vampire Lane",
-                    "building_number": "123",
-                    "town_name": "New York City",
-                    "country_sub_division": "NY",
-                    "country": "US"
-                }],
-                "national_identification": {
-                    "national_identifier": "f5892485",
-                    "national_identifier_type": 1,
-                    "country_of_issue": "GR",
-                    "registration_authority": "RA000696"
-                },
-                "customer_identification": "",
-                "date_and_place_of_birth": {
-                    "date_of_birth": "1986-06-18",
-                    "place_of_birth": "Nafplio, Greece"
-                },
-                "country_of_residence": "US"
-            }
-        }
-    ]
+	[
+		"18nxAxBktHZDrMoJ3N2fk9imLX8xNnYbNh",
+		"robert@bobvasp.co.uk",
+		1,
+		"SendPartial",
+		"SyncRepair",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Howard",
+						"secondary_identifier": "Robert",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Old Bank View",
+					"building_number": "66",
+					"post_code": "DD10 9RZ",
+					"town_name": "Ferryden",
+					"country": "GB"
+				}],
+				"national_identification": {
+					"national_identifier": "629469224",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_CCPT",
+					"country_of_issue": "GB"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1987-04-21",
+					"place_of_birth": "Oldham, United Kingdom"
+				},
+				"country_of_residence": "GB"
+			}
+		}
+	],
+	[
+		"1LgtLYkpaXhHDu1Ngh7x9fcBs5KuThbSzw",
+		"george@bobvasp.co.uk",
+		1,
+		"SendFull",
+		"SyncRequire",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Kelley",
+						"secondary_identifier": "George",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Colviles Park",
+					"building_number": "6",
+					"post_code": "G75 0GZ",
+					"town_name": "Glasgow",
+					"country": "GB"
+				}],
+				"national_identification": {
+					"national_identifier": "281036797",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_CCPT",
+					"country_of_issue": "GB"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1994-05-03",
+					"place_of_birth": "Guildford, United Kingdom"
+				},
+				"country_of_residence": "GB"
+			}
+		}
+	],
+	[
+		"14WU745djqecaJ1gmtWQGeMCFim1W5MNp3",
+		"larry@bobvasp.co.uk",
+		1,
+		"SendFull",
+		"AsyncRepair",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Clark",
+						"secondary_identifier": "Lawrence",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_BIRT"
+					}, {
+						"primary_identifier": "Clark",
+						"secondary_identifier": "Larry",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Watling St",
+					"building_number": "249",
+					"post_code": "WD7 7AL",
+					"town_name": "Radlett",
+					"country": "GB"
+				}],
+				"national_identification": {
+					"national_identifier": "319560446",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_SOCS",
+					"country_of_issue": "GB"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1986-12-13",
+					"place_of_birth": "Leeds, United Kingdom"
+				},
+				"country_of_residence": "GB"
+			}
+		}
+	],
+	[
+		"1Hzej6a2VG7C8iCAD5DAdN72cZH5THSMt9",
+		"fred@bobvasp.co.uk",
+		1,
+		"SendError",
+		"AsyncReject",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Miles",
+						"secondary_identifier": "Frederick",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}, {
+						"primary_identifier": "Miles",
+						"secondary_identifier": "Fred",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_ALIA"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Bishopgate Street",
+					"building_number": "36",
+					"post_code": "LA8 5WP",
+					"town_name": "Sedgwick",
+					"country": "GB"
+				}],
+				"national_identification": {
+					"national_identifier": "CY537660B",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_IDCD",
+					"country_of_issue": "GB"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1973-10-04",
+					"place_of_birth": "Whilhamshire, United Kingdom"
+				},
+				"country_of_residence": "GB"
+			}
+		}
+	],
+	[
+		"1ASkqdo1hvydosVRvRv2j6eNnWpWLHucMX",
+		"mary@alicevasp.us",
+		2,
+		"SendPartial",
+		"SyncRepair",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "James",
+						"secondary_identifier": "Mary",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}, {
+						"primary_identifier": "Reid",
+						"secondary_identifier": "Mary",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_MAID"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Washington Ave",
+					"building_number": "479",
+					"post_code": "83204",
+					"town_name": "Pocatello",
+					"country_sub_division": "ID",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "TV141121H",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_DRLC",
+					"country_of_issue": "US"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1966-08-14",
+					"place_of_birth": "Pittsfield, MA"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	],
+	[
+		"1MRCxvEpBoY8qajrmNTSrcfXSZ2wsrGeha",
+		"alice@alicevasp.us",
+		2,
+		"SendFull",
+		"SyncRequire",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Sanders",
+						"secondary_identifier": "Alice",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Thorne Road",
+					"building_number": "78",
+					"post_code": "11801",
+					"town_name": "Hicksville",
+					"country_sub_division": "NY",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "864 118 996",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_SOCS",
+					"country_of_issue": "US"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1975-02-18",
+					"place_of_birth": "Defiance, OH"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	],
+	[
+		"14HmBSwec8XrcWge9Zi1ZngNia64u3Wd2v",
+		"jane@alicevasp.us",
+		2,
+		"SendFull",
+		"AsyncRepair",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Price",
+						"secondary_identifier": "Jane",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Greystone Street",
+					"building_number": "28",
+					"post_code": "38017",
+					"town_name": "Collierville",
+					"country_sub_division": "TN",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "112502920",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_SOCS",
+					"country_of_issue": "US"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1992-10-04",
+					"place_of_birth": "West Islip, NY"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	],
+	[
+		"19nFejdNSUhzkAAdwAvP3wc53o8dL326QQ",
+		"sarah@alicevasp.us",
+		2,
+		"SendError",
+		"AsyncReject",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Luellen",
+						"secondary_identifier": "Sarah",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Shobe Lane",
+					"building_number": "69",
+					"post_code": "80203",
+					"town_name": "Denver",
+					"country_sub_division": "CO",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "521129251",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_SOCS",
+					"country_of_issue": "US"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1995-01-24",
+					"place_of_birth": "Salt Lake City, UT"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	],
+	[
+		"1PFTsUQrRqvmFkJunfuQbSC2k9p4RfxYLF",
+		"voldemort@evilvasp.gg",
+		3,
+		"SendPartial",
+		"SyncRepair",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Riddle",
+						"secondary_identifier": "Tom Marvolo",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}, {
+						"primary_identifier": "Voldemort",
+						"secondary_identifier": "",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_ALIA"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_GEOG",
+					"street_name": "Ballagawne Road",
+					"building_number": "97",
+					"town_name": "Rushen",
+					"country": "IM"
+				}],
+				"national_identification": {
+					"national_identifier": "304402330",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_ARNU",
+					"country_of_issue": "IM"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1926-12-31",
+					"place_of_birth": "London, United Kingdom"
+				},
+				"country_of_residence": "IM"
+			}
+		}
+	],
+	[
+		"172n89jLjXKmFJni1vwV5EzxKRXuAAoxUz",
+		"launderer@evilvasp.gg",
+		3,
+		"SendFull",
+		"SyncRequire",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Sokoloa",
+						"secondary_identifier": "Radomil",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}, {
+						"primary_identifier": "Hitler",
+						"secondary_identifier": "Adolph",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_MISC"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Комарова Ул., дом 7, кв.",
+					"building_number": "100",
+					"town_name": "Красноярск",
+					"country_sub_division": "Красноярский край",
+					"country": "RU"
+				}],
+				"national_identification": {
+					"national_identifier": "529452906",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_CCPT",
+					"country_of_issue": "RU"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1989-04-20",
+					"place_of_birth": "Braunau am Inn, Austria"
+				},
+				"country_of_residence": "RU"
+			}
+		}
+	],
+	[
+		"182kF4mb5SW4KGEvBSbyXTpDWy8rK1Dpu",
+		"badnews@evilvasp.gg",
+		3,
+		"SendFull",
+		"AsyncRepair",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Ratched",
+						"secondary_identifier": "Mildred",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_BIZZ",
+					"street_name": "Overlook Road",
+					"building_number": "6222",
+					"post_code": "36618",
+					"town_name": "Mobile",
+					"country_sub_division": "AL",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "201490313",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_IDCD",
+					"country_of_issue": "US"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1975-09-21",
+					"place_of_birth": "Salem, Oregon"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	],
+	[
+		"1AsF1fMSaXPzz3dkBPyq81wrPQUKtT2tiz",
+		"gambler@evilvasp.gg",
+		3,
+		"SendError",
+		"AsyncReject",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Denny",
+						"secondary_identifier": "Bill",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Weigall Avenue",
+					"building_number": "121",
+					"post_code": "5418",
+					"town_name": "Mount Bryan",
+					"country_sub_division": "SA",
+					"country": "AU"
+				}],
+				"national_identification": {
+					"national_identifier": "f5892485",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_DRLC",
+					"country_of_issue": "AU"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1991-06-18",
+					"place_of_birth": "Monte Carlo, Monaco"
+				},
+				"country_of_residence": "AU"
+			}
+		}
+	],
+	[
+		"2jZ5Hm5WGjSUj3nwzyaFSJFkypHgsfaoLC",
+		"spiderman@charlievasp.vg",
+		4,
+		"SendPartial",
+		"SyncRepair",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Parker",
+						"secondary_identifier": "Peter",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}, {
+						"primary_identifier": "Spiderman",
+						"secondary_identifier": "",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_ALIA"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Ingram Street",
+					"building_number": "20",
+					"town_name": "New York City",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "304402330",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_SOCS",
+					"country_of_issue": "US"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1990-12-31",
+					"place_of_birth": "New York City, New York"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	],
+	[
+		"YDDm1FWL5u6H5LiEPtx33gTageKmp1Ihcq",
+		"batman@charlievasp.vg",
+		4,
+		"SendFull",
+		"SyncRequire",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Wayne",
+						"secondary_identifier": "Bruce",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}, {
+						"primary_identifier": "Batman",
+						"secondary_identifier": "",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_ALIA"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Mountain Drive",
+					"building_number": "1007",
+					"town_name": "Gotham",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "529452906",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_SOCS",
+					"country_of_issue": "US"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1960-04-20",
+					"place_of_birth": "Gotham"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	],
+	[
+		"uHeJaU0U47e9KrVzmtabXkAWZX2TIG8cKP",
+		"superman@charlievasp.vg",
+		4,
+		"SendFull",
+		"AsyncRepair",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Kent",
+						"secondary_identifier": "Clark",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_GEOG",
+					"street_name": "Sullivan Place",
+					"building_number": "1938",
+					"town_name": "Metropolis",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "201490313",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_TXID",
+					"country_of_issue": "US"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1950-09-21",
+					"place_of_birth": "Krypton"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	],
+	[
+		"5gH90ZiQIKH2TjP27ZwfwWKGUphveKZ8ab",
+		"morbius@charlievasp.vg",
+		4,
+		"SendError",
+		"AsyncReject",
+		{
+			"natural_person": {
+				"name": {
+					"name_identifiers": [{
+						"primary_identifier": "Morbius",
+						"secondary_identifier": "Michael",
+						"name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+					}]
+				},
+				"geographic_addresses": [{
+					"address_type": "ADDRESS_TYPE_CODE_HOME",
+					"street_name": "Vampire Lane",
+					"building_number": "123",
+					"town_name": "New York City",
+					"country_sub_division": "NY",
+					"country": "US"
+				}],
+				"national_identification": {
+					"national_identifier": "f5892485",
+					"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_DRLC",
+					"country_of_issue": "GR"
+				},
+				"customer_identification": "",
+				"date_and_place_of_birth": {
+					"date_of_birth": "1986-06-18",
+					"place_of_birth": "Nafplio, Greece"
+				},
+				"country_of_residence": "US"
+			}
+		}
+	]
 ]

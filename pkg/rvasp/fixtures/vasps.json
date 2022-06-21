@@ -1,137 +1,135 @@
-[
-    {
-        "common_name": "api.bob.vaspbot.net",
-        "legal_person": {
-            "name": {
-                "name_identifiers": [{
-                    "legal_person_name": "Bob's Discount VASP, PLC",
-                    "legal_person_name_identifier_type": 0
-                }, {
-                    "legal_person_name": "Bob VASP",
-                    "legal_person_name_identifier_type": 1
-                }]
-            },
-            "geographic_addresses": [
-                {
-                    "address_type": 1,
-                    "building_number": "762",
-                    "street_name": "Grimsby Road",
-                    "town_name": "Oxford",
-                    "post_code": "OX8 U89",
-                    "country": "GB"
-                }
-            ],
-            "customer_number": "",
-            "national_identification": {
-                "national_identifier": "213800AQUAUP6I215N33",
-                "national_identifier_type": 8,
-                "country_of_issue": "GB",
-                "registration_authority": "RA000589"
-            },
-            "country_of_registration": "GB"
-        }
-    },
-    {
-        "common_name": "api.alice.vaspbot.net",
-        "legal_person": {
-            "name": {
-                "name_identifiers": [{
-                    "legal_person_name": "AliceCoin, Inc.",
-                    "legal_person_name_identifier_type": 0
-                }, {
-                    "legal_person_name": "Alice VASP",
-                    "legal_person_name_identifier_type": 1
-                }, {
-                    "legal_person_name": "AliceCoin",
-                    "legal_person_name_identifier_type": 2
-                }]
-            },
-            "geographic_addresses": [
-                {
-                    "address_type": 1,
-                    "building_number": "23",
-                    "street_name": "Roosevelt Place",
-                    "town_name": "Boston",
-                    "country_sub_division": "MA",
-                    "post_code": "02151",
-                    "country": "US"
-                }
-            ],
-            "customer_number": "",
-            "national_identification": {
-                "national_identifier": "5493004YBI24IF4TIP92",
-                "national_identifier_type": 8,
-                "country_of_issue": "US",
-                "registration_authority": "RA000744"
-            },
-            "country_of_registration": "US"
-        }
-    },
-    {
-        "common_name": "api.evil.vaspbot.net",
-        "legal_person": {
-            "name": {
-                "name_identifiers": [{
-                    "legal_person_name": "Evil Money Laundering GmbH",
-                    "legal_person_name_identifier_type": 0
-                }, {
-                    "legal_person_name": "Evil VASP",
-                    "legal_person_name_identifier_type": 1
-                }]
-            },
-            "geographic_addresses": [
-                {
-                    "address_type": 1,
-                    "street_name": "Rue de la Prevoté",
-                    "town_name": "Guernsey",
-                    "post_code": "GY8 0DS",
-                    "country": "GG"
-                }
-            ],
-            "customer_number": "",
-            "national_identification": {
-                "national_identifier": "549300EVILIK9WID7666",
-                "national_identifier_type": 8,
-                "country_of_issue": "GG",
-                "registration_authority": "RA000666"
-            },
-            "country_of_registration": "GG"
-        }
-    },
-    {
-        "common_name": "api.charlie.vaspbot.net",
-        "legal_person": {
-            "country_of_registration": "VG",
-            "geographic_addresses": [
-                {
-                    "address_line": [
-                        "127 Blackburn Highway",
-                        "",
-                        "VG1110, East End"
-                    ],
-                    "address_type": "ADDRESS_TYPE_CODE_BIZZ",
-                    "country": "VG"
-                }],
-            "name": {
-                "local_name_identifiers": [],
-                "name_identifiers": [
-                    {
-                        "legal_person_name": "Charlie Crypto Exchange PTE, LTD","legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"
-                    },
-                    {
-                        "legal_person_name":"CharlieVASP","legal_person_name_identifier_type":"LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
-                    },
-                    {
-                        "legal_person_name":"CCEx","legal_person_name_identifier_type":"LEGAL_PERSON_NAME_TYPE_CODE_MISC"
-                    }
-                ],
-                "phonetic_name_identifiers": []
-            },
-            "national_identification": {
-                "country_of_issue": "",
-                "national_identifier": "564573110",
-                "national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_TXID","registration_authority":"RA777777"
-            }
-        }
-    }
+[{
+		"common_name": "api.bob.vaspbot.net",
+		"legal_person": {
+			"name": {
+				"name_identifiers": [{
+					"legal_person_name": "Bob's Discount VASP, PLC",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"
+				}, {
+					"legal_person_name": "Bob VASP",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+				}, {
+					"legal_person_name": "BobVASP",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+				}]
+			},
+			"geographic_addresses": [{
+				"address_type": "ADDRESS_TYPE_CODE_BIZZ",
+				"building_number": "762",
+				"street_name": "Grimsby Road",
+				"town_name": "Oxford",
+				"post_code": "OX8 U89",
+				"country": "GB"
+			}],
+			"customer_number": "",
+			"national_identification": {
+				"national_identifier": "213800AQUAUP6I215N33",
+				"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_LEIX"
+			},
+			"country_of_registration": "GB"
+		}
+	},
+	{
+		"common_name": "api.alice.vaspbot.net",
+		"legal_person": {
+			"name": {
+				"name_identifiers": [{
+					"legal_person_name": "AliceCoin, Inc.",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"
+				}, {
+					"legal_person_name": "Alice VASP",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+				}, {
+					"legal_person_name": "AliceVASP",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+				}, {
+					"legal_person_name": "AliceCoin",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_TRAD"
+				}]
+			},
+			"geographic_addresses": [{
+				"address_type": "ADDRESS_TYPE_CODE_BIZZ",
+				"building_number": "23",
+				"street_name": "Roosevelt Place",
+				"town_name": "Boston",
+				"country_sub_division": "MA",
+				"post_code": "02151",
+				"country": "US"
+			}],
+			"customer_number": "",
+			"national_identification": {
+				"national_identifier": "5493004YBI24IF4TIP92",
+				"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_TXID",
+				"registration_authority": "RA777777"
+			},
+			"country_of_registration": "US"
+		}
+	},
+	{
+		"common_name": "api.evil.vaspbot.net",
+		"legal_person": {
+			"name": {
+				"name_identifiers": [{
+					"legal_person_name": "Evil Money Laundering GmbH",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"
+				}, {
+					"legal_person_name": "Evil VASP",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+				}, {
+					"legal_person_name": "EvilVASP",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+				}]
+			},
+			"geographic_addresses": [{
+				"address_type": "ADDRESS_TYPE_CODE_GEOG",
+				"street_name": "Rue de la Prevoté",
+				"town_name": "Guernsey",
+				"post_code": "GY8 0DS",
+				"country": "GG"
+			}],
+			"customer_number": "",
+			"national_identification": {
+				"national_identifier": "549300EVILIK9WID7666",
+				"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_LEIX"
+			},
+			"country_of_registration": "GG"
+		}
+	},
+	{
+		"common_name": "api.charlie.vaspbot.net",
+		"legal_person": {
+			"name": {
+				"name_identifiers": [{
+					"legal_person_name": "Charlie Crypto Exchange PTE, LTD",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"
+				}, {
+					"legal_person_name": "CharlieVASP",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+				}, {
+					"legal_person_name": "Charlie VASP",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_SHRT"
+				}, {
+					"legal_person_name": "CCEx",
+					"legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_MISC"
+				}]
+			},
+
+			"geographic_addresses": [{
+				"address_line": [
+					"127 Blackburn Highway",
+					"",
+					"VG1110, East End"
+				],
+				"address_type": "ADDRESS_TYPE_CODE_BIZZ",
+				"country": "VG"
+			}],
+
+			"national_identification": {
+				"national_identifier": "564573110",
+				"national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_TXID",
+				"registration_authority": "RA777777"
+			},
+			"country_of_registration": "VG"
+		}
+	}
 ]
