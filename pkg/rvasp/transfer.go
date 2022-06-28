@@ -155,7 +155,7 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 	// Parse the identity payload
 	identity = &ivms101.IdentityPayload{}
 	if err = payload.Identity.UnmarshalTo(identity); err != nil {
-		log.Error().Err(err).Msg("could not unmarshal identity")
+		log.Warn().Err(err).Msg("could not unmarshal identity")
 		return nil, nil, nil, fmt.Errorf("could non unmarshal identity: %s", err)
 	}
 
@@ -168,7 +168,7 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 	// Parse the transaction message type
 	var msgTx proto.Message
 	if msgTx, err = payload.Transaction.UnmarshalNew(); err != nil {
-		log.Error().Err(err).Str("transaction_type", payload.Transaction.TypeUrl).Msg("could not unmarshal incoming transaction payload")
+		log.Warn().Err(err).Str("transaction_type", payload.Transaction.TypeUrl).Msg("could not unmarshal incoming transaction payload")
 		return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "could not unmarshal transaction payload: %s", err)
 	}
 
@@ -185,7 +185,7 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 	case *generic.Pending:
 		pending = tx
 	default:
-		log.Error().Str("transaction_type", payload.Transaction.TypeUrl).Msg("could not handle incoming transaction payload")
+		log.Warn().Str("transaction_type", payload.Transaction.TypeUrl).Msg("could not handle incoming transaction payload")
 		return nil, nil, nil, fmt.Errorf("unexpected transaction payload type: %s", payload.Transaction.TypeUrl)
 	}
 	return identity, transaction, pending, nil

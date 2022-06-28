@@ -253,7 +253,7 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 			}
 			return out, nil
 		}
-		log.Error().Err(err).Msg("TRISA protocol error while checking envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while checking envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
@@ -277,12 +277,12 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 			}
 			return out, nil
 		}
-		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while opening envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	if identity, transaction, _, err = parsePayload(payload, false); err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while parsing payload")
+		log.Warn().Err(err).Msg("TRISA protocol error while parsing payload")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
@@ -400,7 +400,7 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 	if requireBeneficiary {
 		// TODO: Validate the actual fields in the beneficiary identity
 		if identity.BeneficiaryVasp == nil || identity.BeneficiaryVasp.BeneficiaryVasp == nil {
-			log.Error().Msg("TRISA protocol error: missing beneficiary vasp identity")
+			log.Warn().Msg("TRISA protocol error: missing beneficiary vasp identity")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: missing beneficiary vasp identity")
 		}
 	} else {
@@ -472,7 +472,7 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 			}
 			return out, nil
 		}
-		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
@@ -578,7 +578,7 @@ func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, id
 			}
 			return out, nil
 		}
-		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
@@ -606,7 +606,7 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 	if tx.State == pb.TransactionState_PENDING_SENT {
 		var account *db.Account
 		if account, err = tx.GetAccount(s.parent.db); err != nil {
-			log.Error().Err(err).Msg("could not fetch beneficiary account")
+			log.Warn().Err(err).Msg("could not fetch beneficiary account")
 			return fmt.Errorf("could not fetch beneficiary account: %s", err)
 		}
 
@@ -641,32 +641,32 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
 	var signKey *rsa.PublicKey
 	if signKey, err = peer.ExchangeKeys(true); err != nil {
-		log.Error().Err(err).Msg("could not exchange keys with remote peer")
+		log.Warn().Err(err).Msg("could not exchange keys with remote peer")
 		return fmt.Errorf("could not exchange keys with remote peer: %s", err)
 	}
 
 	// Secure the envelope with the remote originator's signing keys
 	msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(tx.Envelope), envelope.WithRSAPublicKey(signKey))
 	if err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
 		return fmt.Errorf("TRISA protocol error: %s", err)
 	}
 
 	// Conduct the TRISA transfer, handle errors
 	if msg, err = peer.Transfer(msg); err != nil {
-		log.Error().Err(err).Msg("could not perform TRISA exchange")
+		log.Warn().Err(err).Msg("could not perform TRISA exchange")
 		return fmt.Errorf("could not perform TRISA exchange: %s", err)
 	}
 
 	// Open the response envelope with local private keys
 	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.sign))
 	if err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while opening envelope")
 		return fmt.Errorf("TRISA protocol error: %s", err)
 	}
 
 	if _, transaction, _, err = parsePayload(payload, true); err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while parsing payload")
+		log.Warn().Err(err).Msg("TRISA protocol error while parsing payload")
 		return fmt.Errorf("TRISA protocol error while parsing payload: %s", err)
 	}
 
@@ -733,26 +733,26 @@ func (s *TRISA) sendRejected(tx *db.Transaction) (err error) {
 	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
 	var signKey *rsa.PublicKey
 	if signKey, err = peer.ExchangeKeys(true); err != nil {
-		log.Error().Err(err).Msg("could not exchange keys with remote peer")
+		log.Warn().Err(err).Msg("could not exchange keys with remote peer")
 		return status.Errorf(codes.FailedPrecondition, "could not exchange keys with remote peer: %s", err)
 	}
 
 	// Create the rejection message
 	reject = protocol.Errorf(protocol.Rejected, "rejected by beneficiary")
 	if msg, err = envelope.Reject(reject, envelope.WithEnvelopeID(tx.Envelope), envelope.WithRSAPublicKey(signKey)); err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while creating reject envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while creating reject envelope")
 		return fmt.Errorf("TRISA protocol error: %s", err)
 	}
 
 	// Conduct the TRISA transfer, handle errors
 	if msg, err = peer.Transfer(msg); err != nil {
-		log.Error().Err(err).Msg("could not perform TRISA exchange")
+		log.Warn().Err(err).Msg("could not perform TRISA exchange")
 		return fmt.Errorf("could not perform TRISA exchange: %s", err)
 	}
 
 	// Check for the TRISA rejection error
 	if state := envelope.Status(msg); state != envelope.Error {
-		log.Error().Uint("state", uint(state)).Msg("unexpected TRISA response, expected error envelope")
+		log.Warn().Uint("state", uint(state)).Msg("unexpected TRISA response, expected error envelope")
 		return fmt.Errorf("expected TRISA rejection error, received envelope in state %d", state)
 	}
 
@@ -786,7 +786,7 @@ func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *
 	// Cache key inside of the in-memory Peer map
 	var pub interface{}
 	if pub, err = x509.ParsePKIXPublicKey(in.Data); err != nil {
-		log.Error().
+		log.Warn().
 			Err(err).
 			Int64("version", in.Version).
 			Str("algorithm", in.PublicKeyAlgorithm).
@@ -807,7 +807,7 @@ func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *
 	// TODO: use separate signing key insead of using public key of mTLS certs
 	var key *x509.Certificate
 	if key, err = s.certs.GetLeafCertificate(); err != nil {
-		log.Error().Err(err).Msg("could not extract leaf certificate")
+		log.Warn().Err(err).Msg("could not extract leaf certificate")
 		return nil, protocol.Errorf(protocol.InternalError, "could not return signing keys")
 	}
 
