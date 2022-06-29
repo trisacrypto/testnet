@@ -87,7 +87,7 @@ txloop:
 
 		// Acknowledge the transaction with the originator
 		if err = s.acknowledgeTransaction(&tx); err != nil {
-			log.Error().Err(err).Uint("id", tx.ID).Msg("could not acknowledge transaction")
+			log.Warn().Err(err).Uint("id", tx.ID).Msg("could not acknowledge transaction")
 			tx.State = pb.TransactionState_FAILED
 		}
 

@@ -266,14 +266,14 @@ func (s *Server) sendTransfer(req *pb.TransferRequest, account db.Account, parti
 	// Conduct a GDS lookup if necessary to get the endpoint
 	var peer *peers.Peer
 	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
-		log.Error().Err(err).Msg("could not search peer from directory service")
-		return nil, status.Errorf(codes.Internal, "could not search peer from directory service: %s", err)
+		log.Warn().Err(err).Msg("could not search peer from directory service")
+		return nil, status.Errorf(codes.FailedPrecondition, "could not search peer from directory service: %s", err)
 	}
 
 	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
 	var signKey *rsa.PublicKey
 	if signKey, err = peer.ExchangeKeys(true); err != nil {
-		log.Error().Err(err).Msg("could not exchange keys with remote peer")
+		log.Warn().Err(err).Msg("could not exchange keys with remote peer")
 		return nil, status.Errorf(codes.FailedPrecondition, "could not exchange keys with remote peer: %s", err)
 	}
 
@@ -317,7 +317,7 @@ func (s *Server) sendTransfer(req *pb.TransferRequest, account db.Account, parti
 	} else {
 		// If partial is false then retrieve the full beneficiary account
 		if err = s.db.LookupAnyAccount(beneficiary.Address).First(&beneficiaryAccount).Error; err != nil {
-			log.Error().Err(err).Msg("could not lookup remote beneficiary account")
+			log.Warn().Err(err).Msg("could not lookup remote beneficiary account")
 			return nil, status.Errorf(codes.FailedPrecondition, "could not lookup remote beneficiary account: %s", err)
 		}
 	}
@@ -336,27 +336,27 @@ func (s *Server) sendTransfer(req *pb.TransferRequest, account db.Account, parti
 	// Secure the envelope with the remote beneficiary's signing keys
 	msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
 	if err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	// Conduct the TRISA transaction, handle errors and send back to user
 	if msg, err = peer.Transfer(msg); err != nil {
-		log.Error().Err(err).Msg("could not perform TRISA exchange")
+		log.Warn().Err(err).Msg("could not perform TRISA exchange")
 		return nil, status.Errorf(codes.FailedPrecondition, "could not perform TRISA exchange: %s", err)
 	}
 
 	// Open the response envelope with local private keys
 	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
 	if err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while opening envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
 	// Parse the response payload
 	var pending *generic.Pending
 	if identity, transaction, pending, err = parsePayload(payload, true); err != nil {
-		log.Error().Err(err).Msg("TRISA protocol error while parsing payload")
+		log.Warn().Err(err).Msg("TRISA protocol error while parsing payload")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
@@ -372,41 +372,41 @@ func (s *Server) sendTransfer(req *pb.TransferRequest, account db.Account, parti
 	if pending != nil {
 		// Update the Transaction in the database with the pending timestamps
 		if xfer.NotBefore, err = time.Parse(time.RFC3339, pending.ReplyNotBefore); err != nil {
-			log.Error().Err(err).Msg("TRISA protocol error: could not parse ReplyNotBefore timestamp")
+			log.Warn().Err(err).Msg("TRISA protocol error: could not parse ReplyNotBefore timestamp")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: could not parse ReplyNotBefore timestamp in pending message: %s", err)
 		}
 
 		if xfer.NotAfter, err = time.Parse(time.RFC3339, pending.ReplyNotAfter); err != nil {
-			log.Error().Err(err).Msg("TRISA protocol error: could not parse ReplyNotAfter timestamp")
+			log.Warn().Err(err).Msg("TRISA protocol error: could not parse ReplyNotAfter timestamp")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: could not parse ReplyNotAfter timestamp in pending message: %s", err)
 		}
 	} else if transaction != nil {
 		if !partial {
 			// Validate that the beneficiary identity matches the original request
 			if identity.BeneficiaryVasp == nil || identity.BeneficiaryVasp.BeneficiaryVasp == nil {
-				log.Error().Msg("TRISA protocol error: missing beneficiary vasp identity")
+				log.Warn().Msg("TRISA protocol error: missing beneficiary vasp identity")
 				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: missing beneficiary vasp identity")
 			}
 
 			beneficiaryInfo := identity.Beneficiary
 			if beneficiaryInfo == nil {
-				log.Error().Msg("TRISA protocol error: missing beneficiary identity")
+				log.Warn().Msg("TRISA protocol error: missing beneficiary identity")
 				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: missing beneficiary identity")
 			}
 
 			if len(beneficiaryInfo.BeneficiaryPersons) != 1 {
-				log.Error().Int("persons", len(beneficiaryInfo.BeneficiaryPersons)).Msg("TRISA protocol error: unexpected number of beneficiary persons")
+				log.Warn().Int("persons", len(beneficiaryInfo.BeneficiaryPersons)).Msg("TRISA protocol error: unexpected number of beneficiary persons")
 				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: unexpected number of beneficiary persons")
 			}
 
 			if len(beneficiaryInfo.AccountNumbers) != 1 {
-				log.Error().Int("accounts", len(beneficiaryInfo.AccountNumbers)).Msg("TRISA protocol error: unexpected number of beneficiary accounts")
+				log.Warn().Int("accounts", len(beneficiaryInfo.AccountNumbers)).Msg("TRISA protocol error: unexpected number of beneficiary accounts")
 				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: unexpected number of beneficiary accounts")
 			}
 
 			// TODO: Validate that the actual address was returned
 			if beneficiaryInfo.AccountNumbers[0] == "" {
-				log.Error().Msg("TRISA protocol error: missing beneficiary address")
+				log.Warn().Msg("TRISA protocol error: missing beneficiary address")
 				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: missing beneficiary address")
 			}
 		}
@@ -460,8 +460,8 @@ func (s *Server) sendError(req *pb.TransferRequest, account db.Account) (rep *pb
 	// Conduct a GDS lookup if necessary to get the endpoint
 	var peer *peers.Peer
 	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
-		log.Error().Err(err).Msg("could not search peer from directory service")
-		return nil, status.Errorf(codes.Internal, "could not search peer from directory service: %s", err)
+		log.Warn().Err(err).Msg("could not search peer from directory service")
+		return nil, status.Errorf(codes.FailedPrecondition, "could not search peer from directory service: %s", err)
 	}
 
 	reject := protocol.Errorf(protocol.ComplianceCheckFail, "rVASP mock compliance check failed")
@@ -473,13 +473,13 @@ func (s *Server) sendError(req *pb.TransferRequest, account db.Account) (rep *pb
 
 	// Conduct the TRISA transaction, handle errors and send back to user
 	if msg, err = peer.Transfer(msg); err != nil {
-		log.Error().Err(err).Msg("could not perform TRISA exchange")
+		log.Warn().Err(err).Msg("could not perform TRISA exchange")
 		return nil, status.Errorf(codes.FailedPrecondition, "could not perform TRISA exchange: %s", err)
 	}
 
 	// Check for the TRISA rejection error
 	if state := envelope.Status(msg); state != envelope.Error {
-		log.Error().Uint("state", uint(state)).Msg("unexpected TRISA response, expected error envelope")
+		log.Warn().Uint("state", uint(state)).Msg("unexpected TRISA response, expected error envelope")
 		return nil, fmt.Errorf("expected TRISA rejection error, received envelope in state %d", state)
 	}
 	xfer.State = pb.TransactionState_FAILED
@@ -503,7 +503,7 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 
 	// Verify that the transaction has not expired
 	if now.Before(xfer.NotBefore) || now.After(xfer.NotAfter) {
-		log.Error().Err(err).Msg("received expired async transaction")
+		log.Debug().Time("not_before", xfer.NotBefore).Time("not_after", xfer.NotAfter).Msg("received expired async transaction")
 		return nil, protocol.Errorf(protocol.ComplianceCheckFail, "received expired transaction")
 	}
 
@@ -516,7 +516,7 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 			}
 			return out, nil
 		}
-		log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
@@ -533,39 +533,39 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 		// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
 		var signKey *rsa.PublicKey
 		if signKey, err = peer.ExchangeKeys(true); err != nil {
-			log.Error().Err(err).Msg("could not exchange keys with remote peer")
+			log.Warn().Err(err).Msg("could not exchange keys with remote peer")
 			return nil, status.Errorf(codes.FailedPrecondition, "could not exchange keys with remote peer: %s", err)
 		}
 
 		// Secure the envelope with the remote beneficiary's signing keys
 		msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
 		if err != nil {
-			log.Error().Err(err).Msg("TRISA protocol error while sealing envelope")
+			log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 		}
 
 		// Conduct the TRISA transaction, handle errors and send back to user
 		if msg, err = peer.Transfer(msg); err != nil {
-			log.Error().Err(err).Msg("could not perform TRISA exchange")
+			log.Warn().Err(err).Msg("could not perform TRISA exchange")
 			return nil, status.Errorf(codes.FailedPrecondition, "could not perform TRISA exchange: %s", err)
 		}
 
 		// Open the response envelope with local private keys
 		payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
 		if err != nil {
-			log.Error().Err(err).Msg("TRISA protocol error while opening envelope")
+			log.Warn().Err(err).Msg("TRISA protocol error while opening envelope")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 		}
 
 		// Parse the response payload
 		var pending *generic.Pending
 		if identity, _, pending, err = parsePayload(payload, true); err != nil {
-			log.Error().Err(err).Msg("TRISA protocol error while parsing payload")
+			log.Warn().Err(err).Msg("TRISA protocol error while parsing payload")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 		}
 
 		if pending == nil {
-			log.Error().Msg("TRISA protocol error: expected pending response")
+			log.Warn().Msg("TRISA protocol error: expected pending response")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: expected pending response")
 		}
 
@@ -586,12 +586,12 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 
 		// Update the Transaction in the database with the pending timestamps
 		if xfer.NotBefore, err = time.Parse(time.RFC3339, pending.ReplyNotBefore); err != nil {
-			log.Error().Err(err).Msg("TRISA protocol error: could not parse ReplyNotBefore timestamp")
+			log.Warn().Err(err).Msg("TRISA protocol error: could not parse ReplyNotBefore timestamp")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: could not parse ReplyNotBefore timestamp in pending message: %s", err)
 		}
 
 		if xfer.NotAfter, err = time.Parse(time.RFC3339, pending.ReplyNotAfter); err != nil {
-			log.Error().Err(err).Msg("TRISA protocol error: could not parse ReplyNotAfter timestamp")
+			log.Warn().Err(err).Msg("TRISA protocol error: could not parse ReplyNotAfter timestamp")
 			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: could not parse ReplyNotAfter timestamp in pending message: %s", err)
 		}
 
@@ -600,7 +600,7 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 		// The handshake is complete, finalize the transaction
 		var account db.Account
 		if err = s.db.LookupAccount(transaction.Originator).First(&account).Error; err != nil {
-			log.Error().Err(err).Msg("could not find originator account")
+			log.Warn().Err(err).Msg("could not find originator account")
 			return nil, protocol.Errorf(protocol.InternalError, "could not find originator account: %s", err)
 		}
 
@@ -639,7 +639,7 @@ func (s *Server) AccountStatus(ctx context.Context, req *pb.AccountRequest) (rep
 			log.Info().Err(err).Msg("account not found")
 			return nil, status.Error(codes.NotFound, "account not found")
 		}
-		log.Error().Err(err).Msg("could not lookup account")
+		log.Warn().Err(err).Msg("could not lookup account")
 		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup account: %s", err)
 	}
 
