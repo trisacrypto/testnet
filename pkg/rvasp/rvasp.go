@@ -267,7 +267,7 @@ func (s *Server) sendTransfer(req *pb.TransferRequest, account db.Account, parti
 	var peer *peers.Peer
 	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
 		log.Warn().Err(err).Msg("could not search peer from directory service")
-		return nil, status.Errorf(codes.Internal, "could not search peer from directory service: %s", err)
+		return nil, status.Errorf(codes.FailedPrecondition, "could not search peer from directory service: %s", err)
 	}
 
 	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
@@ -461,7 +461,7 @@ func (s *Server) sendError(req *pb.TransferRequest, account db.Account) (rep *pb
 	var peer *peers.Peer
 	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
 		log.Warn().Err(err).Msg("could not search peer from directory service")
-		return nil, status.Errorf(codes.Internal, "could not search peer from directory service: %s", err)
+		return nil, status.Errorf(codes.FailedPrecondition, "could not search peer from directory service: %s", err)
 	}
 
 	reject := protocol.Errorf(protocol.ComplianceCheckFail, "rVASP mock compliance check failed")
@@ -503,7 +503,7 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 
 	// Verify that the transaction has not expired
 	if now.Before(xfer.NotBefore) || now.After(xfer.NotAfter) {
-		log.Warn().Err(err).Msg("received expired async transaction")
+		log.Debug().Time("not_before", xfer.NotBefore).Time("not_after", xfer.NotAfter).Msg("received expired async transaction")
 		return nil, protocol.Errorf(protocol.ComplianceCheckFail, "received expired transaction")
 	}
 

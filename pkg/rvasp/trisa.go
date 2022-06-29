@@ -606,7 +606,11 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 	if tx.State == pb.TransactionState_PENDING_SENT {
 		var account *db.Account
 		if account, err = tx.GetAccount(s.parent.db); err != nil {
-			log.Warn().Err(err).Msg("could not fetch beneficiary account")
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				log.Debug().Uint("id", tx.AccountID).Msg("beneficiary account not found")
+			} else {
+				log.Error().Err(err).Msg("could not fetch beneficiary account")
+			}
 			return fmt.Errorf("could not fetch beneficiary account: %s", err)
 		}
 
