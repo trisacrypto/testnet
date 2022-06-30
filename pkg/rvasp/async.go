@@ -69,7 +69,9 @@ func (s *TRISA) handleAsync(ctx context.Context) {
 
 	now := time.Now()
 txloop:
-	for _, tx := range transactions {
+	for _, transaction := range transactions {
+		tx := &transaction
+
 		// Verify pending transaction is old enough
 		if now.Before(tx.NotBefore) {
 			continue
@@ -78,7 +80,7 @@ txloop:
 		// Verify pending transaction has not expired
 		if now.After(tx.NotAfter) {
 			log.Info().Uint("id", tx.ID).Time("not_after", tx.NotAfter).Msg("transaction expired")
-			tx.State = pb.TransactionState_EXPIRED
+			tx.SetState(pb.TransactionState_EXPIRED)
 			if err = s.parent.db.Save(&tx).Error; err != nil {
 				log.Error().Err(err).Uint("id", tx.ID).Msg("could not save expired transaction")
 			}
@@ -86,13 +88,13 @@ txloop:
 		}
 
 		// Acknowledge the transaction with the originator
-		if err = s.acknowledgeTransaction(&tx); err != nil {
+		if err = s.acknowledgeTransaction(tx); err != nil {
 			log.Warn().Err(err).Uint("id", tx.ID).Msg("could not acknowledge transaction")
-			tx.State = pb.TransactionState_FAILED
+			tx.SetState(pb.TransactionState_FAILED)
 		}
 
 		// Save the updated transaction in the database
-		if err = s.parent.db.Save(&tx).Error; err != nil {
+		if err = s.parent.db.Save(tx).Error; err != nil {
 			log.Error().Err(err).Uint("id", tx.ID).Msg("could not save completed transaction")
 		}
 	}

@@ -58,7 +58,8 @@ enum TransactionState {
     ACCEPTED = 4; // (Async) Originator has received the transaction acknowledgement from the beneficiary
     FAILED = 5; // The transaction has failed
     EXPIRED = 6; // The asynchronous transaction has expired before completion
-    COMPLETED = 7; // The transaction is completed
+    REJECTED = 7; // The transaction has been rejected
+    COMPLETED = 8; // The transaction is completed
 }
 
 // Initiates a transfer from the specified account to the specified wallet address or

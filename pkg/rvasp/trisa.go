@@ -251,6 +251,24 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
 				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 			}
+
+			// Lookup the indicated transaction in the database
+			xfer := &db.Transaction{}
+			if err = s.parent.db.LookupTransaction(in.Id).First(xfer).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					log.Warn().Err(err).Str("id", in.Id).Msg("transaction not found")
+				} else {
+					log.Error().Err(err).Msg("could not perform transaction lookup")
+				}
+				return out, nil
+			}
+
+			// Set the transaction state to rejected
+			xfer.SetState(pb.TransactionState_REJECTED)
+			if err = s.parent.db.Save(xfer).Error; err != nil {
+				log.Error().Err(err).Msg("could not save transaction")
+				return nil, status.Errorf(codes.Internal, "could not save transaction: %s", err)
+			}
 			return out, nil
 		}
 		log.Warn().Err(err).Msg("TRISA protocol error while checking envelope")
@@ -304,7 +322,28 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 			log.Warn().Err(err).Msg("could not lookup remote peer")
 			return nil, protocol.Errorf(protocol.InternalError, "could not lookup remote peer")
 		}
-		return s.parent.respondAsync(peer, payload, identity, transaction, in.Id)
+
+		// Lookup the pending transaction in the database
+		xfer := &db.Transaction{}
+		if err = s.parent.db.LookupTransaction(in.Id).First(xfer).Error; err != nil {
+			log.Error().Err(err).Msg("could not find pending transaction")
+			return nil, protocol.Errorf(protocol.InternalError, "could not find pending transaction: %s", err)
+		}
+
+		// Perform the transfer back to the originator
+		var transferErr error
+		if out, transferErr = s.parent.respondAsync(peer, payload, identity, transaction, xfer); transferErr != nil {
+			log.Warn().Err(err).Msg("TRISA protocol error while responding to async transaction")
+			xfer.SetState(pb.TransactionState_FAILED)
+		}
+
+		// Save the updated transaction
+		if err = s.parent.db.Save(xfer).Error; err != nil {
+			log.Error().Err(err).Msg("could not save transaction")
+			return nil, status.Errorf(codes.Internal, "could not save transaction: %s", err)
+		}
+
+		return out, transferErr
 	}
 
 	// Lookup the beneficiary in the local VASP database.
@@ -337,29 +376,68 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
+	// Fetch or create the transaction from the envelope ID
+	xfer := &db.Transaction{}
+	if err = s.parent.db.LookupTransaction(in.Id).First(xfer).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Create a new pending transaction in the database
+			if xfer, err = s.parent.db.MakeTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
+				log.Error().Err(err).Msg("could not construct transaction")
+				return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+			}
+			xfer.Envelope = in.Id
+			xfer.Account = account
+			xfer.Amount = decimal.NewFromFloat(transaction.Amount)
+			xfer.Debit = false
+
+			if err = s.parent.db.Create(xfer).Error; err != nil {
+				log.Error().Err(err).Msg("could not create transaction in database")
+				return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+			}
+		} else {
+			log.Error().Err(err).Msg("could not perform transaction lookup")
+			return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
+		}
+	}
+
 	// Run the scenario for the wallet's configured policy
+	var transferError error
 	policy := wallet.BeneficiaryPolicy
 	log.Debug().Str("wallet", account.WalletAddress).Str("policy", string(policy)).Msg("received transfer request")
 	switch policy {
 	case db.SyncRepair:
 		// Respond to the transfer request immediately, filling in the beneficiary
 		// identity information.
-		return s.respondTransfer(in, peer, identity, transaction, account, false)
+		out, transferError = s.respondTransfer(in, peer, identity, transaction, xfer, account, false)
 	case db.SyncRequire:
 		// Respond to the transfer request immediately, requiring that the beneficiary
 		// identity is already filled in.
-		return s.respondTransfer(in, peer, identity, transaction, account, true)
+		out, transferError = s.respondTransfer(in, peer, identity, transaction, xfer, account, true)
 	case db.AsyncRepair:
 		// Respond to the transfer request with a pending message and mark the
 		// transaction for later service. The beneficiary information is filled in.
-		return s.respondPending(in, peer, identity, transaction, account)
+		out, transferError = s.respondPending(in, peer, identity, transaction, xfer, account)
 	case db.AsyncReject:
 		// Respond to the transfer request with a pending message that will be later
 		// rejected.
-		return s.respondPending(in, peer, identity, transaction, account)
+		out, transferError = s.respondPending(in, peer, identity, transaction, xfer, account)
 	default:
 		return nil, protocol.Errorf(protocol.InternalError, "unknown policy '%s' for wallet '%s'", policy, account.WalletAddress)
 	}
+
+	if transferError != nil {
+		log.Debug().Err(transferError).Msg("transfer failed")
+		xfer.SetState(pb.TransactionState_FAILED)
+	}
+
+	// Save the updated transaction
+	// TODO: Clean up completed transactions in the database
+	if err = s.parent.db.Save(xfer).Error; err != nil {
+		log.Error().Err(err).Msg("could not save transaction")
+		return nil, protocol.Errorf(protocol.InternalError, "could not save transaction: %s", err)
+	}
+
+	return out, transferError
 }
 
 // Repair the identity payload in a received transfer request by filling in the
@@ -389,7 +467,7 @@ func (s *TRISA) repairBeneficiary(identity *ivms101.IdentityPayload, account db.
 // the payload with the beneficiary identity information. If requireBeneficiary is
 // true, the beneficiary identity must be filled in, or the transfer is rejected. If
 // requireBeneficiary is false, the partial beneficiary identity is repaired.
-func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account, requireBeneficiary bool) (out *protocol.SecureEnvelope, err error) {
+func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, xfer *db.Transaction, account db.Account, requireBeneficiary bool) (out *protocol.SecureEnvelope, err error) {
 	// Save the pending transaction on the account
 	account.Pending++
 	if err = s.parent.db.Save(&account).Error; err != nil {
@@ -401,7 +479,13 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 		// TODO: Validate the actual fields in the beneficiary identity
 		if identity.BeneficiaryVasp == nil || identity.BeneficiaryVasp.BeneficiaryVasp == nil {
 			log.Warn().Msg("TRISA protocol error: missing beneficiary vasp identity")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: missing beneficiary vasp identity")
+			reject := protocol.Errorf(protocol.Rejected, "missing beneficiary vasp identity")
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
+				log.Error().Err(err).Msg("could not create reject envelope")
+				return nil, protocol.Errorf(protocol.InternalError, "request coould not be processed: %s", err)
+			}
+			xfer.SetState(pb.TransactionState_REJECTED)
+			return out, nil
 		}
 	} else {
 		// Fill in the beneficiary identity information for the repair policy
@@ -412,29 +496,12 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 	transaction.Beneficiary = account.WalletAddress
 	transaction.Timestamp = time.Now().Format(time.RFC3339)
 
-	// Save the completed transaction in the database
-	var ach db.Transaction
-	if ach, err = s.parent.db.MakeTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
-		log.Error().Err(err).Msg("could not create transaction")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
-	ach.Envelope = in.Id
-	ach.Account = account
-	ach.Amount = decimal.NewFromFloat(transaction.Amount)
-	ach.Debit = false
-	ach.State = pb.TransactionState_COMPLETED
-
-	var achBytes []byte
-	if achBytes, err = protojson.Marshal(identity); err != nil {
+	var xferBytes []byte
+	if xferBytes, err = protojson.Marshal(identity); err != nil {
 		log.Error().Err(err).Msg("could not marshal transaction identity")
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
-	ach.Identity = string(achBytes)
-
-	if err = s.parent.db.Create(&ach).Error; err != nil {
-		log.Error().Err(err).Msg("could not create transaction in database")
-		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-	}
+	xfer.Identity = string(xferBytes)
 
 	// Update the account information
 	account.Balance = account.Balance.Add(decimal.NewFromFloat(transaction.Amount))
@@ -445,7 +512,7 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
-	msg := fmt.Sprintf("ready for transaction %04d: %s transfering from %s to %s", ach.ID, ach.Amount, ach.Originator.WalletAddress, ach.Beneficiary.WalletAddress)
+	msg := fmt.Sprintf("ready for transaction %04d: %s transfering from %s to %s", xfer.ID, xfer.Amount, xfer.Originator.WalletAddress, xfer.Beneficiary.WalletAddress)
 	s.parent.updates.Broadcast(0, msg, pb.MessageCategory_BLOCKCHAIN)
 
 	// Encode and encrypt the payload information to return the secure envelope
@@ -470,6 +537,7 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
 				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 			}
+			xfer.SetState(pb.TransactionState_REJECTED)
 			return out, nil
 		}
 		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
@@ -477,40 +545,23 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 	}
 
 	s.parent.updates.Broadcast(0, fmt.Sprintf("%04d new account balance: %s", account.ID, account.Balance), pb.MessageCategory_LEDGER)
+
+	// Mark transaction as completed
+	xfer.SetState(pb.TransactionState_COMPLETED)
+
 	return out, nil
 }
 
 // respondPending responds to a transfer request from the originator by returning a
 // pending message and saving the pending transaction in the database.
-func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
+func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, xfer *db.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
 	now := time.Now()
 
-	// Check if the pending transaction exists, otherwise create it
-	var xfer db.Transaction
-	if err = s.parent.db.LookupTransaction(in.Id).First(&xfer).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Create a new pending transaction in the database
-			if xfer, err = s.parent.db.MakeTransaction(transaction.Originator, transaction.Beneficiary); err != nil {
-				log.Error().Err(err).Msg("could not construct transaction")
-				return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-			}
-			xfer.Envelope = in.Id
-			xfer.Account = account
-			xfer.Amount = decimal.NewFromFloat(transaction.Amount)
-			xfer.Debit = false
-			xfer.State = pb.TransactionState_PENDING_SENT
-
-			if err = s.parent.db.Create(&xfer).Error; err != nil {
-				log.Error().Err(err).Msg("could not create transaction in database")
-				return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-			}
-		} else {
-			log.Error().Err(err).Msg("could not perform transaction lookup")
-			return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
-		}
+	// Update the transaction state
+	if xfer.State == pb.TransactionState_AWAITING {
+		xfer.SetState(pb.TransactionState_PENDING_SENT)
 	} else {
-		// Update the existing pending transaction
-		xfer.State = pb.TransactionState_PENDING_ACKNOWLEDGED
+		xfer.SetState(pb.TransactionState_PENDING_ACKNOWLEDGED)
 	}
 
 	xfer.NotBefore = now.Add(s.parent.conf.AsyncNotBefore)
@@ -576,6 +627,7 @@ func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, id
 			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
 				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 			}
+			xfer.SetState(pb.TransactionState_REJECTED)
 			return out, nil
 		}
 		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
@@ -686,7 +738,7 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 	switch tx.State {
 	case pb.TransactionState_PENDING_SENT:
 		// The first handshake is complete so move the transaction to the next state
-		tx.State = pb.TransactionState_PENDING_ACKNOWLEDGED
+		tx.SetState(pb.TransactionState_PENDING_ACKNOWLEDGED)
 	case pb.TransactionState_PENDING_ACKNOWLEDGED:
 		// This is a complete transaction so update the database
 		var account *db.Account
@@ -705,7 +757,7 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 
 		msg := fmt.Sprintf("ready for transaction %s: %.2f transfering from %s to %s", transaction.Txid, transaction.Amount, transaction.Originator, transaction.Beneficiary)
 		s.parent.updates.Broadcast(0, msg, pb.MessageCategory_BLOCKCHAIN)
-		tx.State = pb.TransactionState_COMPLETED
+		tx.SetState(pb.TransactionState_COMPLETED)
 	default:
 		log.Error().Str("state", tx.State.String()).Msg("unexpected transaction state")
 		return fmt.Errorf("unexpected transaction state: %s", tx.State.String())
@@ -760,7 +812,7 @@ func (s *TRISA) sendRejected(tx *db.Transaction) (err error) {
 		return fmt.Errorf("expected TRISA rejection error, received envelope in state %d", state)
 	}
 
-	tx.State = pb.TransactionState_FAILED
+	tx.SetState(pb.TransactionState_REJECTED)
 
 	return nil
 }

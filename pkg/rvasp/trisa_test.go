@@ -18,8 +18,6 @@ import (
 	"github.com/trisacrypto/trisa/pkg/trisa/mtls"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 	"github.com/trisacrypto/trisa/pkg/trust"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -112,29 +110,20 @@ func (s *rVASPTestSuite) TestValidTransfer() {
 	s.db.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"wallet_address"}).AddRow(beneficiaryAddress))
 	s.db.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"beneficiary_policy"}).AddRow("SyncRequire"))
 
+	// Preload the transaction lookup
+	expectStandardQuery(s.db, "SELECT")
+
 	// Preload the beneficiary account insert
 	s.db.ExpectBegin()
 	expectStandardQuery(s.db, "INSERT")
 	s.db.ExpectCommit()
 
-	// Preload the identity lookups
-	expectStandardQuery(s.db, "SELECT")
-	expectStandardQuery(s.db, "SELECT")
-
-	// Preload the transaction insert
+	// Account record update
 	s.db.ExpectBegin()
-	// Account record insert
-	expectStandardQuery(s.db, "INSERT")
-	// Identity records insert
-	expectStandardQuery(s.db, "INSERT")
-	expectStandardQuery(s.db, "INSERT")
-	// VASP record insert
-	expectStandardQuery(s.db, "INSERT")
-	// Transaction record insert
-	expectStandardQuery(s.db, "INSERT")
+	s.db.ExpectExec("UPDATE").WillReturnResult(sqlmock.NewResult(1, 1))
 	s.db.ExpectCommit()
 
-	// Account record update
+	// Transaction record update
 	s.db.ExpectBegin()
 	s.db.ExpectExec("UPDATE").WillReturnResult(sqlmock.NewResult(1, 1))
 	s.db.ExpectCommit()
@@ -213,9 +202,17 @@ func (s *rVASPTestSuite) TestInvalidTransfer() {
 	s.db.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"wallet_address"}).AddRow(beneficiaryAddress))
 	s.db.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"beneficiary_policy"}).AddRow("SyncRequire"))
 
+	// Preload the transaction lookup
+	expectStandardQuery(s.db, "SELECT")
+
 	// Preload the beneficiary account insert
 	s.db.ExpectBegin()
 	expectStandardQuery(s.db, "INSERT")
+	s.db.ExpectCommit()
+
+	// Transaction record update
+	s.db.ExpectBegin()
+	s.db.ExpectExec("UPDATE").WillReturnResult(sqlmock.NewResult(1, 1))
 	s.db.ExpectCommit()
 
 	// Seal the envelope using the public key
@@ -233,6 +230,10 @@ func (s *rVASPTestSuite) TestInvalidTransfer() {
 	client := protocol.NewTRISANetworkClient(s.grpc.Conn)
 
 	// Do the request
-	_, err = client.Transfer(context.Background(), msg)
-	require.EqualError(err, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: missing beneficiary vasp identity").Error())
+	response, err := client.Transfer(context.Background(), msg)
+	require.NoError(err)
+	require.NotNil(response)
+
+	// Should get a rejection error
+	require.Equal(envelope.Error, envelope.Status(response))
 }
