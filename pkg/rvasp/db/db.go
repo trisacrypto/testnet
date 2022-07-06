@@ -111,13 +111,13 @@ func (d *DB) LookupWallet(address string) *gorm.DB {
 // MakeTransaction returns a new Transaction from the originator and beneficiary
 // wallet addresses. Note: this does not store the transaction in the database to allow
 // the caller to modify the transaction fields before storage.
-func (d *DB) MakeTransaction(originator string, beneficiary string) (Transaction, error) {
+func (d *DB) MakeTransaction(originator string, beneficiary string) (*Transaction, error) {
 	var originatorIdentity, beneficiaryIdentity Identity
 
 	// Fetch originator identity record
 	if err := d.LookupIdentity(originator).FirstOrInit(&originatorIdentity, Identity{}).Error; err != nil {
 		log.Error().Err(err).Msg("could not lookup originator identity")
-		return Transaction{}, status.Errorf(codes.FailedPrecondition, "could not lookup originator identity: %s", err)
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup originator identity: %s", err)
 	}
 
 	// If originator identity does not exist then create it
@@ -127,14 +127,14 @@ func (d *DB) MakeTransaction(originator string, beneficiary string) (Transaction
 
 		if err := d.Create(&originatorIdentity).Error; err != nil {
 			log.Error().Err(err).Msg("could not save originator identity")
-			return Transaction{}, status.Errorf(codes.FailedPrecondition, "could not save originator identity: %s", err)
+			return nil, status.Errorf(codes.FailedPrecondition, "could not save originator identity: %s", err)
 		}
 	}
 
 	// Fetch beneficiary identity record
 	if err := d.LookupIdentity(beneficiary).FirstOrInit(&beneficiaryIdentity, Identity{}).Error; err != nil {
 		log.Error().Err(err).Msg("could not lookup beneficiary identity")
-		return Transaction{}, status.Errorf(codes.FailedPrecondition, "could not lookup beneficiary identity: %s", err)
+		return nil, status.Errorf(codes.FailedPrecondition, "could not lookup beneficiary identity: %s", err)
 	}
 
 	// If the beneficiary identity does not exist then create it
@@ -144,15 +144,16 @@ func (d *DB) MakeTransaction(originator string, beneficiary string) (Transaction
 
 		if err := d.Create(&beneficiaryIdentity).Error; err != nil {
 			log.Error().Err(err).Msg("could not save beneficiary identity")
-			return Transaction{}, status.Errorf(codes.FailedPrecondition, "could not save beneficiary identity: %s", err)
+			return nil, status.Errorf(codes.FailedPrecondition, "could not save beneficiary identity: %s", err)
 		}
 	}
 
-	return Transaction{
+	return &Transaction{
 		Envelope:    uuid.New().String(),
 		Originator:  originatorIdentity,
 		Beneficiary: beneficiaryIdentity,
 		State:       pb.TransactionState_AWAITING,
+		StateString: pb.TransactionState_AWAITING.String(),
 		Timestamp:   time.Now(),
 		Vasp:        d.vasp,
 	}, nil
@@ -260,6 +261,7 @@ type Transaction struct {
 	Amount        decimal.Decimal     `gorm:"type:decimal(15,8)"`
 	Debit         bool                `gorm:"not null"`
 	State         pb.TransactionState `gorm:"not null;default:0"`
+	StateString   string              `gorm:"column:state_string;not null"`
 	Timestamp     time.Time           `gorm:"not null"`
 	NotBefore     time.Time           `gorm:"not null"`
 	NotAfter      time.Time           `gorm:"not null"`
@@ -272,6 +274,12 @@ type Transaction struct {
 // TableName explicitly defines the name of the table for the model
 func (Transaction) TableName() string {
 	return "transactions"
+}
+
+// Set the transaction state to a new value
+func (t *Transaction) SetState(state pb.TransactionState) {
+	t.State = state
+	t.StateString = state.String()
 }
 
 // Identity holds raw data for an originator or a beneficiary that was sent as
