@@ -601,8 +601,6 @@ func (s *Server) continueAsync(xfer *db.Transaction) (err error) {
 		return fmt.Errorf("could not fetch beneficiary address")
 	}
 
-	fmt.Println("beneficiary:", beneficiary.Provider)
-
 	// Fill the transaction with a new TxID to continue the handshake
 	var payload *protocol.Payload
 	transaction.Txid = uuid.New().String()
