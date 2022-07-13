@@ -316,13 +316,6 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	// For async transactions the originator receives a transfer request from the
 	// beneficiary, so call the originator handler to continue the transaction.
 	if proto.Equal(localIdentity, identity.OriginatingVasp.OriginatingVasp) {
-		// We need the remote peer's endpoint in order to initiate async transactions
-		// with the beneficiary.
-		if peer, err = s.parent.peers.Search(peer.String()); err != nil {
-			log.Warn().Err(err).Msg("could not lookup remote peer")
-			return nil, protocol.Errorf(protocol.InternalError, "could not lookup remote peer")
-		}
-
 		// Lookup the pending transaction in the database
 		xfer := &db.Transaction{}
 		if err = s.parent.db.LookupTransaction(in.Id).First(xfer).Error; err != nil {
@@ -557,13 +550,6 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, xfer *db.Transaction, account db.Account) (out *protocol.SecureEnvelope, err error) {
 	now := time.Now()
 
-	// Update the transaction state
-	if xfer.State == pb.TransactionState_AWAITING {
-		xfer.SetState(pb.TransactionState_PENDING_SENT)
-	} else {
-		xfer.SetState(pb.TransactionState_PENDING_ACKNOWLEDGED)
-	}
-
 	xfer.NotBefore = now.Add(s.parent.conf.AsyncNotBefore)
 	xfer.NotAfter = now.Add(s.parent.conf.AsyncNotAfter)
 
@@ -632,6 +618,13 @@ func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, id
 		}
 		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
 		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+	}
+
+	// Mark the transaction as pending for the async routine
+	if xfer.State == pb.TransactionState_AWAITING_REPLY {
+		xfer.SetState(pb.TransactionState_PENDING_SENT)
+	} else {
+		xfer.SetState(pb.TransactionState_PENDING_ACKNOWLEDGED)
 	}
 
 	return out, nil
@@ -738,7 +731,7 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 	switch tx.State {
 	case pb.TransactionState_PENDING_SENT:
 		// The first handshake is complete so move the transaction to the next state
-		tx.SetState(pb.TransactionState_PENDING_ACKNOWLEDGED)
+		tx.SetState(pb.TransactionState_AWAITING_FULL_TRANSFER)
 	case pb.TransactionState_PENDING_ACKNOWLEDGED:
 		// This is a complete transaction so update the database
 		var account *db.Account

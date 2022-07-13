@@ -183,8 +183,8 @@ func (s *dbTestSuite) TestLookupPending() {
 	id := s.db.GetVASP().ID
 
 	// Transaction lookups should be limited to the configured VASP
-	query := regexp.QuoteMeta(`SELECT * FROM "transactions" WHERE vasp_id = $1 AND state in ($2, $3)`)
-	s.mock.ExpectQuery(query).WithArgs(id, pb.TransactionState_PENDING_SENT, pb.TransactionState_PENDING_ACKNOWLEDGED).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
+	query := regexp.QuoteMeta(`SELECT * FROM "transactions" WHERE vasp_id = $1 AND state in ($2, $3, $4)`)
+	s.mock.ExpectQuery(query).WithArgs(id, pb.TransactionState_PENDING_SENT, pb.TransactionState_PENDING_RECEIVED, pb.TransactionState_PENDING_ACKNOWLEDGED).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
 
 	var transaction db.Transaction
 	tx := s.db.LookupPending().First(&transaction)

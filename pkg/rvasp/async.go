@@ -87,10 +87,23 @@ txloop:
 			continue txloop
 		}
 
-		// Acknowledge the transaction with the originator
-		if err = s.acknowledgeTransaction(tx); err != nil {
-			log.Warn().Err(err).Uint("id", tx.ID).Msg("could not acknowledge transaction")
-			tx.SetState(pb.TransactionState_FAILED)
+		switch tx.State {
+		case pb.TransactionState_PENDING_SENT, pb.TransactionState_PENDING_ACKNOWLEDGED:
+			// We are the beneficiary, so acknowledge the pending transaction with the
+			// originator
+			if err = s.acknowledgeTransaction(tx); err != nil {
+				log.Warn().Err(err).Uint("id", tx.ID).Msg("could not acknowledge transaction")
+				tx.SetState(pb.TransactionState_FAILED)
+			}
+		case pb.TransactionState_PENDING_RECEIVED:
+			// We are the originator, so send a new transfer to the beneficiary to
+			// continue the async handshake
+			if err = s.parent.continueAsync(tx); err != nil {
+				log.Warn().Err(err).Uint("id", tx.ID).Msg("could not send transaction")
+				tx.SetState(pb.TransactionState_FAILED)
+			}
+		default:
+			log.Error().Uint("id", tx.ID).Str("state", tx.StateString).Msg("unexpected transaction state")
 		}
 
 		// Save the updated transaction in the database

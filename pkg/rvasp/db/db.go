@@ -95,7 +95,7 @@ func (d *DB) LookupIdentity(walletAddress string) *gorm.DB {
 
 // LookupPending returns the pending transactions.
 func (d *DB) LookupPending() *gorm.DB {
-	return d.Query().Where("state in (?, ?)", pb.TransactionState_PENDING_SENT, pb.TransactionState_PENDING_ACKNOWLEDGED)
+	return d.Query().Where("state in (?, ?, ?)", pb.TransactionState_PENDING_SENT, pb.TransactionState_PENDING_RECEIVED, pb.TransactionState_PENDING_ACKNOWLEDGED)
 }
 
 // LookupTransaction by envelope ID.
@@ -152,8 +152,8 @@ func (d *DB) MakeTransaction(originator string, beneficiary string) (*Transactio
 		Envelope:    uuid.New().String(),
 		Originator:  originatorIdentity,
 		Beneficiary: beneficiaryIdentity,
-		State:       pb.TransactionState_AWAITING,
-		StateString: pb.TransactionState_AWAITING.String(),
+		State:       pb.TransactionState_AWAITING_REPLY,
+		StateString: pb.TransactionState_AWAITING_REPLY.String(),
 		Timestamp:   time.Now(),
 		Vasp:        d.vasp,
 	}, nil
