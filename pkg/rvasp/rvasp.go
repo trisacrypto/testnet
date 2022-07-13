@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/anypb"
 	"gorm.io/gorm"
 )
@@ -391,9 +392,9 @@ func (s *Server) sendTransfer(xfer *db.Transaction, beneficiary *db.Wallet, part
 		return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
 	}
 
-	// Update the transaction with the identity information
+	// Update the transaction record with the identity payload
 	var data []byte
-	if data, err = json.Marshal(identity); err != nil {
+	if data, err = protojson.Marshal(identity); err != nil {
 		log.Error().Err(err).Msg("could not marshal IVMS 101 identity")
 		return status.Errorf(codes.Internal, "could not marshal IVMS 101 identity: %s", err)
 	}
@@ -499,8 +500,36 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 
 	// Verify that the transaction has not expired
 	if now.Before(xfer.NotBefore) || now.After(xfer.NotAfter) {
-		log.Debug().Time("not_before", xfer.NotBefore).Time("not_after", xfer.NotAfter).Msg("received expired async transaction")
+		log.Debug().Time("now", now).Time("not_before", xfer.NotBefore).Time("not_after", xfer.NotAfter).Str("id", xfer.Envelope).Msg("received expired async transaction")
 		return nil, protocol.Errorf(protocol.ComplianceCheckFail, "received expired transaction")
+	}
+
+	// Marshal the identity payload into the transaction record
+	var data []byte
+	if data, err = protojson.Marshal(identity); err != nil {
+		log.Error().Err(err).Msg("could not marshal identity payload")
+		return nil, status.Errorf(codes.Internal, "could not marshal identity payload: %s", err)
+	}
+	xfer.Identity = string(data)
+
+	// Marshal the transaction payload into the transaction record
+	if data, err = protojson.Marshal(transaction); err != nil {
+		log.Error().Err(err).Msg("could not marshal transaction payload")
+		return nil, status.Errorf(codes.Internal, "could not marshal transaction payload: %s", err)
+	}
+	xfer.Transaction = string(data)
+
+	// Fetch the beneficiary identity
+	if err = s.db.LookupIdentity(transaction.Beneficiary).First(&xfer.Beneficiary).Error; err != nil {
+		log.Error().Err(err).Str("wallet_address", transaction.Beneficiary).Msg("could not lookup beneficiary identity")
+		return nil, status.Errorf(codes.Internal, "could not lookup beneficiary identity: %s", err)
+	}
+
+	// Save the peer name so we can access it later
+	xfer.Beneficiary.Provider = peer.String()
+	if err = s.db.Save(&xfer.Beneficiary).Error; err != nil {
+		log.Error().Err(err).Msg("could not save beneficiary identity")
+		return nil, status.Errorf(codes.Internal, "could not save beneficiary identity: %s", err)
 	}
 
 	// Create the response envelope
@@ -519,80 +548,9 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 
 	// Check the transaction state
 	switch xfer.State {
-	case pb.TransactionState_AWAITING:
-		// Fill the transaction with a new TxID to continue the handshake
-		transaction.Txid = uuid.New().String()
-		if payload, err = createTransferPayload(identity, transaction); err != nil {
-			log.Error().Err(err).Msg("could not create transfer payload")
-			return nil, protocol.Errorf(protocol.InternalError, "could not create transfer payload: %s", err)
-		}
-
-		// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
-		var signKey *rsa.PublicKey
-		if signKey, err = peer.ExchangeKeys(true); err != nil {
-			log.Warn().Err(err).Msg("could not exchange keys with remote peer")
-			return nil, status.Errorf(codes.FailedPrecondition, "could not exchange keys with remote peer: %s", err)
-		}
-
-		// Secure the envelope with the remote beneficiary's signing keys
-		msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
-		if err != nil {
-			log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
-		}
-
-		// Conduct the TRISA transaction, handle errors and send back to user
-		if msg, err = peer.Transfer(msg); err != nil {
-			log.Warn().Err(err).Msg("could not perform TRISA exchange")
-			return nil, status.Errorf(codes.FailedPrecondition, "could not perform TRISA exchange: %s", err)
-		}
-
-		// Open the response envelope with local private keys
-		payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
-		if err != nil {
-			log.Warn().Err(err).Msg("TRISA protocol error while opening envelope")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
-		}
-
-		// Parse the response payload
-		var pending *generic.Pending
-		if identity, _, pending, err = parsePayload(payload, true); err != nil {
-			log.Warn().Err(err).Msg("TRISA protocol error while parsing payload")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
-		}
-
-		if pending == nil {
-			log.Warn().Msg("TRISA protocol error: expected pending response")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: expected pending response")
-		}
-
-		// Update the transaction with the identity information
-		var data []byte
-		if data, err = json.Marshal(identity); err != nil {
-			log.Error().Err(err).Msg("could not marshal IVMS 101 identity")
-			return nil, status.Errorf(codes.Internal, "could not marshal IVMS 101 identity: %s", err)
-		}
-		xfer.Identity = string(data)
-
-		// Update the transaction with the new generic.Transaction
-		if data, err = json.Marshal(transaction); err != nil {
-			log.Error().Err(err).Msg("could not marshal generic.Transaction")
-			return nil, status.Errorf(codes.Internal, "could not marshal generic.Transaction: %s", err)
-		}
-		xfer.Transaction = string(data)
-
-		// Update the Transaction in the database with the pending timestamps
-		if xfer.NotBefore, err = time.Parse(time.RFC3339, pending.ReplyNotBefore); err != nil {
-			log.Warn().Err(err).Msg("TRISA protocol error: could not parse ReplyNotBefore timestamp")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: could not parse ReplyNotBefore timestamp in pending message: %s", err)
-		}
-
-		if xfer.NotAfter, err = time.Parse(time.RFC3339, pending.ReplyNotAfter); err != nil {
-			log.Warn().Err(err).Msg("TRISA protocol error: could not parse ReplyNotAfter timestamp")
-			return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: could not parse ReplyNotAfter timestamp in pending message: %s", err)
-		}
-
-		xfer.SetState(pb.TransactionState_ACCEPTED)
+	case pb.TransactionState_AWAITING_REPLY:
+		// Mark the transaction as pending for the async routine
+		xfer.SetState(pb.TransactionState_PENDING_RECEIVED)
 	case pb.TransactionState_ACCEPTED:
 		// The handshake is complete, finalize the transaction
 		var account db.Account
@@ -617,6 +575,114 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 	}
 
 	return out, nil
+}
+
+// continueAsync continues an asynchronous transaction by sending a new transfer to the
+// beneficiary with a populated TxID.
+func (s *Server) continueAsync(xfer *db.Transaction) (err error) {
+	// Unmarshal the transaction payload from the transaction record
+	transaction := &generic.Transaction{}
+	if err = protojson.Unmarshal([]byte(xfer.Transaction), transaction); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal transaction payload")
+		return fmt.Errorf("could not unmarshal transaction payload: %s", err)
+	}
+
+	// Unmarshal the identity payload from the identity record
+	identity := &ivms101.IdentityPayload{}
+	if err = protojson.Unmarshal([]byte(xfer.Identity), identity); err != nil {
+		log.Error().Err(err).Msg("could not unmarshal identity payload")
+		return fmt.Errorf("could not unmarshal identity payload: %s", err)
+	}
+
+	// Fetch the beneficiary name from the database
+	var beneficiary *db.Identity
+	if beneficiary, err = xfer.GetBeneficiary(s.db); err != nil {
+		log.Error().Err(err).Msg("could not fetch beneficiary address")
+		return fmt.Errorf("could not fetch beneficiary address")
+	}
+
+	// Fill the transaction with a new TxID to continue the handshake
+	var payload *protocol.Payload
+	transaction.Txid = uuid.New().String()
+	if payload, err = createTransferPayload(identity, transaction); err != nil {
+		log.Error().Err(err).Msg("could not create transfer payload")
+		return fmt.Errorf("could not create transfer payload: %s", err)
+	}
+
+	// Conduct a GDS lookup if necessary to get the endpoint
+	var peer *peers.Peer
+	if peer, err = s.peers.Search(beneficiary.Provider); err != nil {
+		log.Error().Err(err).Msg("could not search peer from directory service")
+		return fmt.Errorf("could not search peer from directory service: %s", err)
+	}
+
+	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
+	var signKey *rsa.PublicKey
+	if signKey, err = peer.ExchangeKeys(true); err != nil {
+		log.Warn().Err(err).Msg("could not exchange keys with remote peer")
+		return fmt.Errorf("could not exchange keys with remote peer: %s", err)
+	}
+
+	// Secure the envelope with the remote beneficiary's signing keys
+	msg, _, err := envelope.Seal(payload, envelope.WithEnvelopeID(xfer.Envelope), envelope.WithRSAPublicKey(signKey))
+	if err != nil {
+		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
+		return fmt.Errorf("TRISA protocol error: %s", err)
+	}
+
+	// Conduct the TRISA transaction, handle errors and send back to user
+	if msg, err = peer.Transfer(msg); err != nil {
+		log.Warn().Err(err).Msg("could not perform TRISA exchange")
+		return fmt.Errorf("could not perform TRISA exchange: %s", err)
+	}
+
+	// Open the response envelope with local private keys
+	payload, _, err = envelope.Open(msg, envelope.WithRSAPrivateKey(s.trisa.sign))
+	if err != nil {
+		log.Warn().Err(err).Msg("TRISA protocol error while opening envelope")
+		return fmt.Errorf("TRISA protocol error: %s", err)
+	}
+
+	// Parse the response payload
+	var pending *generic.Pending
+	if identity, _, pending, err = parsePayload(payload, true); err != nil {
+		log.Warn().Err(err).Msg("TRISA protocol error while parsing payload")
+		return fmt.Errorf("TRISA protocol error: %s", err)
+	}
+
+	if pending == nil {
+		log.Warn().Msg("TRISA protocol error: expected pending response")
+		return fmt.Errorf("TRISA protocol error: expected pending response")
+	}
+
+	// Update the transaction with the identity information
+	var data []byte
+	if data, err = protojson.Marshal(identity); err != nil {
+		log.Error().Err(err).Msg("could not marshal IVMS 101 identity")
+		return fmt.Errorf("could not marshal IVMS 101 identity: %s", err)
+	}
+	xfer.Identity = string(data)
+
+	// Update the transaction with the new generic.Transaction
+	if data, err = protojson.Marshal(transaction); err != nil {
+		log.Error().Err(err).Msg("could not marshal generic.Transaction")
+		return fmt.Errorf("could not marshal generic.Transaction: %s", err)
+	}
+	xfer.Transaction = string(data)
+
+	// Update the Transaction in the database with the pending timestamps
+	if xfer.NotBefore, err = time.Parse(time.RFC3339, pending.ReplyNotBefore); err != nil {
+		log.Warn().Err(err).Msg("TRISA protocol error: could not parse ReplyNotBefore timestamp")
+		return fmt.Errorf("TRISA protocol error: could not parse ReplyNotBefore timestamp: %s", err)
+	}
+
+	if xfer.NotAfter, err = time.Parse(time.RFC3339, pending.ReplyNotAfter); err != nil {
+		log.Warn().Err(err).Msg("TRISA protocol error: could not parse ReplyNotAfter timestamp")
+		return fmt.Errorf("TRISA protocol error: could not parse ReplyNotAfter timestamp: %s", err)
+	}
+
+	xfer.SetState(pb.TransactionState_ACCEPTED)
+	return nil
 }
 
 // AccountStatus is a demo RPC to allow demo clients to fetch their recent transactions.
@@ -845,7 +911,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 		Account:  account,
 		Amount:   decimal.NewFromFloat32(transfer.Amount),
 		Debit:    true,
-		State:    pb.TransactionState_AWAITING,
+		State:    pb.TransactionState_AWAITING_REPLY,
 		Vasp:     s.vasp,
 	}
 
