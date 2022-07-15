@@ -71,7 +71,6 @@ func (s *Server) checkEndpoint(peer *peers.Peer) (err error) {
 			log.Error().Str("peer", peer.String()).Msg("peer has no endpoint after lookup")
 			return fmt.Errorf("peer has no endpoint after lookup")
 		}
-		peer = remote
 	}
 	return nil
 }
