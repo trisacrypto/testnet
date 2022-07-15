@@ -21,8 +21,8 @@ GDS_DSN="leveldb:///fixtures/db"
 COUNTRY_CODE="US"
 
 # Install required binaries: certs, gdsutil
-#go install github.com/trisacrypto/directory/cmd/certs@latest
-#go install github.com/trisacrypto/directory/cmd/gdsutil@latest
+go install github.com/trisacrypto/directory/cmd/certs@latest
+go install github.com/trisacrypto/directory/cmd/gdsutil@latest
 
 # Recreate the fixtures directory
 if [ -e fixtures ]; then
