@@ -21,7 +21,7 @@ services:
       - RVASP_FIXTURES_PATH=/fixtures
       - RVASP_DATABASE_MAX_RETRIES=5
     volumes:
-      - ../pkg/rvasp/fixtures:/fixtures
+      - ../fixtures/rvasps:/fixtures
 
   gds:
     image: trisa/gds:latest
@@ -59,7 +59,7 @@ services:
       - 5434:4434
       - 5435:4435
     environment:
-      - RVASP_NAME=api.alice.vaspbot.net
+      - RVASP_NAME=alice
       - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
@@ -83,7 +83,7 @@ services:
       - 6434:4434
       - 6435:4435
     environment:
-      - RVASP_NAME=api.bob.vaspbot.net
+      - RVASP_NAME=bob
       - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
@@ -107,7 +107,7 @@ services:
       - 7434:4434
       - 7435:4435
     environment:
-      - RVASP_NAME=api.evil.vaspbot.net
+      - RVASP_NAME=evil
       - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem
@@ -131,7 +131,7 @@ services:
       - 8434:4434
       - 8435:4435
     environment:
-      - RVASP_NAME=api.charlie.vaspbot.net
+      - RVASP_NAME=charlie
       - RVASP_DATABASE_DSN=postgres://postgres:postgres@db:5432/rvasp?sslmode=disable
       - RVASP_CERT_PATH=/certs/cert.pem
       - RVASP_TRUST_CHAIN_PATH=/certs/cert.pem

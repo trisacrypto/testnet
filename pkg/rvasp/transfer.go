@@ -133,43 +133,44 @@ func createPendingPayload(pending *generic.Pending, identity *ivms101.IdentityPa
 
 // Parse a TRISA transfer payload, returning the identity payload and either the
 // transaction payload or the pending message.
-func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.IdentityPayload, transaction *generic.Transaction, pending *generic.Pending, err error) {
+func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.IdentityPayload, transaction *generic.Transaction, pending *generic.Pending, parseError *protocol.Error) {
 	// Verify the sent_at timestamp if this is an accepted response payload
 	if payload.SentAt == "" {
 		log.Warn().Msg("missing sent at timestamp")
-		return nil, nil, nil, fmt.Errorf("missing sent_at timestamp")
+		return nil, nil, nil, protocol.Errorf(protocol.MissingFields, "missing sent_at timestamp")
 	}
 
 	// Payload must contain an identity
 	if payload.Identity == nil {
 		log.Warn().Msg("payload does not contain an identity")
-		return nil, nil, nil, fmt.Errorf("missing identity payload")
+		return nil, nil, nil, protocol.Errorf(protocol.MissingFields, "missing identity payload")
 	}
 
 	// Payload must contain a transaction
 	if payload.Transaction == nil {
 		log.Warn().Msg("payload does not contain a transaction")
-		return nil, nil, nil, fmt.Errorf("missing transaction payload")
+		return nil, nil, nil, protocol.Errorf(protocol.MissingFields, "missing transaction payload")
 	}
 
 	// Parse the identity payload
 	identity = &ivms101.IdentityPayload{}
+	var err error
 	if err = payload.Identity.UnmarshalTo(identity); err != nil {
 		log.Warn().Err(err).Msg("could not unmarshal identity")
-		return nil, nil, nil, fmt.Errorf("could non unmarshal identity: %s", err)
+		return nil, nil, nil, protocol.Errorf(protocol.UnparseableIdentity, "could non unmarshal identity: %s", err)
 	}
 
 	// Validate identity fields
 	if identity.Originator == nil || identity.OriginatingVasp == nil || identity.BeneficiaryVasp == nil || identity.Beneficiary == nil {
 		log.Warn().Msg("incomplete identity payload")
-		return nil, nil, nil, fmt.Errorf("incomplete identity payload")
+		return nil, nil, nil, protocol.Errorf(protocol.IncompleteIdentity, "incomplete identity payload")
 	}
 
 	// Parse the transaction message type
 	var msgTx proto.Message
 	if msgTx, err = payload.Transaction.UnmarshalNew(); err != nil {
 		log.Warn().Err(err).Str("transaction_type", payload.Transaction.TypeUrl).Msg("could not unmarshal incoming transaction payload")
-		return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "could not unmarshal transaction payload: %s", err)
+		return nil, nil, nil, protocol.Errorf(protocol.UnparseableTransaction, "could not unmarshal transaction payload: %s", err)
 	}
 
 	switch tx := msgTx.(type) {
@@ -180,13 +181,13 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 		// NOTE: pending messages and intermediate messages will not contain received_at
 		if response && payload.ReceivedAt == "" {
 			log.Warn().Msg("missing received at timestamp")
-			return nil, nil, nil, fmt.Errorf("missing received_at timestamp")
+			return nil, nil, nil, protocol.Errorf(protocol.MissingFields, "missing received_at timestamp")
 		}
 	case *generic.Pending:
 		pending = tx
 	default:
 		log.Warn().Str("transaction_type", payload.Transaction.TypeUrl).Msg("could not handle incoming transaction payload")
-		return nil, nil, nil, fmt.Errorf("unexpected transaction payload type: %s", payload.Transaction.TypeUrl)
+		return nil, nil, nil, protocol.Errorf(protocol.UnparseableTransaction, "unexpected transaction payload type: %s", payload.Transaction.TypeUrl)
 	}
 	return identity, transaction, pending, nil
 }

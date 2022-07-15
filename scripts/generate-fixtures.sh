@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# rVASP common names
-ALICE_NAME="api.alice.vaspbot.net"
-BOB_NAME="api.bob.vaspbot.net"
-EVIL_NAME="api.evil.vaspbot.net"
-CHARLIE_NAME="api.charlie.vaspbot.net"
-
 # rVASP UUIDs in GDS
 VASP_PREFIX="vasps::"
 ALICE_ID="alice0a0-a0a0-a0a0-a0a0-a0a0a0a0a0a0"
@@ -13,11 +7,11 @@ BOB_ID="bob0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b0"
 EVIL_ID="evile0e0-e0e0-e0e0-e0e0-e0e0e0e0e0e0"
 CHARLIE_ID="charlie0-c0c0-c0c0-c0c0-c0c0c0c0c0c0"
 
-# rVASP endpoints
-ALICE_ENDPOINT="alice"
-BOB_ENDPOINT="bob"
-EVIL_ENDPOINT="evil"
-CHARLIE_ENDPOINT="charlie"
+# rVASP common names - these should match the service names in docker compose
+ALICE_NAME="alice"
+BOB_NAME="bob"
+EVIL_NAME="evil"
+CHARLIE_NAME="charlie"
 TRISA_PORT="4435"
 
 # GDS database DSN
@@ -41,28 +35,32 @@ mkdir -p fixtures/certs
 
 certs init -c fixtures/certs/ca.gz
 mkdir -p fixtures/certs/alice
-certs issue -c fixtures/certs/ca.gz -o fixtures/certs/alice/cert.pem -n $ALICE_ENDPOINT -O localhost -C $COUNTRY_CODE
+certs issue -c fixtures/certs/ca.gz -o fixtures/certs/alice/cert.pem -n $ALICE_NAME -O localhost -C $COUNTRY_CODE
 mkdir -p fixtures/certs/bob
-certs issue -c fixtures/certs/ca.gz -o fixtures/certs/bob/cert.pem -n $BOB_ENDPOINT -O localhost -C $COUNTRY_CODE
+certs issue -c fixtures/certs/ca.gz -o fixtures/certs/bob/cert.pem -n $BOB_NAME -O localhost -C $COUNTRY_CODE
 mkdir -p fixtures/certs/charlie
-certs issue -c fixtures/certs/ca.gz -o fixtures/certs/charlie/cert.pem -n $CHARLIE_ENDPOINT -O localhost -C $COUNTRY_CODE
+certs issue -c fixtures/certs/ca.gz -o fixtures/certs/charlie/cert.pem -n $CHARLIE_NAME -O localhost -C $COUNTRY_CODE
 
 certs init -c fixtures/certs/ca.evil.gz
 mkdir -p fixtures/certs/evil
-certs issue -c fixtures/certs/ca.evil.gz -o fixtures/certs/evil/cert.pem -n $EVIL_ENDPOINT -O localhost -C $COUNTRY_CODE
+certs issue -c fixtures/certs/ca.evil.gz -o fixtures/certs/evil/cert.pem -n $EVIL_NAME -O localhost -C $COUNTRY_CODE
 
-# Generate the rVASP fixtures from the template
-mkdir -p fixtures/vasps
-python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/alice.json -n $ALICE_NAME -p $ALICE_ENDPOINT -i $ALICE_ID -e $ALICE_ENDPOINT:$TRISA_PORT
-python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/bob.json -n $BOB_NAME -p $BOB_ENDPOINT -i $BOB_ID -e $BOB_ENDPOINT:$TRISA_PORT
-python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/evil.json -n $EVIL_NAME -p $EVIL_ENDPOINT -i $EVIL_ID -e $EVIL_ENDPOINT:$TRISA_PORT
-python scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/vasps/charlie.json -n $CHARLIE_NAME -p $CHARLIE_ENDPOINT -i $CHARLIE_ID -e $CHARLIE_ENDPOINT:$TRISA_PORT
+# Generate the GDS fixtures from the template
+mkdir -p fixtures/gds
+python3 scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/gds/alice.json -n $ALICE_NAME -i $ALICE_ID -c fixtures/certs/alice/cert.pem -e $ALICE_NAME:$TRISA_PORT
+python3 scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/gds/bob.json -n $BOB_NAME -i $BOB_ID -c fixtures/certs/bob/cert.pem -e $BOB_NAME:$TRISA_PORT
+python3 scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/gds/evil.json -n $EVIL_NAME -i $EVIL_ID -c fixtures/certs/evil/cert.pem -e $EVIL_NAME:$TRISA_PORT
+python3 scripts/fixtures/gds-fixture.py -t scripts/fixtures/template.json -o fixtures/gds/charlie.json -n $CHARLIE_NAME -i $CHARLIE_ID -c fixtures/certs/charlie/cert.pem -e $CHARLIE_NAME:$TRISA_PORT
 
-# Store the fixtures in the GDS database
-gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$ALICE_ID fixtures/vasps/alice.json
-gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$BOB_ID fixtures/vasps/bob.json
-gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$EVIL_ID fixtures/vasps/evil.json
-gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$CHARLIE_ID fixtures/vasps/charlie.json
+# Migrate the rVASP fixtures to the fixtures directory
+mkdir -p fixtures/rvasps
+python3 scripts/fixtures/rvasp-fixtures.py -f pkg/rvasp/fixtures -o fixtures/rvasps -n $ALICE_NAME,$BOB_NAME,$EVIL_NAME,$CHARLIE_NAME
+
+# Store the rVASP records in the GDS database
+gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$ALICE_ID fixtures/gds/alice.json
+gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$BOB_ID fixtures/gds/bob.json
+gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$EVIL_ID fixtures/gds/evil.json
+gdsutil ldb:put -d $GDS_DSN $VASP_PREFIX$CHARLIE_ID fixtures/gds/charlie.json
 
 # Confirm the keys in the database
 echo ""

@@ -147,6 +147,11 @@ func (s *rVASPTestSuite) TestValidTransfer() {
 	require.NoError(err)
 	require.NotNil(response)
 
+	// Verify that a valid envelope was returned
+	reject, isErr := envelope.Check(response)
+	require.Nil(reject)
+	require.False(isErr)
+
 	// Decrypt the response envelope
 	payload, reject, err = envelope.Open(response, envelope.WithRSAPrivateKey(key))
 	require.NoError(err)

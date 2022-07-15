@@ -291,18 +291,18 @@ func (s *Server) fetchBeneficiaryWallet(req *pb.TransferRequest) (wallet *db.Wal
 // information is not included in the payload. This function handles pending responses
 // from the beneficiary saving the transaction in an "await" state in the database.
 func (s *Server) sendTransfer(xfer *db.Transaction, beneficiary *db.Wallet, partial bool) (err error) {
-	// Conduct a GDS lookup if necessary to get the endpoint
+	// Fetch the remote peer
 	var peer *peers.Peer
-	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
-		log.Warn().Err(err).Msg("could not search peer from directory service")
-		return status.Errorf(codes.FailedPrecondition, "could not search peer from directory service: %s", err)
+	if peer, err = s.fetchPeer(beneficiary.Provider.Name); err != nil {
+		log.Warn().Err(err).Msg("could not fetch beneficiary peer")
+		return status.Errorf(codes.FailedPrecondition, "could not fetch beneficiary peer: %s", err)
 	}
 
-	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
+	// Fetch the signing key
 	var signKey *rsa.PublicKey
-	if signKey, err = peer.ExchangeKeys(true); err != nil {
-		log.Warn().Err(err).Msg("could not exchange keys with remote peer")
-		return status.Errorf(codes.FailedPrecondition, "could not exchange keys with remote peer: %s", err)
+	if signKey, err = s.fetchSigningKey(peer); err != nil {
+		log.Warn().Err(err).Msg("could not fetch signing key from benficiary peer")
+		return status.Errorf(codes.FailedPrecondition, "could not fetch signing key from beneficiary peer: %s", err)
 	}
 
 	if err = s.db.Create(xfer).Error; err != nil {
@@ -387,9 +387,10 @@ func (s *Server) sendTransfer(xfer *db.Transaction, beneficiary *db.Wallet, part
 
 	// Parse the response payload
 	var pending *generic.Pending
-	if identity, transaction, pending, err = parsePayload(payload, true); err != nil {
-		log.Warn().Err(err).Msg("TRISA protocol error while parsing payload")
-		return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+	var parseError *protocol.Error
+	if identity, transaction, pending, parseError = parsePayload(payload, true); parseError != nil {
+		log.Warn().Str("message", parseError.Message).Msg("TRISA protocol error while parsing payload")
+		return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", parseError.Message)
 	}
 
 	// Update the transaction record with the identity payload
@@ -462,11 +463,11 @@ func (s *Server) sendTransfer(xfer *db.Transaction, beneficiary *db.Wallet, part
 
 // sendError sends a TRISA error to the beneficiary.
 func (s *Server) sendError(xfer *db.Transaction, beneficiary *db.Wallet) (err error) {
-	// Conduct a GDS lookup if necessary to get the endpoint
+	// Fetch the remote peer
 	var peer *peers.Peer
-	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
-		log.Warn().Err(err).Msg("could not search peer from directory service")
-		return status.Errorf(codes.FailedPrecondition, "could not search peer from directory service: %s", err)
+	if peer, err = s.fetchPeer(beneficiary.Provider.Name); err != nil {
+		log.Warn().Err(err).Msg("could not fetch beneficiary peer")
+		return status.Errorf(codes.FailedPrecondition, "could not fetch beneficiary peer: %s", err)
 	}
 
 	reject := protocol.Errorf(protocol.ComplianceCheckFail, "rVASP mock compliance check failed")
@@ -494,7 +495,7 @@ func (s *Server) sendError(xfer *db.Transaction, beneficiary *db.Wallet) (err er
 
 // respondAsync responds to a serviced transfer request from the beneficiary by
 // continuing or completing the asynchronous handshake.
-func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, identity *ivms101.IdentityPayload, transaction *generic.Transaction, xfer *db.Transaction) (out *protocol.SecureEnvelope, err error) {
+func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, identity *ivms101.IdentityPayload, transaction *generic.Transaction, xfer *db.Transaction) (out *protocol.SecureEnvelope, transferError *protocol.Error) {
 	// Secure envelope was successfully received
 	now := time.Now()
 
@@ -504,46 +505,54 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 		return nil, protocol.Errorf(protocol.ComplianceCheckFail, "received expired transaction")
 	}
 
+	// Fetch the signing key from the remote peer
+	var signKey *rsa.PublicKey
+	var err error
+	if signKey, err = s.fetchSigningKey(peer); err != nil {
+		log.Warn().Err(err).Msg("could not fetch signing key from beneficiary peer")
+		return nil, protocol.Errorf(protocol.NoSigningKey, "could not fetch signing key from beneficiary peer: %s", err)
+	}
+
 	// Marshal the identity payload into the transaction record
 	var data []byte
 	if data, err = protojson.Marshal(identity); err != nil {
 		log.Error().Err(err).Msg("could not marshal identity payload")
-		return nil, status.Errorf(codes.Internal, "could not marshal identity payload: %s", err)
+		return nil, protocol.Errorf(protocol.InternalError, "could not marshal identity payload: %s", err)
 	}
 	xfer.Identity = string(data)
 
 	// Marshal the transaction payload into the transaction record
 	if data, err = protojson.Marshal(transaction); err != nil {
 		log.Error().Err(err).Msg("could not marshal transaction payload")
-		return nil, status.Errorf(codes.Internal, "could not marshal transaction payload: %s", err)
+		return nil, protocol.Errorf(protocol.InternalError, "could not marshal transaction payload: %s", err)
 	}
 	xfer.Transaction = string(data)
 
 	// Fetch the beneficiary identity
 	if err = s.db.LookupIdentity(transaction.Beneficiary).First(&xfer.Beneficiary).Error; err != nil {
 		log.Error().Err(err).Str("wallet_address", transaction.Beneficiary).Msg("could not lookup beneficiary identity")
-		return nil, status.Errorf(codes.Internal, "could not lookup beneficiary identity: %s", err)
+		return nil, protocol.Errorf(protocol.InternalError, "could not lookup beneficiary identity: %s", err)
 	}
 
 	// Save the peer name so we can access it later
 	xfer.Beneficiary.Provider = peer.String()
 	if err = s.db.Save(&xfer.Beneficiary).Error; err != nil {
 		log.Error().Err(err).Msg("could not save beneficiary identity")
-		return nil, status.Errorf(codes.Internal, "could not save beneficiary identity: %s", err)
+		return nil, protocol.Errorf(protocol.InternalError, "could not save beneficiary identity: %s", err)
 	}
 
 	// Create the response envelope
-	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(peer.SigningKey()))
+	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(signKey))
 	if err != nil {
 		if reject != nil {
 			if out, err = envelope.Reject(reject); err != nil {
-				return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+				return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "TRISA protocol error: %s", err)
 			}
 			xfer.SetState(pb.TransactionState_REJECTED)
 			return out, nil
 		}
 		log.Warn().Err(err).Msg("TRISA protocol error while sealing envelope")
-		return nil, status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
+		return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "TRISA protocol error: %s", err)
 	}
 
 	// Check the transaction state
@@ -566,7 +575,7 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 		account.Balance = account.Balance.Sub(xfer.Amount)
 		if err = s.db.Save(&account).Error; err != nil {
 			log.Error().Err(err).Msg("could not save originator account")
-			return nil, status.Errorf(codes.Internal, "could not save originator account: %s", err)
+			return nil, protocol.Errorf(protocol.InternalError, "could not save originator account: %s", err)
 		}
 		xfer.SetState(pb.TransactionState_COMPLETED)
 	default:
@@ -601,26 +610,26 @@ func (s *Server) continueAsync(xfer *db.Transaction) (err error) {
 		return fmt.Errorf("could not fetch beneficiary address")
 	}
 
+	// Fetch the remote peer
+	var peer *peers.Peer
+	if peer, err = s.fetchPeer(beneficiary.Provider); err != nil {
+		log.Error().Err(err).Msg("could not fetch beneficiary peer")
+		return fmt.Errorf("could not fetch beneficiary peer: %s", err)
+	}
+
+	// Fetch the signing key from the remote peer
+	var signKey *rsa.PublicKey
+	if signKey, err = s.fetchSigningKey(peer); err != nil {
+		log.Warn().Err(err).Msg("could not fetch signing key from beneficiary peer")
+		return fmt.Errorf("could not fetch signing key from beneficiary peer: %s", err)
+	}
+
 	// Fill the transaction with a new TxID to continue the handshake
 	var payload *protocol.Payload
 	transaction.Txid = uuid.New().String()
 	if payload, err = createTransferPayload(identity, transaction); err != nil {
 		log.Error().Err(err).Msg("could not create transfer payload")
 		return fmt.Errorf("could not create transfer payload: %s", err)
-	}
-
-	// Conduct a GDS lookup if necessary to get the endpoint
-	var peer *peers.Peer
-	if peer, err = s.peers.Search(beneficiary.Provider); err != nil {
-		log.Error().Err(err).Msg("could not search peer from directory service")
-		return fmt.Errorf("could not search peer from directory service: %s", err)
-	}
-
-	// Ensure that the local RVASP has signing keys for the remote, otherwise perform key exchange
-	var signKey *rsa.PublicKey
-	if signKey, err = peer.ExchangeKeys(true); err != nil {
-		log.Warn().Err(err).Msg("could not exchange keys with remote peer")
-		return fmt.Errorf("could not exchange keys with remote peer: %s", err)
 	}
 
 	// Secure the envelope with the remote beneficiary's signing keys
@@ -645,9 +654,10 @@ func (s *Server) continueAsync(xfer *db.Transaction) (err error) {
 
 	// Parse the response payload
 	var pending *generic.Pending
-	if identity, _, pending, err = parsePayload(payload, true); err != nil {
-		log.Warn().Err(err).Msg("TRISA protocol error while parsing payload")
-		return fmt.Errorf("TRISA protocol error: %s", err)
+	var parseError *protocol.Error
+	if identity, _, pending, parseError = parsePayload(payload, true); parseError != nil {
+		log.Warn().Str("message", parseError.Message).Msg("TRISA protocol error while parsing payload")
+		return fmt.Errorf("TRISA protocol error: %s", parseError.Message)
 	}
 
 	if pending == nil {
