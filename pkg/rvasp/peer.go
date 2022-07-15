@@ -22,7 +22,7 @@ func (s *Server) fetchPeer(commonName string) (peer *peers.Peer, err error) {
 	}
 
 	// Ensure that the remote peer has an endpoint to connect to
-	if err = s.checkEndpoint(peer); err != nil {
+	if err = s.resolveEndpoint(peer); err != nil {
 		log.Warn().Err(err).Msg("could not fetch endpoint from remote peer")
 		return nil, fmt.Errorf("could not fetch endpoint from remote peer: %s", err)
 	}
@@ -34,7 +34,7 @@ func (s *Server) fetchPeer(commonName string) (peer *peers.Peer, err error) {
 // and key exchange if necessary.
 func (s *Server) fetchSigningKey(peer *peers.Peer) (key *rsa.PublicKey, err error) {
 	// Ensure that the remote peer has an endpoint to connect to
-	if err = s.checkEndpoint(peer); err != nil {
+	if err = s.resolveEndpoint(peer); err != nil {
 		log.Warn().Err(err).Msg("could not fetch endpoint from remote peer")
 		return nil, fmt.Errorf("could not fetch endpoint from remote peer: %s", err)
 	}
@@ -56,9 +56,9 @@ func (s *Server) fetchSigningKey(peer *peers.Peer) (key *rsa.PublicKey, err erro
 	return peer.SigningKey(), nil
 }
 
-// checkEndpoint ensures that the peer has an endpoint to connect to, and performs a
-// lookup against the directory service if it does not.
-func (s *Server) checkEndpoint(peer *peers.Peer) (err error) {
+// resolveEndpoint ensures that the peer has an endpoint to connect to, and performs a
+// lookup against the directory service to set the endpoint on the peer if necessary.
+func (s *Server) resolveEndpoint(peer *peers.Peer) (err error) {
 	// If the endpoint is not in the peer, do the lookup to fetch the endpoint
 	if peer.Info().Endpoint == "" {
 		var remote *peers.Peer
