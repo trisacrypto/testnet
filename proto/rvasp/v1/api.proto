@@ -80,7 +80,7 @@ message TransferRequest {
 // or an error if there are insufficient funds or the account or beneficiary could not
 // be looked up. Errors encountered during the TRISA protocol may also be returned.
 message TransferReply {
-    Error error = 1;              // Only used in live stream
+    Error error = 1;              // populated with an error encountered during the transfer or from the response envelope
     Transaction transaction = 2;
 }
 

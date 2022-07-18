@@ -534,7 +534,7 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 
 	s.parent.updates.Broadcast(0, "sealing beneficiary information and returning", pb.MessageCategory_TRISAP2P)
 
-	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(signKey))
+	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(signKey), envelope.WithEnvelopeID(in.Id))
 	if err != nil {
 		if reject != nil {
 			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
@@ -625,7 +625,7 @@ func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, id
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
-	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(signKey))
+	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(signKey), envelope.WithEnvelopeID(in.Id))
 	if err != nil {
 		if reject != nil {
 			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
