@@ -237,7 +237,8 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (reply *
 		case *protocol.Error:
 			log.Warn().Str("message", err.Error()).Msg("TRISA protocol error while performing transfer")
 			reply.Error = &pb.Error{
-				Message: err.Error(),
+				Code:    int32(err.Code),
+				Message: err.Message,
 			}
 			xfer.SetState(pb.TransactionState_REJECTED)
 			transferError = nil
