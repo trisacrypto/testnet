@@ -384,11 +384,11 @@ func (t Transaction) Proto() *pb.Transaction {
 			Email:         t.Beneficiary.Email,
 			Provider:      t.Beneficiary.Provider,
 		},
-		Amount:    t.AmountFloat(),
-		Timestamp: t.Timestamp.Format(time.RFC3339),
-		Envelope:  t.Envelope,
-		Identity:  t.Identity,
-		State:     t.State,
+		Amount:     t.AmountFloat(),
+		Timestamp:  t.Timestamp.Format(time.RFC3339),
+		EnvelopeId: t.Envelope,
+		Identity:   t.Identity,
+		State:      t.State,
 	}
 }
 

@@ -226,14 +226,26 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (reply *
 		return nil, status.Errorf(codes.FailedPrecondition, "unknown originator policy '%s' for wallet '%s'", policy, account.WalletAddress)
 	}
 
-	if transferError != nil {
-		log.Debug().Err(transferError).Msg("transfer failed")
-		xfer.SetState(pb.TransactionState_FAILED)
-	}
-
-	// Return the transfer response
+	// Build the transfer response
 	reply = &pb.TransferReply{
 		Transaction: xfer.Proto(),
+	}
+
+	// Handle rVASP errors and TRISA protocol errors
+	if transferError != nil {
+		switch err := transferError.(type) {
+		case *protocol.Error:
+			log.Warn().Str("message", err.Error()).Msg("TRISA protocol error while performing transfer")
+			reply.Error = &pb.Error{
+				Code:    int32(err.Code),
+				Message: err.Message,
+			}
+			xfer.SetState(pb.TransactionState_REJECTED)
+			transferError = nil
+		default:
+			log.Warn().Err(err).Msg("error while performing transfer")
+			xfer.SetState(pb.TransactionState_FAILED)
+		}
 	}
 
 	// Save the updated transaction
@@ -371,8 +383,7 @@ func (s *Server) sendTransfer(xfer *db.Transaction, beneficiary *db.Wallet, part
 	reject, isErr := envelope.Check(msg)
 	if isErr {
 		if reject != nil {
-			xfer.SetState(pb.TransactionState_REJECTED)
-			return nil
+			return reject
 		}
 		log.Warn().Err(err).Msg("TRISA protocol error while checking envelope")
 		return status.Errorf(codes.FailedPrecondition, "TRISA protocol error: %s", err)
@@ -472,7 +483,7 @@ func (s *Server) sendError(xfer *db.Transaction, beneficiary *db.Wallet) (err er
 
 	reject := protocol.Errorf(protocol.ComplianceCheckFail, "rVASP mock compliance check failed")
 	var msg *protocol.SecureEnvelope
-	if msg, err = envelope.Reject(reject); err != nil {
+	if msg, err = envelope.Reject(reject, envelope.WithEnvelopeID(xfer.Envelope)); err != nil {
 		log.Error().Err(err).Msg("could not create TRISA error envelope")
 		return status.Errorf(codes.Internal, "could not create TRISA error envelope: %s", err)
 	}
@@ -484,13 +495,15 @@ func (s *Server) sendError(xfer *db.Transaction, beneficiary *db.Wallet) (err er
 	}
 
 	// Check for the TRISA rejection error
-	if state := envelope.Status(msg); state != envelope.Error {
-		log.Warn().Uint("state", uint(state)).Msg("unexpected TRISA response, expected error envelope")
-		return fmt.Errorf("expected TRISA rejection error, received envelope in state %d", state)
+	reject, isErr := envelope.Check(msg)
+	if !isErr || reject == nil {
+		state := envelope.Status(msg)
+		log.Warn().Str("state", state.String()).Msg("unexpected TRISA response, expected reject envelope")
+		return fmt.Errorf("expected TRISA rejection error, received envelope in state %s", state.String())
 	}
 	xfer.SetState(pb.TransactionState_REJECTED)
 
-	return nil
+	return reject
 }
 
 // respondAsync responds to a serviced transfer request from the beneficiary by
@@ -542,10 +555,10 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 	}
 
 	// Create the response envelope
-	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(signKey))
+	out, reject, err := envelope.Seal(payload, envelope.WithRSAPublicKey(signKey), envelope.WithEnvelopeID(xfer.Envelope))
 	if err != nil {
 		if reject != nil {
-			if out, err = envelope.Reject(reject); err != nil {
+			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(xfer.Envelope)); err != nil {
 				return nil, protocol.Errorf(protocol.EnvelopeDecodeFail, "TRISA protocol error: %s", err)
 			}
 			xfer.SetState(pb.TransactionState_REJECTED)
