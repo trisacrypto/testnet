@@ -160,12 +160,6 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 		return nil, nil, nil, protocol.Errorf(protocol.UnparseableIdentity, "could non unmarshal identity: %s", err)
 	}
 
-	// Validate identity fields
-	if identity.Originator == nil || identity.OriginatingVasp == nil || identity.BeneficiaryVasp == nil || identity.Beneficiary == nil {
-		log.Warn().Msg("incomplete identity payload")
-		return nil, nil, nil, protocol.Errorf(protocol.IncompleteIdentity, "incomplete identity payload")
-	}
-
 	// Parse the transaction message type
 	var msgTx proto.Message
 	if msgTx, err = payload.Transaction.UnmarshalNew(); err != nil {
@@ -190,4 +184,40 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 		return nil, nil, nil, protocol.Errorf(protocol.UnparseableTransaction, "unexpected transaction payload type: %s", payload.Transaction.TypeUrl)
 	}
 	return identity, transaction, pending, nil
+}
+
+// Validate an identity payload, returning an error if the payload is not valid.
+func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficiary bool) (err *protocol.Error) {
+	// Verify the identity payload is not nil
+	if identity == nil {
+		log.Warn().Msg("identity payload is nil")
+		return protocol.Errorf(protocol.InternalError, "identity payload is nil")
+	}
+
+	// Validate that the originator is present
+	if identity.Originator == nil {
+		log.Warn().Msg("identity payload missing originator")
+		return protocol.Errorf(protocol.IncompleteIdentity, "missing originator")
+	}
+
+	// Validate that the originator vasp is present
+	if identity.OriginatingVasp == nil {
+		log.Warn().Msg("identity payload missing originating vasp")
+		return protocol.Errorf(protocol.IncompleteIdentity, "missing originating vasp")
+	}
+
+	if requireBeneficiary {
+		// Validate that the beneficiary is present
+		if identity.Beneficiary == nil {
+			log.Warn().Msg("identity payload missing beneficiary")
+			return protocol.Errorf(protocol.IncompleteIdentity, "missing beneficiary")
+		}
+
+		// Validate that the beneficiary vasp is present
+		if identity.BeneficiaryVasp == nil {
+			log.Warn().Msg("identity payload missing beneficiary vasp")
+			return protocol.Errorf(protocol.IncompleteIdentity, "missing beneficiary vasp")
+		}
+	}
+	return nil
 }

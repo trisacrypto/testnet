@@ -157,8 +157,8 @@ func (s *TRISA) Transfer(ctx context.Context, in *protocol.SecureEnvelope) (out 
 	}
 
 	var transferError *protocol.Error
-	if out, transferError = s.handleTransaction(ctx, peer, in); err != nil {
-		log.Warn().Err(err).Msg("could not complete transfer")
+	if out, transferError = s.handleTransaction(ctx, peer, in); transferError != nil {
+		log.Warn().Err(transferError).Msg("could not complete transfer")
 		var msg *protocol.SecureEnvelope
 		if msg, err = envelope.Reject(transferError, envelope.WithEnvelopeID(in.Id)); err != nil {
 			log.Error().Err(err).Msg("could not create TRISA error envelope")
@@ -478,19 +478,13 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
-	if requireBeneficiary {
-		// TODO: Validate the actual fields in the beneficiary identity
-		if identity.BeneficiaryVasp == nil || identity.BeneficiaryVasp.BeneficiaryVasp == nil {
-			log.Warn().Msg("TRISA protocol error: missing beneficiary vasp identity")
-			reject := protocol.Errorf(protocol.Rejected, "missing beneficiary vasp identity")
-			if out, err = envelope.Reject(reject, envelope.WithEnvelopeID(in.Id)); err != nil {
-				log.Error().Err(err).Msg("could not create reject envelope")
-				return nil, protocol.Errorf(protocol.InternalError, "request coould not be processed: %s", err)
-			}
-			xfer.SetState(pb.TransactionState_REJECTED)
-			return out, nil
-		}
-	} else {
+	if transferError = validateIdentityPayload(identity, requireBeneficiary); transferError != nil {
+		log.Warn().Str("message", transferError.Message).Msg("could not validate identity payload")
+		xfer.SetState(pb.TransactionState_REJECTED)
+		return nil, transferError
+	}
+
+	if !requireBeneficiary {
 		// Fill in the beneficiary identity information for the repair policy
 		s.repairBeneficiary(identity, account)
 	}
@@ -665,13 +659,6 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 		return fmt.Errorf("could not fetch originator peer: %s", err)
 	}
 
-	// Fetch the signing key from the remote peer
-	var signKey *rsa.PublicKey
-	if signKey, err = s.parent.fetchSigningKey(peer); err != nil {
-		log.Warn().Err(err).Msg("could not fetch signing key from originator peer")
-		return fmt.Errorf("could not fetch signing key from originator peer: %s", err)
-	}
-
 	// Create the identity for the payload
 	identity := &ivms101.IdentityPayload{}
 	if err = protojson.Unmarshal([]byte(tx.Identity), identity); err != nil {
@@ -681,6 +668,31 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 
 	// Repair the beneficiary information if this is the first handshake
 	if tx.State == pb.TransactionState_PENDING_SENT {
+		var validationError *protocol.Error
+		if validationError = validateIdentityPayload(identity, false); validationError != nil {
+			log.Warn().Str("message", validationError.Message).Msg("could not validate identity payload")
+			var reject *protocol.SecureEnvelope
+			if reject, err = envelope.Reject(validationError, envelope.WithEnvelopeID(tx.Envelope)); err != nil {
+				log.Error().Err(err).Msg("TRISA protocol error while creating reject envelope")
+				return fmt.Errorf("TRISA protocol error: %s", err)
+			}
+
+			// Conduct the TRISA exchange, handle errors
+			if reject, err = peer.Transfer(reject); err != nil {
+				log.Warn().Err(err).Msg("could not perform TRISA exchange")
+				return fmt.Errorf("could not perform TRISA exchange: %s", err)
+			}
+
+			// Check for the TRISA rejection error
+			rejectErr, isErr := envelope.Check(reject)
+			if !isErr || rejectErr == nil {
+				state := envelope.Status(reject)
+				log.Warn().Str("state", state.String()).Msg("unexpected TRISA response, expected reject envelope")
+				return fmt.Errorf("expected TRISA rejection error, received envelope in state %s", state.String())
+			}
+			tx.SetState(pb.TransactionState_REJECTED)
+		}
+
 		var account *db.Account
 		if account, err = tx.GetAccount(s.parent.db); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -695,6 +707,13 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 			log.Error().Err(err).Msg("could not repair beneficiary information")
 			return fmt.Errorf("could not repair beneficiary information: %s", err)
 		}
+	}
+
+	// Fetch the signing key from the remote peer
+	var signKey *rsa.PublicKey
+	if signKey, err = s.parent.fetchSigningKey(peer); err != nil {
+		log.Warn().Err(err).Msg("could not fetch signing key from originator peer")
+		return fmt.Errorf("could not fetch signing key from originator peer: %s", err)
 	}
 
 	// Create the generic.Transaction for the payload
