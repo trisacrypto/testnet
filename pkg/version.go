@@ -6,7 +6,7 @@ import "fmt"
 const (
 	VersionMajor         = 1
 	VersionMinor         = 0
-	VersionPatch         = 2
+	VersionPatch         = 3
 	VersionReleaseLevel  = ""
 	VersionReleaseNumber = 0
 )
