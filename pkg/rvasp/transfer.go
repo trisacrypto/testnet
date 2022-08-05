@@ -59,7 +59,7 @@ func (s *Server) createIdentityPayload(originatorAccount db.Account, beneficiary
 	// Create the beneficiary account information if provided
 	if beneficiaryAccount.WalletAddress != "" {
 		identity.Beneficiary = &ivms101.Beneficiary{
-			BeneficiaryPersons: make([]*ivms101.Person, 0, 1),
+			BeneficiaryPersons: make([]*ivms101.Person, 0),
 			AccountNumbers:     []string{beneficiaryAccount.WalletAddress},
 		}
 	}
@@ -187,7 +187,7 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 }
 
 // Validate an identity payload, returning an error if the payload is not valid.
-func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficiary bool) (err *protocol.Error) {
+func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficiary bool) *protocol.Error {
 	// Verify the identity payload is not nil
 	if identity == nil {
 		log.Warn().Msg("identity payload is nil")
@@ -207,16 +207,48 @@ func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficia
 	}
 
 	if requireBeneficiary {
-		// Validate that the beneficiary is present
+		var err error
+
+		// Check that the beneficiary is present
 		if identity.Beneficiary == nil {
 			log.Warn().Msg("identity payload missing beneficiary")
 			return protocol.Errorf(protocol.IncompleteIdentity, "missing beneficiary")
 		}
 
-		// Validate that the beneficiary vasp is present
+		// Check that the beneficiary person is present
+		if len(identity.Beneficiary.BeneficiaryPersons) == 0 {
+			log.Warn().Msg("identity payload missing beneficiary person")
+			return protocol.Errorf(protocol.IncompleteIdentity, "missing beneficiary person")
+		}
+
+		// Validate the beneficiary person
+		if err = identity.Beneficiary.BeneficiaryPersons[0].GetNaturalPerson().Validate(); err != nil {
+			log.Warn().Err(err).Msg("beneficiary person validation error")
+			return protocol.Errorf(protocol.ValidationError, "beneficiary person validation error: %s", err)
+		}
+
+		// Check that the account number is present
+		if len(identity.Beneficiary.AccountNumbers) == 0 || identity.Beneficiary.AccountNumbers[0] == "" {
+			log.Warn().Msg("identity payload missing account number")
+			return protocol.Errorf(protocol.IncompleteIdentity, "missing beneficiary account number")
+		}
+
+		// Check that the beneficiary vasp is present
 		if identity.BeneficiaryVasp == nil {
 			log.Warn().Msg("identity payload missing beneficiary vasp")
 			return protocol.Errorf(protocol.IncompleteIdentity, "missing beneficiary vasp")
+		}
+
+		// Check that the beneficiary vasp entity is present
+		if identity.BeneficiaryVasp.BeneficiaryVasp == nil {
+			log.Warn().Msg("identity payload missing beneficiary vasp entity")
+			return protocol.Errorf(protocol.IncompleteIdentity, "missing beneficiary vasp entity")
+		}
+
+		// Validate the beneficiary vasp entity
+		if err = identity.BeneficiaryVasp.BeneficiaryVasp.GetLegalPerson().Validate(); err != nil {
+			log.Warn().Err(err).Msg("beneficiary vasp entity validation error")
+			return protocol.Errorf(protocol.ValidationError, "beneficiary vasp entity validation error: %s", err)
 		}
 	}
 	return nil

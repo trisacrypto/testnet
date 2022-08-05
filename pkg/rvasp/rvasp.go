@@ -227,9 +227,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (reply *
 	}
 
 	// Build the transfer response
-	reply = &pb.TransferReply{
-		Transaction: xfer.Proto(),
-	}
+	reply = &pb.TransferReply{}
 
 	// Handle rVASP errors and TRISA protocol errors
 	if transferError != nil {
@@ -247,6 +245,9 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (reply *
 			xfer.SetState(pb.TransactionState_FAILED)
 		}
 	}
+
+	// Populate the transfer response with the transaction details
+	reply.Transaction = xfer.Proto()
 
 	// Save the updated transaction
 	// TODO: Clean up completed transactions in the database

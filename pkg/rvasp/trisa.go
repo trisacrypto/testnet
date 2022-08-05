@@ -420,7 +420,8 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 		return nil, protocol.Errorf(protocol.InternalError, "unknown policy '%s' for wallet '%s'", policy, account.WalletAddress)
 	}
 
-	if transferError != nil {
+	// Mark transaction as failed if it was not rejected but an error occurred
+	if xfer.State != pb.TransactionState_REJECTED && transferError != nil {
 		log.Debug().Err(transferError).Msg("transfer failed")
 		xfer.SetState(pb.TransactionState_FAILED)
 	}
