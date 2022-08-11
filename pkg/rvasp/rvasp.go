@@ -344,7 +344,7 @@ func (s *Server) sendTransfer(xfer *db.Transaction, beneficiary *db.Wallet, part
 
 	var beneficiaryAccount db.Account
 	if partial {
-		// If partial is specified then only populate the benefiiary address
+		// If partial is specified then only populate the beneficiary address
 		beneficiaryAccount = db.Account{
 			WalletAddress: beneficiary.Address,
 		}

@@ -411,11 +411,11 @@ func (s *TRISA) handleTransaction(ctx context.Context, peer *peers.Peer, in *pro
 	case db.AsyncRepair:
 		// Respond to the transfer request with a pending message and mark the
 		// transaction for later service. The beneficiary information is filled in.
-		out, transferError = s.respondPending(in, peer, identity, transaction, xfer, account)
+		out, transferError = s.respondPending(in, peer, identity, transaction, xfer, account, policy)
 	case db.AsyncReject:
 		// Respond to the transfer request with a pending message that will be later
 		// rejected.
-		out, transferError = s.respondPending(in, peer, identity, transaction, xfer, account)
+		out, transferError = s.respondPending(in, peer, identity, transaction, xfer, account, policy)
 	default:
 		return nil, protocol.Errorf(protocol.InternalError, "unknown policy '%s' for wallet '%s'", policy, account.WalletAddress)
 	}
@@ -552,7 +552,7 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 
 // respondPending responds to a transfer request from the originator by returning a
 // pending message and saving the pending transaction in the database.
-func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, xfer *db.Transaction, account db.Account) (out *protocol.SecureEnvelope, transferError *protocol.Error) {
+func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, identity *ivms101.IdentityPayload, transaction *generic.Transaction, xfer *db.Transaction, account db.Account, policy db.PolicyType) (out *protocol.SecureEnvelope, transferError *protocol.Error) {
 	now := time.Now()
 
 	xfer.NotBefore = now.Add(s.parent.conf.AsyncNotBefore)
@@ -610,8 +610,12 @@ func (s *TRISA) respondPending(in *protocol.SecureEnvelope, peer *peers.Peer, id
 	// Create a pending protocol message with NotBefore and NotAfter timestamps
 	pending := &generic.Pending{
 		EnvelopeId:     xfer.Envelope,
+		ReceivedBy:     s.parent.vasp.Name + " (Robot VASP)",
+		ReceivedAt:     time.Now().Format(time.RFC3339),
+		Message:        fmt.Sprintf("You have initiated an asynchronous transfer with a robot VASP using the %s policy", policy),
 		ReplyNotBefore: xfer.NotBefore.Format(time.RFC3339),
 		ReplyNotAfter:  xfer.NotAfter.Format(time.RFC3339),
+		Transaction:    transaction,
 	}
 
 	var payload *protocol.Payload
