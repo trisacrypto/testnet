@@ -222,9 +222,11 @@ func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficia
 		}
 
 		// Validate the beneficiary person
-		if err = identity.Beneficiary.BeneficiaryPersons[0].GetNaturalPerson().Validate(); err != nil {
-			log.Warn().Err(err).Msg("beneficiary person validation error")
-			return protocol.Errorf(protocol.ValidationError, "beneficiary person validation error: %s", err)
+		if naturalPerson := identity.Beneficiary.BeneficiaryPersons[0].GetNaturalPerson(); naturalPerson != nil {
+			if err = naturalPerson.Validate(); err != nil {
+				log.Warn().Err(err).Msg("beneficiary person validation error")
+				return protocol.Errorf(protocol.ValidationError, "beneficiary person validation error: %s", err)
+			}
 		}
 
 		// Check that the account number is present
