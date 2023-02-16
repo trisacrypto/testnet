@@ -222,9 +222,21 @@ func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficia
 		}
 
 		// Validate the beneficiary person
-		if err = identity.Beneficiary.BeneficiaryPersons[0].GetNaturalPerson().Validate(); err != nil {
-			log.Warn().Err(err).Msg("beneficiary person validation error")
-			return protocol.Errorf(protocol.ValidationError, "beneficiary person validation error: %s", err)
+		beneficiaryPerson := identity.Beneficiary.BeneficiaryPersons[0].GetPerson()
+		switch person := beneficiaryPerson.(type) {
+		case *ivms101.Person_NaturalPerson:
+			if err = person.NaturalPerson.Validate(); err != nil {
+				log.Warn().Err(err).Msg("beneficiary natural person validation error")
+				return protocol.Errorf(protocol.ValidationError, "beneficiary natural person validation error: %s", err)
+			}
+		case *ivms101.Person_LegalPerson:
+			if err = person.LegalPerson.Validate(); err != nil {
+				log.Warn().Err(err).Msg("beneficiary legal person validation error")
+				return protocol.Errorf(protocol.ValidationError, "beneficiary legal person validation error: %s", err)
+			}
+		default:
+			log.Warn().Msg(fmt.Sprintf("unknown beneficiary person type: %T", person))
+			return protocol.Errorf(protocol.ValidationError, "unknown beneficiary person type: %T", person)
 		}
 
 		// Check that the account number is present
@@ -246,9 +258,21 @@ func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficia
 		}
 
 		// Validate the beneficiary vasp entity
-		if err = identity.BeneficiaryVasp.BeneficiaryVasp.GetLegalPerson().Validate(); err != nil {
-			log.Warn().Err(err).Msg("beneficiary vasp entity validation error")
-			return protocol.Errorf(protocol.ValidationError, "beneficiary vasp entity validation error: %s", err)
+		beneficiaryVaspPerson := identity.BeneficiaryVasp.BeneficiaryVasp.GetPerson()
+		switch person := beneficiaryVaspPerson.(type) {
+		case *ivms101.Person_NaturalPerson:
+			if err = person.NaturalPerson.Validate(); err != nil {
+				log.Warn().Err(err).Msg("beneficiary vasp natural person validation error")
+				return protocol.Errorf(protocol.ValidationError, "beneficiary vasp natural person validation error: %s", err)
+			}
+		case *ivms101.Person_LegalPerson:
+			if err = person.LegalPerson.Validate(); err != nil {
+				log.Warn().Err(err).Msg("beneficiary vasp legal person validation error")
+				return protocol.Errorf(protocol.ValidationError, "beneficiary vasp legal person validation error: %s", err)
+			}
+		default:
+			log.Warn().Msg(fmt.Sprintf("unknown beneficiary person type: %T", person))
+			return protocol.Errorf(protocol.ValidationError, "unknown beneficiary person type: %T", person)
 		}
 	}
 	return nil
