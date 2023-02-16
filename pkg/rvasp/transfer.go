@@ -234,6 +234,9 @@ func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficia
 				log.Warn().Err(err).Msg("beneficiary legal person validation error")
 				return protocol.Errorf(protocol.ValidationError, "beneficiary legal person validation error: %s", err)
 			}
+		default:
+			log.Warn().Msg(fmt.Sprintf("unknown beneficiary person type: %T", person))
+			return protocol.Errorf(protocol.ValidationError, "unknown beneficiary person type: %T", person)
 		}
 
 		// Check that the account number is present
@@ -267,6 +270,9 @@ func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficia
 				log.Warn().Err(err).Msg("beneficiary vasp legal person validation error")
 				return protocol.Errorf(protocol.ValidationError, "beneficiary vasp legal person validation error: %s", err)
 			}
+		default:
+			log.Warn().Msg(fmt.Sprintf("unknown beneficiary person type: %T", person))
+			return protocol.Errorf(protocol.ValidationError, "unknown beneficiary person type: %T", person)
 		}
 	}
 	return nil
