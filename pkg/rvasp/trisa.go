@@ -77,7 +77,7 @@ func NewTRISA(parent *Server) (svc *TRISA, err error) {
 	return svc, nil
 }
 
-// Serve initializes the GRPC server and returns any errors during intitialization, it
+// Serve initializes the GRPC server and returns any errors during initialization, it
 // then kicks off a go routine to handle requests. Not thread safe, should not be called
 // multiple times.
 func (s *TRISA) Serve() (err error) {
@@ -492,7 +492,9 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 
 	// Update the transaction with beneficiary information
 	transaction.Beneficiary = account.WalletAddress
-	transaction.Timestamp = time.Now().Format(time.RFC3339)
+	if transaction.Timestamp == "" {
+		transaction.Timestamp = time.Now().Format(time.RFC3339)
+	}
 
 	var xferBytes []byte
 	if xferBytes, err = protojson.Marshal(identity); err != nil {
@@ -510,7 +512,7 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
-	msg := fmt.Sprintf("ready for transaction %04d: %s transfering from %s to %s", xfer.ID, xfer.Amount, xfer.Originator.WalletAddress, xfer.Beneficiary.WalletAddress)
+	msg := fmt.Sprintf("ready for transaction %04d: %s transferring from %s to %s", xfer.ID, xfer.Amount, xfer.Originator.WalletAddress, xfer.Beneficiary.WalletAddress)
 	s.parent.updates.Broadcast(0, msg, pb.MessageCategory_BLOCKCHAIN)
 
 	// Encode and encrypt the payload information to return the secure envelope
@@ -791,7 +793,7 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 			return fmt.Errorf("could not save beneficiary account: %s", err)
 		}
 
-		msg := fmt.Sprintf("ready for transaction %s: %.2f transfering from %s to %s", transaction.Txid, transaction.Amount, transaction.Originator, transaction.Beneficiary)
+		msg := fmt.Sprintf("ready for transaction %s: %.2f transferring from %s to %s", transaction.Txid, transaction.Amount, transaction.Originator, transaction.Beneficiary)
 		s.parent.updates.Broadcast(0, msg, pb.MessageCategory_BLOCKCHAIN)
 		tx.SetState(pb.TransactionState_COMPLETED)
 	default:
@@ -881,7 +883,7 @@ func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *
 
 	if err = peer.UpdateSigningKey(pub); err != nil {
 		log.Error().Err(err).Msg("could not update signing key")
-		return nil, protocol.Errorf(protocol.UnhandledAlgorithm, "unsuported signing algorithm")
+		return nil, protocol.Errorf(protocol.UnhandledAlgorithm, "unsupported signing algorithm")
 	}
 
 	// TODO: check not before and not after constraints
@@ -889,7 +891,7 @@ func (s *TRISA) KeyExchange(ctx context.Context, in *protocol.SigningKey) (out *
 	// TODO: Kick off a go routine to store the key in the database
 
 	// Return the public signing-key of the service
-	// TODO: use separate signing key insead of using public key of mTLS certs
+	// TODO: use separate signing key instead of using public key of mTLS certs
 	var key *x509.Certificate
 	if key, err = s.certs.GetLeafCertificate(); err != nil {
 		log.Warn().Err(err).Msg("could not extract leaf certificate")
