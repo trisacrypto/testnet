@@ -479,7 +479,7 @@ func (s *TRISA) respondTransfer(in *protocol.SecureEnvelope, peer *peers.Peer, i
 		return nil, protocol.Errorf(protocol.InternalError, "request could not be processed")
 	}
 
-	if transferError = validateIdentityPayload(identity, requireBeneficiary); transferError != nil {
+	if transferError = ValidateIdentityPayload(identity, requireBeneficiary); transferError != nil {
 		log.Warn().Str("message", transferError.Message).Msg("could not validate identity payload")
 		xfer.SetState(pb.TransactionState_REJECTED)
 		return nil, transferError
@@ -676,7 +676,7 @@ func (s *TRISA) sendAsync(tx *db.Transaction) (err error) {
 	// Repair the beneficiary information if this is the first handshake
 	if tx.State == pb.TransactionState_PENDING_SENT {
 		var validationError *protocol.Error
-		if validationError = validateIdentityPayload(identity, false); validationError != nil {
+		if validationError = ValidateIdentityPayload(identity, false); validationError != nil {
 			log.Warn().Str("message", validationError.Message).Msg("could not validate identity payload")
 			var reject *protocol.SecureEnvelope
 			if reject, err = envelope.Reject(validationError, envelope.WithEnvelopeID(tx.Envelope)); err != nil {
