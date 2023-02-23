@@ -91,4 +91,33 @@ func (s *rVASPTestSuite) TestValidateIdentityPayload() {
 	req.BeneficiaryVasp.BeneficiaryVasp = &ivms101.Person{}
 	err = rvasp.ValidateIdentityPayload(req, true)
 	require.EqualError(err, "trisa rejection [VALIDATION_ERROR]: unknown beneficiary person type: <nil>")
+
+	//
+	req.BeneficiaryVasp.BeneficiaryVasp = &ivms101.Person{
+		Person: &ivms101.Person_NaturalPerson{
+			NaturalPerson: &ivms101.NaturalPerson{},
+		},
+	}
+	err = rvasp.ValidateIdentityPayload(req, true)
+	require.EqualError(err, "trisa rejection [VALIDATION_ERROR]: beneficiary vasp natural person validation error: one or more natural person name identifiers is required")
+
+	//
+	req.BeneficiaryVasp.BeneficiaryVasp = &ivms101.Person{
+		Person: &ivms101.Person_LegalPerson{
+			LegalPerson: &ivms101.LegalPerson{},
+		},
+	}
+	err = rvasp.ValidateIdentityPayload(req, true)
+	require.EqualError(err, "trisa rejection [VALIDATION_ERROR]: beneficiary vasp legal person validation error: one or more legal person name identifiers is required")
+
+	req.BeneficiaryVasp.BeneficiaryVasp.GetLegalPerson().Name = &ivms101.LegalPersonName{
+		NameIdentifiers: []*ivms101.LegalPersonNameId{
+			{
+				LegalPersonName:               "LegalPersonName",
+				LegalPersonNameIdentifierType: ivms101.LegalPersonNameTypeCode_LEGAL_PERSON_NAME_TYPE_CODE_LEGL,
+			},
+		},
+	}
+	err = rvasp.ValidateIdentityPayload(req, true)
+	require.Nil(err)
 }
