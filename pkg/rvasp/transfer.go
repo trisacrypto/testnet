@@ -187,7 +187,7 @@ func parsePayload(payload *protocol.Payload, response bool) (identity *ivms101.I
 }
 
 // Validate an identity payload, returning an error if the payload is not valid.
-func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficiary bool) *protocol.Error {
+func ValidateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficiary bool) *protocol.Error {
 	// Verify the identity payload is not nil
 	if identity == nil {
 		log.Warn().Msg("identity payload is nil")
@@ -271,8 +271,8 @@ func validateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficia
 				return protocol.Errorf(protocol.ValidationError, "beneficiary vasp legal person validation error: %s", err)
 			}
 		default:
-			log.Warn().Msg(fmt.Sprintf("unknown beneficiary person type: %T", person))
-			return protocol.Errorf(protocol.ValidationError, "unknown beneficiary person type: %T", person)
+			log.Warn().Msg(fmt.Sprintf("unknown beneficiary vasp person type: %T", person))
+			return protocol.Errorf(protocol.ValidationError, "unknown beneficiary vasp person type: %T", person)
 		}
 	}
 	return nil
