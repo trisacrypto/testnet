@@ -161,6 +161,10 @@ func main() {
 					Usage: "the amount to transfer to the beneficiary",
 				},
 				&cli.StringFlag{
+					Name:  "t, asset-type",
+					Usage: "the type of virtual asset",
+				},
+				&cli.StringFlag{
 					Name:  "B, beneficiary-vasp",
 					Usage: "the common name or vasp directory searchable name of the beneficiary vasp",
 				},
@@ -343,6 +347,7 @@ func transfer(c *cli.Context) (err error) {
 		Beneficiary:     c.String("beneficiary"),
 		BeneficiaryVasp: c.String("beneficiary-vasp"),
 		Amount:          float32(c.Float64("amount")),
+		AssetType:       c.String("asset-type"),
 		ExternalDemo:    c.Bool("external-demo"),
 	}
 

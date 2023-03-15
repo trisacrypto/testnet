@@ -259,6 +259,7 @@ type Transaction struct {
 	BeneficiaryID uint                `gorm:"column:beneficiary_id;not null"`
 	Beneficiary   Identity            `gorm:"foreignKey:BeneficiaryID"`
 	Amount        decimal.Decimal     `gorm:"type:decimal(15,8)"`
+	AssetType     string              `gorm:"not null"`
 	Debit         bool                `gorm:"not null"`
 	State         pb.TransactionState `gorm:"not null;default:0"`
 	StateString   string              `gorm:"column:state_string;not null"`
@@ -284,7 +285,7 @@ func (t *Transaction) SetState(state pb.TransactionState) {
 
 // Identity holds raw data for an originator or a beneficiary that was sent as
 // part of the transaction process. This should not be stored in the wallet since the
-// wallet is a representation of the local VASPs knowledge about customers and bercause
+// wallet is a representation of the local VASPs knowledge about customers and because
 // the identity information could change between transactions. This intermediate table
 // is designed to more closely mimic data storage as part of a blockchain transaction.
 type Identity struct {
@@ -301,7 +302,7 @@ func (Identity) TableName() string {
 	return "identities"
 }
 
-// BalanceFloat converts the balance decmial into an exact two precision float32 for
+// BalanceFloat converts the balance decimal into an exact two precision float32 for
 // use with the protocol buffers.
 func (a Account) BalanceFloat() float32 {
 	bal, _ := a.Balance.Truncate(2).Float64()
@@ -364,7 +365,7 @@ func (t Transaction) GetBeneficiary(db *DB) (identity *Identity, err error) {
 	return identity, nil
 }
 
-// AmountFloat converts the amount decmial into an exact two precision float32 for
+// AmountFloat converts the amount decimal into an exact two precision float32 for
 // use with the protocol buffers.
 func (t Transaction) AmountFloat() float32 {
 	bal, _ := t.Amount.Truncate(2).Float64()

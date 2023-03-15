@@ -44,7 +44,7 @@ message Transaction {
     Account beneficiary = 2;    // Target described by wallet address or email of beneficiary
     float amount = 3;           // amount of the transaction
     string timestamp = 4;       // timestamp of completion on the account provider side
-    string envelope_id = 5;        // envelope ID from TRISA (not included between TRISA peers)
+    string envelope_id = 5;     // envelope ID from TRISA (not included between TRISA peers)
     string identity = 6;        // identity payload from TRISA (not included between TRISA peers)
     TransactionState state = 7; // state of the transaction
 }
@@ -70,6 +70,7 @@ message TransferRequest {
     string account = 1;           // email address or crypto wallet of the account to debit
     string beneficiary = 2;       // email address or crypto wallet to look up beneficiary with
     float amount = 3;             // amount to transfer to the beneficiary (will be truncated to 2 decimal points)
+    string asset_type = 8;        // the type of virtual asset for multi-asset chains (optional)
     string originating_vasp = 4;  // common name of the originating VASP for demo UI error handling (optional)
     string beneficiary_vasp = 5;  // common name of the beneficiary VASP for demo UI error handling or external demo lookup (optional if external_demo is false)
     bool check_beneficiary = 6;   // if set, confirm that the beneficiary wallet belongs to the beneficiary VASP (optional)
