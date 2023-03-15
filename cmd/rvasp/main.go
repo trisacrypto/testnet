@@ -163,6 +163,7 @@ func main() {
 				&cli.StringFlag{
 					Name:  "t, asset-type",
 					Usage: "the type of virtual asset",
+					Value: "bitcoin",
 				},
 				&cli.StringFlag{
 					Name:  "B, beneficiary-vasp",
