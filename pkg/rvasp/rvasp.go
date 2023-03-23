@@ -203,6 +203,7 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (reply *
 	}
 	xfer.Account = account
 	xfer.Amount = decimal.NewFromFloat32(req.Amount)
+	xfer.AssetType = req.AssetType
 	xfer.Debit = true
 
 	// Run the scenario for the wallet's configured policy
@@ -314,7 +315,7 @@ func (s *Server) sendTransfer(xfer *db.Transaction, beneficiary *db.Wallet, part
 	// Fetch the signing key
 	var signKey *rsa.PublicKey
 	if signKey, err = s.fetchSigningKey(peer); err != nil {
-		log.Warn().Err(err).Msg("could not fetch signing key from benficiary peer")
+		log.Warn().Err(err).Msg("could not fetch signing key from beneficiary peer")
 		return status.Errorf(codes.FailedPrecondition, "could not fetch signing key from beneficiary peer: %s", err)
 	}
 
@@ -336,6 +337,7 @@ func (s *Server) sendTransfer(xfer *db.Transaction, beneficiary *db.Wallet, part
 		Originator:  xfer.Account.WalletAddress,
 		Beneficiary: beneficiary.Address,
 		Network:     "TestNet",
+		AssetType:   xfer.AssetType,
 		Timestamp:   xfer.Timestamp.Format(time.RFC3339),
 	}
 
@@ -593,7 +595,7 @@ func (s *Server) respondAsync(peer *peers.Peer, payload *protocol.Payload, ident
 		}
 		xfer.SetState(pb.TransactionState_COMPLETED)
 	default:
-		log.Error().Str("state", xfer.State.String()).Msg("unepected transaction state")
+		log.Error().Str("state", xfer.State.String()).Msg("unexpected transaction state")
 		return nil, protocol.Errorf(protocol.ComplianceCheckFail, "unexpected transaction state: %s", xfer.State.String())
 	}
 
@@ -924,7 +926,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	if signKey, err = peer.ExchangeKeys(true); err != nil {
 		log.Error().Err(err).Msg("could not exchange keys with remote peer")
 		return s.updates.SendTransferError(client, req.Id,
-			pb.Errorf(pb.ErrInternal, "could not exchange keyrs with remote peer"),
+			pb.Errorf(pb.ErrInternal, "could not exchange keys with remote peer"),
 		)
 	}
 
@@ -1107,7 +1109,7 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 		)
 	}
 
-	message = fmt.Sprintf("transaction %04d complete: %s transfered from %s to %s", xfer.ID, xfer.Amount.String(), xfer.Originator.WalletAddress, xfer.Beneficiary.WalletAddress)
+	message = fmt.Sprintf("transaction %04d complete: %s transferred from %s to %s", xfer.ID, xfer.Amount.String(), xfer.Originator.WalletAddress, xfer.Beneficiary.WalletAddress)
 	s.updates.Broadcast(req.Id, message, pb.MessageCategory_BLOCKCHAIN)
 	time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
 
