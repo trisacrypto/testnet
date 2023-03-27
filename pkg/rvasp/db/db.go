@@ -386,6 +386,7 @@ func (t Transaction) Proto() *pb.Transaction {
 			Provider:      t.Beneficiary.Provider,
 		},
 		Amount:     t.AmountFloat(),
+		AssetType:  t.AssetType,
 		Timestamp:  t.Timestamp.Format(time.RFC3339),
 		EnvelopeId: t.Envelope,
 		Identity:   t.Identity,

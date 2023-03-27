@@ -47,6 +47,7 @@ message Transaction {
     string envelope_id = 5;     // envelope ID from TRISA (not included between TRISA peers)
     string identity = 6;        // identity payload from TRISA (not included between TRISA peers)
     TransactionState state = 7; // state of the transaction
+    string asset_type = 8;      // the type of virtual asset (for example, "Bitcoin")
 }
 
 // Describes the current state of a transaction.
