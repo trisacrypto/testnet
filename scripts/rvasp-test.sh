@@ -16,6 +16,13 @@ rvasp transfer -e $ALICE_ENDPOINT \
     -a 1ASkqdo1hvydosVRvRv2j6eNnWpWLHucMX -d 0.0001 \
     -b 18nxAxBktHZDrMoJ3N2fk9imLX8xNnYbNh
 
+# Send from testnet Alice to testnet Bob
+# Partial Sync Repair: success expected
+echo "Alice(testnet) --> Bob(testnet) Partial Sync Repair"
+rvasp transfer -e $ALICE_ENDPOINT \
+    -a nASkqdo1hvydosVRvRv2j6eNnWpWLHucMX -d 0.0001 \
+    -b n8nxAxBktHZDrMoJ3N2fk9imLX8xNnYbNh
+
 # Partial Sync Require: rejection expected
 echo "Alice --> Bob Partial Sync Require"
 rvasp transfer -e $ALICE_ENDPOINT \
