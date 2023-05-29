@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/shopspring/decimal"
+	"github.com/trisacrypto/testnet/pkg/utils"
 )
 
 const (
@@ -159,6 +160,17 @@ func LoadWallets(fixturesPath string) (wallets []Wallet, accounts []Account, err
 		a.Email = w.Email
 		a.WalletAddress = w.Address
 		a.VaspID = w.ProviderID
+
+		// Hack to skip validating the "charlie" wallets which are for internal use only
+		if w.Address[0] != 'c' {
+			// Validate that the wallet address is a bitcoin address
+			// TODO: rVASPs themselves don't care what the address represents, but all of
+			// the current fixtures look like bitcoin addresses so they should validate as
+			// BTC addresses to avoid confusion.
+			if _, err = utils.ParseBTCAddress(w.Address); err != nil {
+				return nil, nil, fmt.Errorf("error parsing bitcoin wallet address %s: %s", w.Address, err)
+			}
+		}
 
 		// Validate the policy fields
 		w.OriginatorPolicy = PolicyType(fields[3].(string))
