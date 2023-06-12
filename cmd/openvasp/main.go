@@ -7,11 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
-	"github.com/trisacrypto/testnet/pkg/openvasp"
+	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
 	"github.com/trisacrypto/testnet/pkg/rvasp/config"
 	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 	"github.com/urfave/cli"
-	"gocloud.dev/postgres"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -77,6 +77,7 @@ func serve(c *cli.Context) (err error) {
 	return nil
 }
 
+// TODO: verify and test database initialization
 // Run the database migration
 func initdb(c *cli.Context) (err error) {
 
