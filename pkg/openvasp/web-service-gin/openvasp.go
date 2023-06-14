@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type customer struct {
+type Customer struct {
 	ID            uuid.UUID
 	Name          string
 	AssetType     VirtualAsset
@@ -16,17 +16,18 @@ type customer struct {
 	TravelAddress string
 }
 
-type VirtualAsset int16
+type VirtualAsset uint16
 
 const (
-	Bitcoin     VirtualAsset = 1
-	Tether      VirtualAsset = 2
-	Ethereum    VirtualAsset = 3
-	Litecoin    VirtualAsset = 4
-	XRP         VirtualAsset = 5
-	BitcoinCash VirtualAsset = 6
-	Tezos       VirtualAsset = 7
-	EOS         VirtualAsset = 8
+	UnknownAsset VirtualAsset = iota
+	Bitcoin
+	Tether
+	Ethereum
+	Litecoin
+	XRP
+	BitcoinCash
+	Tezos
+	EOS
 )
 
 // Register a new customer. This will take in a customer ID
@@ -34,7 +35,7 @@ const (
 // and Asset type, and will then generate a LNURL associated with
 // this customer.
 func Register(c *gin.Context) {
-	var newCustomer *customer
+	var newCustomer *Customer
 
 	var err error
 	if err = c.BindJSON(newCustomer); err != nil {
@@ -50,19 +51,17 @@ func Register(c *gin.Context) {
 }
 
 // Validate that the Registration JSON is valid
-func validateCustomer(customer *customer) (err error) {
+func validateCustomer(customer *Customer) (err error) {
 	if customer.ID == uuid.Nil {
-		if customer.ID, err = uuid.NewRandom(); err != nil {
-			return err
-		}
+		customer.ID = uuid.New()
 	}
 
-	if customer.AssetType == 0 {
-		return errors.New("Asset must be set")
+	if customer.AssetType == UnknownAsset {
+		return errors.New("asset must be set")
 	}
 
 	if customer.WalletAddress == "" {
-		return errors.New("Wallet Address must be set")
+		return errors.New("wallet Address must be set")
 	}
 	return nil
 }
