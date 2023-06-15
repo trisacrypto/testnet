@@ -1,4 +1,4 @@
-FROM golang:1.16-buster AS builder
+FROM golang:1.19-buster AS builder
 WORKDIR /rvasp/build
 COPY . .
 RUN go test ./... && go build -v ./cmd/rvasp
