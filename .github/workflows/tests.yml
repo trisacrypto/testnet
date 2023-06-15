@@ -18,7 +18,7 @@ jobs:
 
       # TODO: update to v0.3.0 when it is fixed
       - name: Install Staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@v0.2.2
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
 
       - name: Checkout Code
         uses: actions/checkout@v2
