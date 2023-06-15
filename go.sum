@@ -629,10 +629,6 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1
 github.com/trisacrypto/directory v1.3.1 h1:k0ixdGa0As1N+u84TArA3nIHXXznG0kVPpbyAWe761Y=
 github.com/trisacrypto/directory v1.3.1/go.mod h1:dENoXRMi+hyTMCTsDeercoP+1VzbC8zyL/BSDZ82KFs=
 github.com/trisacrypto/trisa v0.3.1/go.mod h1:Ik66Ym5ArY/vWh9GzlTtLQFfEKmOo4ccxsBZgQLYVGk=
-github.com/trisacrypto/trisa v0.3.4 h1:4GF5cpHY9Pg3Qupbp+mzIUMRwbxUFNXed82V7UB0uRA=
-github.com/trisacrypto/trisa v0.3.4/go.mod h1:5VC6uJBIyiPreZfR67Mri6+CVXIuVuFZwTPromBPi9g=
-github.com/trisacrypto/trisa v0.3.5 h1:aRn6vSJ/LFc6e0lFy1vxdZfQHIak9VQpu9Ny//q99aE=
-github.com/trisacrypto/trisa v0.3.5/go.mod h1:5VC6uJBIyiPreZfR67Mri6+CVXIuVuFZwTPromBPi9g=
 github.com/trisacrypto/trisa v0.3.6 h1:AaD4O/0gNLUbdf3A6zP420Jq19JWtt/31WicR9oj+Xc=
 github.com/trisacrypto/trisa v0.3.6/go.mod h1:5VC6uJBIyiPreZfR67Mri6+CVXIuVuFZwTPromBPi9g=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
@@ -912,8 +908,9 @@ golang.org/x/sys v0.0.0-20210909193231-528a39cd75f3/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20211019181941-9d821ace8654/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220207234003-57398862261d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f h1:8w7RhxzTVgUzw/AH/9mUV5q0vMgy40SQRursCcfmkCw=
 golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.1.0 h1:kunALQeHf1/185U1i0GOB/fy1IPRDDpuoOOqRReG57U=
+golang.org/x/sys v0.1.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201117132131-f5c789dd3221/go.mod h1:Nr5EML6q2oocZ2LXRh80K7BxOlk5/8JxuGnuhpl+muw=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
