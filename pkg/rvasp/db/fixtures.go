@@ -3,7 +3,6 @@ package db
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -30,7 +29,7 @@ func loadFile(dir, fixture string) (bytes []byte, err error) {
 	}
 	defer file.Close()
 
-	if bytes, err = ioutil.ReadAll(file); err != nil {
+	if bytes, err = os.ReadFile(filepath.Join(dir, fixture)); err != nil {
 		return nil, err
 	}
 
