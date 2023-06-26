@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -69,12 +70,11 @@ func main() {
 }
 
 // Serve the OpenVASP gin server
-func serve(c *cli.Context) (err error) {
+func serve(c *cli.Context) {
 	router := gin.Default()
 	router.POST("/register", openvasp.Register)
 	router.POST("/transfer", openvasp.Transfer)
-	router.Run(c.String("addr"))
-	return nil
+	router.Run(fmt.Sprintf("localhost%s", c.String("addr")))
 }
 
 // TODO: verify and test database initialization
