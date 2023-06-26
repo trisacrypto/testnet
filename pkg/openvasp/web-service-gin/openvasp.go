@@ -12,10 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type DB struct {
-	gorm *gorm.DB
-}
-
 type Customer struct {
 	gorm.Model
 	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
@@ -39,7 +35,7 @@ const (
 	EOS
 )
 
-var db *DB
+var db *gorm.DB
 
 const travelURLTemplate = "https://test.net/transfer/%s?tag=travelRuleInquiry"
 
@@ -85,7 +81,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	db.gorm.Create(&newCustomer)
+	db.Create(&newCustomer)
 	c.IndentedJSON(http.StatusCreated, newCustomer)
 }
 
@@ -109,13 +105,12 @@ func validateCustomer(customer *Customer) (err error) {
 	return nil
 }
 
-func OpenDB(dns string) (db *DB, err error) {
-	db = &DB{}
-	if db.gorm, err = gorm.Open(postgres.Open(dns), &gorm.Config{}); err == nil {
+func OpenDB(dns string) (db *gorm.DB, err error) {
+	if db, err = gorm.Open(postgres.Open(dns), &gorm.Config{}); err == nil {
 		return db, nil
 	}
 
-	if err = db.gorm.AutoMigrate(&Customer{}); err != nil {
+	if err = db.AutoMigrate(&Customer{}); err != nil {
 		return nil, err
 	}
 	return db, nil

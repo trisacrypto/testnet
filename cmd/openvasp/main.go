@@ -2,16 +2,11 @@ package main
 
 import (
 	"os"
-	"path/filepath"
 
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
-	"github.com/trisacrypto/testnet/pkg/rvasp/config"
-	"github.com/trisacrypto/testnet/pkg/rvasp/db"
 	"github.com/urfave/cli"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 func main() {
@@ -32,39 +27,14 @@ func main() {
 			Action:   serve,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:   "a, addr",
-					Usage:  "the address and port to bind the server on",
-					Value:  "localhost:4435",
-					EnvVar: "RVASP_BIND_ADDR",
+					Name:  "a, addr",
+					Usage: "the address and port to bind the server on",
+					Value: "localhost:4435",
 				},
 				cli.StringFlag{
-					Name:   "d, dns",
-					Usage:  "the address and port to bind the server on",
-					Value:  "localhost:4434",
-					EnvVar: "RVASP_BIND_ADDR",
-				},
-			},
-		},
-		{
-			Name:     "initdb",
-			Usage:    "run the database migration",
-			Category: "server",
-			Action:   initdb,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:   "d, db",
-					Usage:  "the dsn of the postgres database to connect to",
-					EnvVar: "RVASP_DATABASE_DSN",
-				},
-				cli.BoolFlag{
-					Name:  "L, no-load",
-					Usage: "do not load initial fixtures into the database",
-				},
-				cli.StringFlag{
-					Name:   "f, fixtures",
-					Usage:  "the path to the fixtures directory to load into the database",
-					Value:  filepath.Join("pkg", "rvasp", "fixtures"),
-					EnvVar: "RVASP_FIXTURES_PATH",
+					Name:  "d, db",
+					Usage: "the dsn of the postgres database to connect to",
+					Value: "localhost:4434",
 				},
 			},
 		},
@@ -78,34 +48,5 @@ func serve(c *cli.Context) (err error) {
 	if err = openvasp.Serve(c.String("addr"), c.String("dns")); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	return nil
-}
-
-// TODO: verify and test database initialization
-// Run the database migration
-func initdb(c *cli.Context) (err error) {
-
-	var conf *config.Config
-	if conf, err = config.New(); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	if dsn := c.String("db"); dsn != "" {
-		conf.Database.DSN = dsn
-	}
-
-	if conf.Database.DSN == "" {
-		return cli.NewExitError("openvasp database dsn required", 1)
-	}
-
-	var gdb *gorm.DB
-	if gdb, err = gorm.Open(postgres.Open(conf.Database.DSN), &gorm.Config{}); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	if err = db.MigrateDB(gdb); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
 	return nil
 }
