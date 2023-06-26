@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
@@ -36,7 +34,13 @@ func main() {
 				cli.StringFlag{
 					Name:   "a, addr",
 					Usage:  "the address and port to bind the server on",
-					Value:  ":4435",
+					Value:  "localhost:4435",
+					EnvVar: "RVASP_BIND_ADDR",
+				},
+				cli.StringFlag{
+					Name:   "d, dns",
+					Usage:  "the address and port to bind the server on",
+					Value:  "localhost:4434",
 					EnvVar: "RVASP_BIND_ADDR",
 				},
 			},
@@ -70,11 +74,11 @@ func main() {
 }
 
 // Serve the OpenVASP gin server
-func serve(c *cli.Context) {
-	router := gin.Default()
-	router.POST("/register", openvasp.Register)
-	router.POST("/transfer", openvasp.Transfer)
-	router.Run(fmt.Sprintf("localhost%s", c.String("addr")))
+func serve(c *cli.Context) (err error) {
+	if err = openvasp.Serve(c.String("addr"), c.String("dns")); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	return nil
 }
 
 // TODO: verify and test database initialization
