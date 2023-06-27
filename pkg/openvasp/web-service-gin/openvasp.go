@@ -35,19 +35,41 @@ const (
 	EOS
 )
 
-var db *gorm.DB
-
 const travelURLTemplate = "https://test.net/transfer/%s?tag=travelRuleInquiry"
 
-func Serve(address, dns string) (err error) {
-	if db, err = OpenDB(dns); err != nil {
+type server struct {
+	db *gorm.DB
+}
+
+func New(dsn string) (newServer *server, err error) {
+	newServer = &server{}
+	if newServer.db, err = openDB(dsn); err != nil {
+		return nil, err
+	}
+	return newServer, nil
+}
+
+func openDB(dsn string) (db *gorm.DB, err error) {
+	if db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{}); err != nil {
+		return nil, err
+	}
+
+	if err = db.AutoMigrate(&Customer{}); err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+func Serve(address, dsn string) (err error) {
+	var s *server
+	if s, err = New(dsn); err != nil {
 		return err
 	}
 
 	router := gin.Default()
-	router.POST("/register", Register)
-	router.POST("/transfer", Transfer)
-	router.Run(fmt.Sprintf("localhost%s", address))
+	router.POST("/register", s.Register)
+	router.POST("/transfer", s.Transfer)
+	router.Run(address)
 	return nil
 }
 
@@ -62,26 +84,26 @@ Example command:
 			--header "Content-Type: application/json" \
 			--request "POST" --data '{"name":"Tildred Milcot", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}'
 */
-func Register(c *gin.Context) {
+func (s *server) Register(c *gin.Context) {
 	var err error
 	var newCustomer Customer
 	if err = c.BindJSON(&newCustomer); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"JSON Binding error": err.Error()})
 		return
 	}
 
 	if err = validateCustomer(&newCustomer); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"validation error": err.Error()})
 		return
 	}
 
 	travelAddress := fmt.Sprintf(travelURLTemplate, newCustomer.WalletAddress)
 	if newCustomer.TravelAddress, _, err = lnurl.GenerateLnUrl(travelAddress); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"LNURL generation error": err.Error()})
 		return
 	}
 
-	db.Create(&newCustomer)
+	s.db.Create(&newCustomer)
 	c.IndentedJSON(http.StatusCreated, newCustomer)
 }
 
@@ -105,16 +127,5 @@ func validateCustomer(customer *Customer) (err error) {
 	return nil
 }
 
-func OpenDB(dns string) (db *gorm.DB, err error) {
-	if db, err = gorm.Open(postgres.Open(dns), &gorm.Config{}); err == nil {
-		return db, nil
-	}
-
-	if err = db.AutoMigrate(&Customer{}); err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
 //TODO: implement
-func Transfer(c *gin.Context) {}
+func (s *server) Transfer(c *gin.Context) {}
