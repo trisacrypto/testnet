@@ -104,7 +104,7 @@ func (s *server) Register(c *gin.Context) {
 	}
 
 	if db := s.db.Create(&newCustomer); db.Error != nil {
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Database error": db.Error})
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": db.Error})
 		return
 	}
 	c.IndentedJSON(http.StatusCreated, newCustomer)
