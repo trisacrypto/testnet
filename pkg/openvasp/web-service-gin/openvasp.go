@@ -88,7 +88,7 @@ func (s *server) Register(c *gin.Context) {
 	var err error
 	var newCustomer Customer
 	if err = c.BindJSON(&newCustomer); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"JSON Binding error": err.Error()})
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
 		return
 	}
 
