@@ -93,7 +93,7 @@ func (s *server) Register(c *gin.Context) {
 	}
 
 	if err = validateCustomer(&newCustomer); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"validation error": err.Error()})
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid customer provided": err.Error()})
 		return
 	}
 
