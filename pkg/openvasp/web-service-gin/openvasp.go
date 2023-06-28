@@ -99,7 +99,7 @@ func (s *server) Register(c *gin.Context) {
 
 	travelAddress := fmt.Sprintf(travelURLTemplate, newCustomer.WalletAddress)
 	if newCustomer.TravelAddress, _, err = lnurl.GenerateLnUrl(travelAddress); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"LNURL generation error": err.Error()})
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": err.Error()})
 		return
 	}
 
