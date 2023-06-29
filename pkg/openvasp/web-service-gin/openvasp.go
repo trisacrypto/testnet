@@ -8,57 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	lnurl "github.com/xplorfin/lnurlauth"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-)
-
-type Customer struct {
-	gorm.Model
-	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
-	Name          string       `gorm:"column:name;null"`
-	AssetType     VirtualAsset `gorm:"column:asset_type;null"`
-	WalletAddress string       `gorm:"column:wallet_address;null"`
-	TravelAddress string       `gorm:"column:travel_address;null"`
-}
-
-type VirtualAsset uint16
-
-const (
-	UnknownAsset VirtualAsset = iota
-	Bitcoin
-	Tether
-	Ethereum
-	Litecoin
-	XRP
-	BitcoinCash
-	Tezos
-	EOS
 )
 
 const travelURLTemplate = "https://test.net/transfer/%s?tag=travelRuleInquiry"
-
-type server struct {
-	db *gorm.DB
-}
-
-func New(dsn string) (newServer *server, err error) {
-	newServer = &server{}
-	if newServer.db, err = openDB(dsn); err != nil {
-		return nil, err
-	}
-	return newServer, nil
-}
-
-func openDB(dsn string) (db *gorm.DB, err error) {
-	if db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{}); err != nil {
-		return nil, err
-	}
-
-	if err = db.AutoMigrate(&Customer{}); err != nil {
-		return nil, err
-	}
-	return db, nil
-}
 
 func Serve(address, dsn string) (err error) {
 	var s *server
