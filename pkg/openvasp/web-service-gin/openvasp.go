@@ -10,6 +10,43 @@ import (
 	lnurl "github.com/xplorfin/lnurlauth"
 )
 
+type Payload struct {
+	// TODO: import IVMS101
+	IVMS101  interface{}
+	Asset    VirtualAsset
+	Amount   float64
+	Callback string
+}
+
+type VirtualAsset uint16
+
+const (
+	UnknownAsset VirtualAsset = iota
+	Bitcoin
+	Tether
+	Ethereum
+	Litecoin
+	XRP
+	BitcoinCash
+	Tezos
+	EOS
+)
+
+type TransferReply struct {
+	Approved TransferApproval
+	Rejected string
+}
+
+type TransferApproval struct {
+	Approved string
+	Callback string
+}
+
+type TransferConfirmation struct {
+	TxId     uuid.UUID
+	Canceled string
+}
+
 const travelURLTemplate = "https://test.net/transfer/%s?tag=travelRuleInquiry"
 
 func Serve(address, dsn string) (err error) {
@@ -21,6 +58,8 @@ func Serve(address, dsn string) (err error) {
 	router := gin.Default()
 	router.POST("/register", s.Register)
 	router.POST("/transfer", s.Transfer)
+	router.POST("/inquiryResolution", s.InquiryResolution)
+	router.POST("/transferConfirmation", s.TransferConfirmation)
 	router.Run(address)
 	return nil
 }
@@ -84,3 +123,9 @@ func validateCustomer(customer *Customer) (err error) {
 
 //TODO: implement
 func (s *server) Transfer(c *gin.Context) {}
+
+//TODO: implement
+func (s *server) InquiryResolution(c *gin.Context) {}
+
+//TODO: implement
+func (s *server) TransferConfirmation(c *gin.Context) {}

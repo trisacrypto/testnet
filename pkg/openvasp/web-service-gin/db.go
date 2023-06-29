@@ -29,20 +29,6 @@ const (
 	Rejected
 )
 
-type VirtualAsset uint16
-
-const (
-	UnknownAsset VirtualAsset = iota
-	Bitcoin
-	Tether
-	Ethereum
-	Litecoin
-	XRP
-	BitcoinCash
-	Tezos
-	EOS
-)
-
 type Customer struct {
 	gorm.Model
 	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
