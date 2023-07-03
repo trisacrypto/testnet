@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,7 +10,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
+	trisa "github.com/trisacrypto/trisa/pkg/ivms101"
 	"github.com/urfave/cli"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func main() {
@@ -110,12 +111,11 @@ func serve(c *cli.Context) (err error) {
 func register(c *cli.Context) (err error) {
 	var request *http.Request
 	requestURL := fmt.Sprintf("http://%s/register", c.String("address"))
-	body := []byte(`{"client_message": "hello world"`)
+	body := []byte(`{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`)
 	if request, err = http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body)); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("data", `{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`)
 
 	var response *http.Response
 	client := &http.Client{}
@@ -139,13 +139,43 @@ func transfer(c *cli.Context) (err error) {
 	}
 	defer file.Close()
 
-	var jsonBytes []byte
-	if jsonBytes, err = ioutil.ReadAll(file); err != nil {
+	var jsonbytes []byte
+	if jsonbytes, err = ioutil.ReadAll(file); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	var ivms101 map[string]interface{}
-	json.Unmarshal([]byte(jsonBytes), &ivms101)
-	fmt.Println(ivms101)
+	var ivms101 *trisa.IdentityPayload
+	if err = protojson.Unmarshal(jsonbytes, ivms101); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	payload := &openvasp.Payload{
+		IVMS101:  ivms101,
+		Asset:    c.String("asset"),
+		Amount:   c.Float64("amount"),
+		Callback: "foo",
+	}
+	fmt.Println(payload)
+
+	// var request *http.Request
+	// requestURL := fmt.Sprintf("http://%s/register", c.String("address"))
+	// body := []byte(`{"client_message": "hello world"`)
+	// if request, err = http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body)); err != nil {
+	// 	return cli.NewExitError(err, 1)
+	// }
+	// request.Header.Set("Content-Type", "application/json")
+	// request.Header.Set("data", `{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`)
+
+	// var response *http.Response
+	// client := &http.Client{}
+	// if response, err = client.Do(request); err != nil {
+	// 	return cli.NewExitError(err, 1)
+	// }
+
+	// var responseBody []byte
+	// if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
+	// 	return cli.NewExitError(err, 1)
+	// }
+	// fmt.Println(string(responseBody))
 	return nil
 }

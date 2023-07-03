@@ -13,16 +13,10 @@ import (
 )
 
 type Payload struct {
-	IVMS101  Identity
-	Asset    VirtualAsset
+	IVMS101  *trisa.IdentityPayload
+	Asset    string
 	Amount   float64
 	Callback string
-}
-
-type Identity struct {
-	Originator      *trisa.Originator      `json:"originator,omitempty"`
-	Beneficiary     *trisa.Beneficiary     `json:"beneficiary,omitempty"`
-	OriginatingVASP *trisa.OriginatingVasp `json:"originatingVASP,omitempty"`
 }
 
 type VirtualAsset uint16
@@ -85,7 +79,7 @@ Example command:
 			--request "POST" --data '{"name":"Tildred Milcot", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}'
 */
 func (s *server) Register(c *gin.Context) {
-	fmt.Printf("Request: %d\n", c.Request)
+	fmt.Printf("Request: %+v\n", c.Request)
 
 	var err error
 	var newCustomer Customer
@@ -93,6 +87,7 @@ func (s *server) Register(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
 		return
 	}
+	fmt.Printf("New Customer: %+v\n", &newCustomer)
 
 	if err = validateCustomer(&newCustomer); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid customer provided": err.Error()})
@@ -109,7 +104,7 @@ func (s *server) Register(c *gin.Context) {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": db.Error})
 		return
 	}
-	c.IndentedJSON(http.StatusCreated, newCustomer)
+	c.IndentedJSON(http.StatusCreated, &newCustomer)
 }
 
 // Validate that the Registration JSON is valid
@@ -132,13 +127,11 @@ func validateCustomer(customer *Customer) (err error) {
 	return nil
 }
 
-func (s *server) listUsers(c *gin.Context) {
+//TODO: implement
+func (s *server) listUsers(c *gin.Context) {}
 
-}
-
-func (s *server) getLNURL(c *gin.Context) {
-
-}
+//TODO: implement
+func (s *server) getLNURL(c *gin.Context) {}
 
 func (s *server) Transfer(c *gin.Context) {
 	var err error
@@ -154,14 +147,14 @@ func (s *server) Transfer(c *gin.Context) {
 	}
 
 	newTransfer := &Transfer{
-		TransferID:     uuid.New(),
-		Status:         Pending,
-		OriginatorVasp: newPayload.IVMS101.OriginatingVASP.String(),
-		Originator:     newPayload.IVMS101.Originator.String(),
-		Beneficiary:    newPayload.IVMS101.Beneficiary.String(),
-		AssetType:      newPayload.Asset,
-		Amount:         newPayload.Amount,
-		Created:        time.Now(),
+		TransferID: uuid.New(),
+		Status:     Pending,
+		//OriginatorVasp: newPayload.IVMS101.OriginatingVASP.String(),
+		Originator: newPayload.IVMS101.Originator.String(),
+		//Beneficiary: newPayload.IVMS101.Beneficiary.String(),
+		//AssetType:      newPayload.Asset,
+		Amount:  newPayload.Amount,
+		Created: time.Now(),
 	}
 
 	if db := s.db.Create(&newTransfer); db.Error != nil {
