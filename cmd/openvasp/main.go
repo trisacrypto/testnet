@@ -150,8 +150,8 @@ func transfer(c *cli.Context) (err error) {
 	}
 
 	payload := &openvasp.Payload{
-		IVMS101:  ivms101,
-		Asset:    c.String("asset"),
+		IVMS101: ivms101,
+		//Asset:    c.String("asset"),
 		Amount:   c.Float64("amount"),
 		Callback: "foo",
 	}
