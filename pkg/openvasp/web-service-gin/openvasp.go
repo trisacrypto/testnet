@@ -62,8 +62,6 @@ func (p *Payload) BeneficiaryName() string {
 	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
 }
 
-const travelURLTemplate = "https://test.net/transfer/%s?tag=travelRuleInquiry"
-
 func Serve(address, dsn string) (err error) {
 	var s *server
 	if s, err = New(dsn); err != nil {
