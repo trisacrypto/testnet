@@ -170,8 +170,10 @@ func (s *server) Transfer(c *gin.Context) {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": db.Error})
 		return
 	}
+	c.IndentedJSON(http.StatusCreated, &newTransfer)
 }
 
+//TODO: implement
 func validatePayload(payload *Payload) (err error) {
 	return nil
 }

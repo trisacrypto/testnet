@@ -1,8 +1,6 @@
 {
-    "asset": {
-        "slip0044": "foo"
-    },
-    "amount": 1,
+    "asset": 1,
+    "amount": 1.0,
     "callback": "https://originator.com/implementation/defined/path/for/inquiryResolution",
     "IVMS101": {
         "originator": {
