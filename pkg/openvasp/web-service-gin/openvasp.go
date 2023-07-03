@@ -4,18 +4,25 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	trisa "github.com/trisacrypto/trisa/pkg/ivms101"
 	lnurl "github.com/xplorfin/lnurlauth"
 )
 
 type Payload struct {
-	// TODO: import IVMS101
-	IVMS101  interface{}
+	IVMS101  Identity
 	Asset    VirtualAsset
 	Amount   float64
 	Callback string
+}
+
+type Identity struct {
+	Originator      *trisa.Originator      `json:"originator,omitempty"`
+	Beneficiary     *trisa.Beneficiary     `json:"beneficiary,omitempty"`
+	OriginatingVASP *trisa.OriginatingVasp `json:"originatingVASP,omitempty"`
 }
 
 type VirtualAsset uint16
@@ -57,6 +64,8 @@ func Serve(address, dsn string) (err error) {
 
 	router := gin.Default()
 	router.POST("/register", s.Register)
+	router.GET("/listusers", s.listUsers)
+	router.GET("/lnurl", s.getLNURL)
 	router.POST("/transfer", s.Transfer)
 	router.POST("/inquiryResolution", s.InquiryResolution)
 	router.POST("/transferConfirmation", s.TransferConfirmation)
@@ -76,6 +85,8 @@ Example command:
 			--request "POST" --data '{"name":"Tildred Milcot", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}'
 */
 func (s *server) Register(c *gin.Context) {
+	fmt.Printf("Request: %d\n", c.Request)
+
 	var err error
 	var newCustomer Customer
 	if err = c.BindJSON(&newCustomer); err != nil {
@@ -121,8 +132,47 @@ func validateCustomer(customer *Customer) (err error) {
 	return nil
 }
 
-//TODO: implement
-func (s *server) Transfer(c *gin.Context) {}
+func (s *server) listUsers(c *gin.Context) {
+
+}
+
+func (s *server) getLNURL(c *gin.Context) {
+
+}
+
+func (s *server) Transfer(c *gin.Context) {
+	var err error
+	var newPayload Payload
+	if err = c.BindJSON(&newPayload); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
+		return
+	}
+
+	if err = validatePayload(&newPayload); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid payload provided": err.Error()})
+		return
+	}
+
+	newTransfer := &Transfer{
+		TransferID:     uuid.New(),
+		Status:         Pending,
+		OriginatorVasp: newPayload.IVMS101.OriginatingVASP.String(),
+		Originator:     newPayload.IVMS101.Originator.String(),
+		Beneficiary:    newPayload.IVMS101.Beneficiary.String(),
+		AssetType:      newPayload.Asset,
+		Amount:         newPayload.Amount,
+		Created:        time.Now(),
+	}
+
+	if db := s.db.Create(&newTransfer); db.Error != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": db.Error})
+		return
+	}
+}
+
+func validatePayload(payload *Payload) (err error) {
+	return nil
+}
 
 //TODO: implement
 func (s *server) InquiryResolution(c *gin.Context) {}

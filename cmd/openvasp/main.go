@@ -1,6 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -27,7 +32,7 @@ func main() {
 			Action:   serve,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "a, addr",
+					Name:  "a, address",
 					Usage: "the address and port to bind the server on",
 					Value: "localhost:4435",
 				},
@@ -38,15 +43,109 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:     "register",
+			Usage:    "",
+			Category: "client",
+			Action:   register,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:  "n, name",
+					Usage: "name of the OpenVASP customer",
+					Value: "Tildred Milcot",
+				},
+				cli.IntFlag{
+					Name:  "t, assetType",
+					Usage: "name of the OpenVASP customer",
+					Value: 3,
+				},
+				cli.StringFlag{
+					Name:  "w, walletAddress",
+					Usage: "name of the OpenVASP customer",
+					Value: "926ca69a-6c22-42e6-9105-11ab5de1237b",
+				},
+			},
+		},
+		{
+			Name:     "transfer",
+			Usage:    "",
+			Category: "client",
+			Action:   transfer,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "p, path",
+					Usage: "path to the IVMS101 payload",
+					Value: "pkg/openvasp/testdata/identity.json",
+				},
+				cli.StringFlag{
+					Name:  "t, assetType",
+					Usage: "asset type for transfer, i.e. Bitcoin, Etheriem, etc.",
+					Value: "BTC",
+				},
+				cli.Float64Flag{
+					Name:  "a, amount",
+					Usage: "amount of the asset type to be transfered",
+					Value: 1,
+				},
+			},
+		},
 	}
-
 	app.Run(os.Args)
 }
 
 // Serve the OpenVASP gin server
 func serve(c *cli.Context) (err error) {
-	if err = openvasp.Serve(c.String("addr"), c.String("dns")); err != nil {
+	if err = openvasp.Serve(c.String("address"), c.String("dns")); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	return nil
+}
+
+//
+func register(c *cli.Context) (err error) {
+	var request *http.Request
+	requestURL := fmt.Sprintf("http://%s/register", c.String("address"))
+	body := []byte(`{"client_message": "hello world"`)
+	if request, err = http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body)); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("data", `{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`)
+
+	var response *http.Response
+	client := &http.Client{}
+	if response, err = client.Do(request); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	var responseBody []byte
+	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(string(responseBody))
+	return nil
+}
+
+//
+func transfer(c *cli.Context) (err error) {
+	var file *os.File
+	if file, err = os.Open(c.String("path")); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	defer file.Close()
+
+	var jsonBytes []byte
+	if jsonBytes, err = ioutil.ReadAll(file); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	var ivms101 map[string]interface{}
+	json.Unmarshal([]byte(jsonBytes), &ivms101)
+	fmt.Println(ivms101)
 	return nil
 }
