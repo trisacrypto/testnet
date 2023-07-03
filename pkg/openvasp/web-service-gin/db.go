@@ -14,7 +14,7 @@ type Transfer struct {
 	Status         TransferStatus `gorm:"column:status;not null"`
 	OriginatorVasp string         `gorm:"column:originator_vasp;not null"`
 	Originator     string         `gorm:"column:originator;not null"`
-	Beneficiaary   string         `gorm:"column:beneficiary;not null"`
+	Beneficiary    string         `gorm:"column:beneficiary;not null"`
 	AssetType      VirtualAsset   `gorm:"column:asset_type;not null"`
 	Amount         float64        `gorm:"column:amount;not null"`
 	Created        time.Time      `gorm:"column:created;not null"`

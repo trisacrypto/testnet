@@ -14,7 +14,7 @@ import (
 
 type Payload struct {
 	IVMS101  *trisa.IdentityPayload
-	Asset    string
+	Asset    VirtualAsset
 	Amount   float64
 	Callback string
 }
@@ -50,6 +50,18 @@ type TransferConfirmation struct {
 
 const travelURLTemplate = "https://test.net/transfer/%s?tag=travelRuleInquiry"
 
+func (p *Payload) OriginatorName() string {
+	originator := p.IVMS101.Originator
+	nameIds := originator.GetOriginatorPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
+	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
+}
+
+func (p *Payload) BeneficiaryName() string {
+	beneficiary := p.IVMS101.Beneficiary
+	nameIds := beneficiary.GetBeneficiaryPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
+	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
+}
+
 func Serve(address, dsn string) (err error) {
 	var s *server
 	if s, err = New(dsn); err != nil {
@@ -79,15 +91,12 @@ Example command:
 			--request "POST" --data '{"name":"Tildred Milcot", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}'
 */
 func (s *server) Register(c *gin.Context) {
-	fmt.Printf("Request: %+v\n", c.Request)
-
 	var err error
 	var newCustomer Customer
 	if err = c.BindJSON(&newCustomer); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
 		return
 	}
-	fmt.Printf("New Customer: %+v\n", &newCustomer)
 
 	if err = validateCustomer(&newCustomer); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid customer provided": err.Error()})
@@ -147,14 +156,14 @@ func (s *server) Transfer(c *gin.Context) {
 	}
 
 	newTransfer := &Transfer{
-		TransferID: uuid.New(),
-		Status:     Pending,
-		//OriginatorVasp: newPayload.IVMS101.OriginatingVASP.String(),
-		Originator: newPayload.IVMS101.Originator.String(),
-		//Beneficiary: newPayload.IVMS101.Beneficiary.String(),
-		//AssetType:      newPayload.Asset,
-		Amount:  newPayload.Amount,
-		Created: time.Now(),
+		TransferID:     uuid.New(),
+		Status:         Pending,
+		OriginatorVasp: newPayload.OriginatorName(),
+		Originator:     newPayload.OriginatorName(),
+		Beneficiary:    newPayload.BeneficiaryName(),
+		AssetType:      newPayload.Asset,
+		Amount:         newPayload.Amount,
+		Created:        time.Now(),
 	}
 
 	if db := s.db.Create(&newTransfer); db.Error != nil {
