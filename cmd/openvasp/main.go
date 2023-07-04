@@ -100,6 +100,33 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:     "resolve",
+			Usage:    "",
+			Category: "client",
+			Action:   resolve,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "localhost:4435",
+				},
+				cli.BoolFlag{
+					Name:  "y, approve",
+					Usage: "asset type for transfer, i.e. Bitcoin, Etheriem, etc.",
+				},
+				cli.StringFlag{
+					Name:  "a, payment",
+					Usage: "amount of the asset type to be transfered",
+					Value: "some payment address",
+				},
+				cli.StringFlag{
+					Name:  "c, callback",
+					Usage: "amount of the asset type to be transfered",
+					Value: "foo",
+				},
+			},
+		},
 	}
 	app.Run(os.Args)
 }
@@ -114,25 +141,13 @@ func serve(c *cli.Context) (err error) {
 
 //
 func register(c *cli.Context) (err error) {
-	var request *http.Request
-	requestURL := fmt.Sprintf("http://%s/register", c.String("address"))
-	body := []byte(`{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`)
-	if request, err = http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body)); err != nil {
+	url := fmt.Sprintf("http://%s/register", c.String("address"))
+	body := `{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`
+	var response string
+	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	request.Header.Set("Content-Type", "application/json")
-
-	var response *http.Response
-	client := &http.Client{}
-	if response, err = client.Do(request); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	var responseBody []byte
-	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	fmt.Println(string(responseBody))
+	fmt.Println(response)
 	return nil
 }
 
@@ -158,26 +173,52 @@ func transfer(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	var request *http.Request
-	requestURL := fmt.Sprintf("http://%s/transfer", c.String("address"))
-	newBody := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
-	fmt.Println(newBody)
-	body := []byte(newBody)
-	if request, err = http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body)); err != nil {
+	var response string
+	url := fmt.Sprintf("http://%s/transfer", c.String("address"))
+	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
+	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(response)
+	return nil
+}
+
+//
+func resolve(c *cli.Context) (err error) {
+	var body string
+	if c.Bool("approve") {
+		body = fmt.Sprintln(`{"approved": {"address": "some payment address", "callback: "foo"}`)
+	} else {
+		body = fmt.Sprintln(`{"rejected": "transfer rejected"}`)
+	}
+	url := fmt.Sprintf("http://%s/inquiryResolution", c.String("address"))
+
+	var response string
+	if response, err = postRequest(body, url); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(response)
+	return nil
+}
+
+//
+func postRequest(body string, url string) (_ string, err error) {
+	var request *http.Request
+	byteBody := []byte(body)
+	if request, err = http.NewRequest(http.MethodPost, url, bytes.NewReader(byteBody)); err != nil {
+		return "", err
 	}
 	request.Header.Set("Content-Type", "application/json")
 
 	var response *http.Response
 	client := &http.Client{}
 	if response, err = client.Do(request); err != nil {
-		return cli.NewExitError(err, 1)
+		return "", cli.NewExitError(err, 1)
 	}
 
 	var responseBody []byte
 	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
-		return cli.NewExitError(err, 1)
+		return "", cli.NewExitError(err, 1)
 	}
-	fmt.Println(string(responseBody))
-	return nil
+	return string(responseBody), nil
 }

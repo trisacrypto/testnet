@@ -34,7 +34,7 @@ const (
 )
 
 type TransferReply struct {
-	Approved TransferApproval
+	Approved *TransferApproval
 	Rejected string
 }
 
@@ -71,10 +71,11 @@ func Serve(address, dsn string) (err error) {
 	router := gin.Default()
 	router.POST("/register", s.Register)
 	router.GET("/listusers", s.listUsers)
-	router.GET("/lnurl/:id", s.getLNURL)
+	router.GET("/getlnurl/:id", s.GetLNURL)
 	router.POST("/transfer", s.Transfer)
-	router.POST("/inquiryResolution", s.InquiryResolution)
-	router.POST("/transferConfirmation", s.TransferConfirmation)
+	router.GET("/gettransfer/:id", s.GetTransfer)
+	router.POST("/inquiryResolution/:id", s.InquiryResolution)
+	router.POST("/transferConfirmation/:id", s.TransferConfirmation)
 	router.Run(address)
 	return nil
 }
@@ -159,7 +160,7 @@ type user struct {
 	LNURL      string
 }
 
-func (s *server) getLNURL(c *gin.Context) {
+func (s *server) GetLNURL(c *gin.Context) {
 	var err error
 	var customerID uuid.UUID
 	if customerID, err = uuid.Parse(c.Param("id")); err != nil {
@@ -230,7 +231,57 @@ func validatePayload(payload *Payload) (err error) {
 }
 
 //TODO: implement
-func (s *server) InquiryResolution(c *gin.Context) {}
+func (s *server) GetTransfer(c *gin.Context) {}
 
-//TODO: implement
-func (s *server) TransferConfirmation(c *gin.Context) {}
+func (s *server) InquiryResolution(c *gin.Context) {
+	fmt.Println(c.Request)
+
+	var err error
+	var reply TransferReply
+	if err = c.BindJSON(&reply); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
+		return
+	}
+
+	if err = validateReply(&reply); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid resolution": err.Error()})
+		return
+	}
+
+	transferID := c.Param("id")
+	if reply.Approved != nil {
+		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Approved); db.Error != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not approve transfer": db.Error})
+		}
+	} else if reply.Rejected != "" {
+		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Approved); db.Error != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not reject transfer": db.Error})
+		}
+	}
+
+	var transfer *Transfer
+	if db := s.db.Where("customer_id = ?", transferID).First(&transfer); db.Error != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not find updated transfer": db.Error})
+	}
+}
+
+func validateReply(reply *TransferReply) error {
+	if reply.Approved == nil && reply.Rejected == "" {
+		return errors.New("reply must either be approved or rejected")
+	}
+	if reply.Approved != nil && reply.Rejected != "" {
+		return errors.New("reply must either be approved or rejected")
+	}
+	return nil
+}
+
+func (s *server) TransferConfirmation(c *gin.Context) {
+	fmt.Println(c.Request)
+
+	var err error
+	var confirmation TransferConfirmation
+	if err = c.BindJSON(&confirmation); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
+		return
+	}
+}
