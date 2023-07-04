@@ -160,12 +160,13 @@ func transfer(c *cli.Context) (err error) {
 
 	var request *http.Request
 	requestURL := fmt.Sprintf("http://%s/transfer", c.String("address"))
-	body := []byte(`{"client_message": "hello world"}`)
+	newBody := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
+	fmt.Println(newBody)
+	body := []byte(newBody)
 	if request, err = http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body)); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("data", fmt.Sprintf(`{"ivms101": %s, "assettype": 3, "amount": "926ca69a-6c22-42e6-9105-11ab5de1237b", "callback": "foo"}`, ivms101.String()))
 
 	var response *http.Response
 	client := &http.Client{}

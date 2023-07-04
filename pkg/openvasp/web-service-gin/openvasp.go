@@ -13,10 +13,10 @@ import (
 )
 
 type Payload struct {
-	IVMS101   *trisa.IdentityPayload
-	AssetType VirtualAsset
-	Amount    float64
-	Callback  string
+	IVMS101   trisa.IdentityPayload `binding:"required"`
+	AssetType VirtualAsset          `binding:"required"`
+	Amount    float64               `binding:"required"`
+	Callback  string                `binding:"required"`
 }
 
 type VirtualAsset uint16
@@ -91,6 +91,8 @@ Example command:
 			--request "POST" --data '{"name":"Tildred Milcot", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}'
 */
 func (s *server) Register(c *gin.Context) {
+	fmt.Println(c.Request)
+
 	var err error
 	var newCustomer Customer
 	if err = c.BindJSON(&newCustomer); err != nil {
@@ -176,6 +178,8 @@ func (s *server) getLNURL(c *gin.Context) {
 }
 
 func (s *server) Transfer(c *gin.Context) {
+	fmt.Println(c.Request)
+
 	var err error
 	var newPayload Payload
 	if err = c.BindJSON(&newPayload); err != nil {
@@ -188,14 +192,12 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
-	fmt.Println(newPayload)
-
 	newTransfer := &Transfer{
 		TransferID:     uuid.New(),
 		Status:         Pending,
-		OriginatorVasp: newPayload.OriginatorName(),
 		Originator:     newPayload.OriginatorName(),
 		Beneficiary:    newPayload.BeneficiaryName(),
+		OriginatorVasp: newPayload.OriginatorName(),
 		AssetType:      newPayload.AssetType,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
