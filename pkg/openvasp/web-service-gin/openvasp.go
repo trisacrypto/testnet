@@ -13,10 +13,10 @@ import (
 )
 
 type Payload struct {
-	IVMS101   trisa.IdentityPayload `binding:"required"`
-	AssetType VirtualAsset          `binding:"required"`
-	Amount    float64               `binding:"required"`
-	Callback  string                `binding:"required"`
+	IVMS101   *trisa.IdentityPayload `binding:"required"`
+	AssetType VirtualAsset           `binding:"required"`
+	Amount    float64                `binding:"required"`
+	Callback  string                 `binding:"required"`
 }
 
 type VirtualAsset uint16
@@ -210,8 +210,22 @@ func (s *server) Transfer(c *gin.Context) {
 	c.IndentedJSON(http.StatusCreated, &newTransfer)
 }
 
-//TODO: implement
 func validatePayload(payload *Payload) (err error) {
+	if payload.IVMS101 == nil {
+		return errors.New("ivms101 payload must be set")
+	}
+
+	if payload.AssetType == UnknownAsset {
+		return errors.New("asset type must be set")
+	}
+
+	if payload.Amount == 0 {
+		return errors.New("transfer amount must be set")
+	}
+
+	if payload.Callback == "" {
+		return errors.New("callback must be set")
+	}
 	return nil
 }
 
