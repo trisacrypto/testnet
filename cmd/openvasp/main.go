@@ -232,7 +232,7 @@ func resolve(c *cli.Context) (err error) {
 func confirm(c *cli.Context) (err error) {
 	var body string
 	if !c.Bool("cancelled") {
-		body = fmt.Sprintln(`{"txid": "some asset-specific tx identifier"`)
+		body = fmt.Sprintln(`{"txid": "some asset-specific tx identifier"}`)
 	} else {
 		body = fmt.Sprintln(`{"canceled": "transfer canceled"}`)
 	}

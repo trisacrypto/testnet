@@ -44,7 +44,7 @@ type TransferApproval struct {
 }
 
 type TransferConfirmation struct {
-	TxId     uuid.UUID
+	TxId     string
 	Canceled string
 }
 
@@ -313,10 +313,10 @@ func (s *server) TransferConfirmation(c *gin.Context) {
 
 func validateConfirmation(confirmation *TransferConfirmation) error {
 	err := errors.New("confirmation must either have transfer ID or cancelation")
-	if confirmation.TxId == uuid.Nil && confirmation.Canceled == "" {
+	if confirmation.TxId == "" && confirmation.Canceled == "" {
 		return err
 	}
-	if confirmation.TxId != uuid.Nil && confirmation.Canceled != "" {
+	if confirmation.TxId != "" && confirmation.Canceled != "" {
 		return err
 	}
 	return nil
