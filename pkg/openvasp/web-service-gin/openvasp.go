@@ -71,7 +71,7 @@ func Serve(address, dsn string) (err error) {
 	router := gin.Default()
 	router.POST("/register", s.Register)
 	router.GET("/listusers", s.listUsers)
-	router.GET("/lnurl", s.getLNURL)
+	router.GET("/lnurl/:id", s.getLNURL)
 	router.POST("/transfer", s.Transfer)
 	router.POST("/inquiryResolution", s.InquiryResolution)
 	router.POST("/transferConfirmation", s.TransferConfirmation)
@@ -136,11 +136,44 @@ func validateCustomer(customer *Customer) (err error) {
 	return nil
 }
 
-//TODO: implement
-func (s *server) listUsers(c *gin.Context) {}
+func (s *server) listUsers(c *gin.Context) {
+	var users []user
+	var customers []Customer
+	s.db.Find(&customers)
+	for _, customer := range customers {
+		newUser := user{
+			CustomerID: customer.CustomerID,
+			Name:       customer.Name,
+			LNURL:      customer.TravelAddress,
+		}
+		users = append(users, newUser)
+	}
+	c.IndentedJSON(http.StatusFound, &users)
+}
 
-//TODO: implement
-func (s *server) getLNURL(c *gin.Context) {}
+type user struct {
+	CustomerID uuid.UUID
+	Name       string
+	LNURL      string
+}
+
+func (s *server) getLNURL(c *gin.Context) {
+	var err error
+	var customerID uuid.UUID
+	if customerID, err = uuid.Parse(c.Param("id")); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not parse id": err.Error()})
+		return
+	}
+
+	var customer Customer
+	s.db.Where("customer_id = ?", customerID).First(&customer)
+	foundUser := user{
+		CustomerID: customer.CustomerID,
+		Name:       customer.Name,
+		LNURL:      customer.TravelAddress,
+	}
+	c.IndentedJSON(http.StatusFound, &foundUser)
+}
 
 func (s *server) Transfer(c *gin.Context) {
 	var err error
