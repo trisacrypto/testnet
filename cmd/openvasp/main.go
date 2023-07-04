@@ -111,6 +111,11 @@ func main() {
 					Usage: "address of the gin server",
 					Value: "localhost:4435",
 				},
+				cli.StringFlag{
+					Name:  "i, id",
+					Usage: "address of the gin server",
+					Value: "foo",
+				},
 				cli.BoolFlag{
 					Name:  "y, approve",
 					Usage: "asset type for transfer, i.e. Bitcoin, Etheriem, etc.",
@@ -124,6 +129,28 @@ func main() {
 					Name:  "c, callback",
 					Usage: "amount of the asset type to be transfered",
 					Value: "foo",
+				},
+			},
+		},
+		{
+			Name:     "confirm",
+			Usage:    "",
+			Category: "client",
+			Action:   confirm,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:  "i, id",
+					Usage: "address of the gin server",
+					Value: "foo",
+				},
+				cli.BoolFlag{
+					Name:  "c, cancelled",
+					Usage: "amount of the asset type to be transfered",
 				},
 			},
 		},
@@ -191,9 +218,27 @@ func resolve(c *cli.Context) (err error) {
 	} else {
 		body = fmt.Sprintln(`{"rejected": "transfer rejected"}`)
 	}
-	url := fmt.Sprintf("http://%s/inquiryResolution", c.String("address"))
 
 	var response string
+	url := fmt.Sprintf("http://%s/inquiryresolution/%s", c.String("address"), c.String("id"))
+	if response, err = postRequest(body, url); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(response)
+	return nil
+}
+
+//
+func confirm(c *cli.Context) (err error) {
+	var body string
+	if !c.Bool("cancelled") {
+		body = fmt.Sprintln(`{"txid": "some asset-specific tx identifier"`)
+	} else {
+		body = fmt.Sprintln(`{"canceled": "transfer canceled"}`)
+	}
+
+	var response string
+	url := fmt.Sprintf("http://%s/transferconfirmation/%s", c.String("address"), c.String("id"))
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}

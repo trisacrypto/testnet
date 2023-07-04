@@ -74,8 +74,8 @@ func Serve(address, dsn string) (err error) {
 	router.GET("/getlnurl/:id", s.GetLNURL)
 	router.POST("/transfer", s.Transfer)
 	router.GET("/gettransfer/:id", s.GetTransfer)
-	router.POST("/inquiryResolution/:id", s.InquiryResolution)
-	router.POST("/transferConfirmation/:id", s.TransferConfirmation)
+	router.POST("/inquiryresolution/:id", s.InquiryResolution)
+	router.POST("/transferconfirmation/:id", s.TransferConfirmation)
 	router.Run(address)
 	return nil
 }
@@ -139,6 +139,7 @@ func validateCustomer(customer *Customer) (err error) {
 	return nil
 }
 
+//
 func (s *server) listUsers(c *gin.Context) {
 	var users []user
 	var customers []Customer
@@ -160,6 +161,7 @@ type user struct {
 	LNURL      string
 }
 
+//
 func (s *server) GetLNURL(c *gin.Context) {
 	var err error
 	var customerID uuid.UUID
@@ -178,6 +180,7 @@ func (s *server) GetLNURL(c *gin.Context) {
 	c.IndentedJSON(http.StatusFound, &foundUser)
 }
 
+//
 func (s *server) Transfer(c *gin.Context) {
 	fmt.Println(c.Request)
 
@@ -230,6 +233,7 @@ func validatePayload(payload *Payload) (err error) {
 	return nil
 }
 
+//
 func (s *server) GetTransfer(c *gin.Context) {
 	var err error
 	var TransferID uuid.UUID
@@ -245,6 +249,7 @@ func (s *server) GetTransfer(c *gin.Context) {
 	c.IndentedJSON(http.StatusFound, &transfer)
 }
 
+//
 func (s *server) InquiryResolution(c *gin.Context) {
 	fmt.Println(c.Request)
 
@@ -278,15 +283,17 @@ func (s *server) InquiryResolution(c *gin.Context) {
 }
 
 func validateReply(reply *TransferReply) error {
+	err := errors.New("reply must either be approved or rejected")
 	if reply.Approved == nil && reply.Rejected == "" {
-		return errors.New("reply must either be approved or rejected")
+		return err
 	}
 	if reply.Approved != nil && reply.Rejected != "" {
-		return errors.New("reply must either be approved or rejected")
+		return err
 	}
 	return nil
 }
 
+//
 func (s *server) TransferConfirmation(c *gin.Context) {
 	fmt.Println(c.Request)
 
@@ -296,4 +303,21 @@ func (s *server) TransferConfirmation(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
 		return
 	}
+
+	if err = validateConfirmation(&confirmation); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid resolution": err.Error()})
+		return
+	}
+	c.Status(http.StatusOK)
+}
+
+func validateConfirmation(confirmation *TransferConfirmation) error {
+	err := errors.New("confirmation must either have transfer ID or cancelation")
+	if confirmation.TxId == uuid.Nil && confirmation.Canceled == "" {
+		return err
+	}
+	if confirmation.TxId != uuid.Nil && confirmation.Canceled != "" {
+		return err
+	}
+	return nil
 }
