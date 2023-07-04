@@ -79,6 +79,11 @@ func main() {
 			Action:   transfer,
 			Flags: []cli.Flag{
 				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "localhost:4435",
+				},
+				cli.StringFlag{
 					Name:  "p, path",
 					Usage: "path to the IVMS101 payload",
 					Value: "pkg/openvasp/testdata/identity.json",
@@ -89,7 +94,7 @@ func main() {
 					Value: "BTC",
 				},
 				cli.Float64Flag{
-					Name:  "a, amount",
+					Name:  "c, amount",
 					Usage: "amount of the asset type to be transfered",
 					Value: 1,
 				},
@@ -144,38 +149,34 @@ func transfer(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	var ivms101 *trisa.IdentityPayload
-	if err = protojson.Unmarshal(jsonbytes, ivms101); err != nil {
+	ivms101 := &trisa.IdentityPayload{}
+	jsonpb := protojson.UnmarshalOptions{
+		AllowPartial:   true,
+		DiscardUnknown: true,
+	}
+	if err = jsonpb.Unmarshal(jsonbytes, ivms101); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	payload := &openvasp.Payload{
-		IVMS101: ivms101,
-		//Asset:    c.String("asset"),
-		Amount:   c.Float64("amount"),
-		Callback: "foo",
+	var request *http.Request
+	requestURL := fmt.Sprintf("http://%s/transfer", c.String("address"))
+	body := []byte(`{"client_message": "hello world"}`)
+	if request, err = http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body)); err != nil {
+		return cli.NewExitError(err, 1)
 	}
-	fmt.Println(payload)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("data", fmt.Sprintf(`{"ivms101": %s, "assettype": 3, "amount": "926ca69a-6c22-42e6-9105-11ab5de1237b", "callback": "foo"}`, ivms101.String()))
 
-	// var request *http.Request
-	// requestURL := fmt.Sprintf("http://%s/register", c.String("address"))
-	// body := []byte(`{"client_message": "hello world"`)
-	// if request, err = http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(body)); err != nil {
-	// 	return cli.NewExitError(err, 1)
-	// }
-	// request.Header.Set("Content-Type", "application/json")
-	// request.Header.Set("data", `{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`)
+	var response *http.Response
+	client := &http.Client{}
+	if response, err = client.Do(request); err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
-	// var response *http.Response
-	// client := &http.Client{}
-	// if response, err = client.Do(request); err != nil {
-	// 	return cli.NewExitError(err, 1)
-	// }
-
-	// var responseBody []byte
-	// if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
-	// 	return cli.NewExitError(err, 1)
-	// }
-	// fmt.Println(string(responseBody))
+	var responseBody []byte
+	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(string(responseBody))
 	return nil
 }

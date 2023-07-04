@@ -13,10 +13,10 @@ import (
 )
 
 type Payload struct {
-	IVMS101  *trisa.IdentityPayload
-	Asset    VirtualAsset
-	Amount   float64
-	Callback string
+	IVMS101   *trisa.IdentityPayload
+	AssetType VirtualAsset
+	Amount    float64
+	Callback  string
 }
 
 type VirtualAsset uint16
@@ -188,13 +188,15 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
+	fmt.Println(newPayload)
+
 	newTransfer := &Transfer{
 		TransferID:     uuid.New(),
 		Status:         Pending,
 		OriginatorVasp: newPayload.OriginatorName(),
 		Originator:     newPayload.OriginatorName(),
 		Beneficiary:    newPayload.BeneficiaryName(),
-		AssetType:      newPayload.Asset,
+		AssetType:      newPayload.AssetType,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}

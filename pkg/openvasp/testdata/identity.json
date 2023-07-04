@@ -1,70 +1,64 @@
 {
-    "asset": 1,
-    "amount": 1.0,
-    "callback": "https://originator.com/implementation/defined/path/for/inquiryResolution",
-    "IVMS101": {
-        "originator": {
-            "originatorPersons": [
-                {
-                    "naturalPerson": {
-                        "name": {
-                            "nameIdentifier": [
-                                {
-                                    "primaryIdentifier": "Post",
-                                    "secondaryIdentifier": "Johnny",
-                                    "nameIdentifierType": "LEGL"
-                                }
-                            ]
-                        },
-                        "geographicAddress": [
-                            {
-                                "addressType": "GEOG",
-                                "streetName": "Potential Street",
-                                "buildingNumber": "123",
-                                "buildingName": "Cheese Hut",
-                                "postCode": "91361",
-                                "townName": "Thousand Oaks",
-                                "countrySubDivision": "California",
-                                "country": "US"
-                            }
-                        ],
-                        "customerIdentification": "1002390"
-                    }
-                }
-            ]
-        },
-        "beneficiary": {
-            "beneficiaryPersons": [
-                {
-                    "naturalPerson": {
-                        "name": {
-                            "nameIdentifier": [
-                                {
-                                    "primaryIdentifier": "MachuPichu",
-                                    "secondaryIdentifier": "Freddie",
-                                    "nameIdentifierType": "LEGL"
-                                }
-                            ]
-                        }
-                    }
-                }
-            ]
-        },
-        "originatingVASP": {
-            "originatingVASP": {
-                "legalPerson": {
+    "originator": {
+        "originator_persons": [
+            {
+                "natural_person": {
                     "name": {
-                        "nameIdentifier": [
+                        "name_identifiers": [
                             {
-                                "legalPersonName": "VASP A",
-                                "legalPersonNameIdentifierType": "LEGL"
+                                "primary_identifier": "Post",
+                                "secondary_identifier": "Johnny",
+                                "name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
                             }
                         ]
                     },
-                    "nationalIdentification": {
-                        "nationalIdentifier": "506700T7Z685VUOZL877",
-                        "nationalIdentifierType": "LEIX"
+                    "geographic_addresses": [
+                        {
+                            "streetName": "Potential Street",
+                            "buildingNumber": "123",
+                            "buildingName": "Cheese Hut",
+                            "postCode": "91361",
+                            "townName": "Thousand Oaks",
+                            "countrySubDivision": "California",
+                            "country": "US"
+                        }
+                    ],
+                    "customer_identification": "1002390"
+                }
+            }
+        ]
+    },
+    "beneficiary": {
+        "beneficiary_persons": [
+            {
+                "natural_person": {
+                    "name": {
+                        "name_identifiers": [
+                            {
+                                "primary_identifier": "MachuPichu",
+                                "secondary_identifier": "Freddie",
+                                "name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+                            }
+                        ]
                     }
+                }
+            }
+        ]
+    },
+    "originating_vasp": {
+        "originating_vasp": {
+            "legal_person": {
+                "name": {
+                    "name_identifier": [
+                        {
+                            "legal_person_name": "VASP A",
+                            "legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"
+                        }
+                    ]
+                },
+                "national_identification": {
+                    "national_identifier": "506700T7Z685VUOZL877",
+                    "national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_LEIX"
                 }
             }
         }
