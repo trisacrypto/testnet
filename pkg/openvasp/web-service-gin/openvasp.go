@@ -230,8 +230,20 @@ func validatePayload(payload *Payload) (err error) {
 	return nil
 }
 
-//TODO: implement
-func (s *server) GetTransfer(c *gin.Context) {}
+func (s *server) GetTransfer(c *gin.Context) {
+	var err error
+	var TransferID uuid.UUID
+	if TransferID, err = uuid.Parse(c.Param("id")); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not parse id": err.Error()})
+		return
+	}
+
+	var transfer Transfer
+	if db := s.db.Where("transfer_id = ?", TransferID).First(&TransferID); db.Error != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not find transfer": db.Error})
+	}
+	c.IndentedJSON(http.StatusFound, &transfer)
+}
 
 func (s *server) InquiryResolution(c *gin.Context) {
 	fmt.Println(c.Request)
