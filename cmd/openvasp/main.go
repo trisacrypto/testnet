@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fiatjaf/go-lnurl"
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
@@ -80,7 +81,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "l, lnurl",
 					Usage: "lnurl encoding the address of the gin server",
-					Value: "localhost:4435",
+					Value: "LNURL1DP68GUP69UHKCMMRV9KXSMMNWSARGDPNX5HHGUNPDEEKVETJ9UUNYDNRVYMRJCFDXE3NYV3DXSEX2D3D8YCNQDFDXYCKZC34V3JNZV3NXA3R7ARPVU7HGUNPWEJKC5N4D3J5JMN3W45HY7GQ9NV7V",
 				},
 				cli.StringFlag{
 					Name:  "p, path",
@@ -95,7 +96,7 @@ func main() {
 				cli.Float64Flag{
 					Name:  "c, amount",
 					Usage: "amount of the asset type to be transfered",
-					Value: 1,
+					Value: 100,
 				},
 			},
 		},
@@ -189,12 +190,16 @@ func transfer(c *cli.Context) (err error) {
 	if jsonbytes, err = ioutil.ReadAll(file); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	ivms101 := strings.ReplaceAll(string(jsonbytes), `"`, `*`)
+	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
+
+	var url string
+	if url, err = lnurl.LNURLDecode(c.String("lnurl")); err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
 	var response string
-	url := fmt.Sprintf("http://%s/transfer", c.String("lnurl"))
-	escaped := strings.ReplaceAll(fmt.Sprintf(`%s`, jsonbytes), `"`, `*`)
-	escaped = strings.ReplaceAll(escaped, "\n", "+")
-	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, escaped)
+	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}

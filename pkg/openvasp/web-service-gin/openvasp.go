@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fiatjaf/go-lnurl"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	trisa "github.com/trisacrypto/trisa/pkg/ivms101"
-	lnurl "github.com/xplorfin/lnurlauth"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -50,19 +50,22 @@ type TransferConfirmation struct {
 	Canceled string
 }
 
-const travelURLTemplate = "https://test.net/transfer/%s?tag=travelRuleInquiry"
+const travelURLTemplate = "http://localhost:4435/transfer/%s?tag=travelRuleInquiry"
 
-func Serve(address, dsn string) (err error) {
+// Serves the Gin server on the provided address, creates a
+// Postgress database on the provided DSN and creates the
+// Gin endpoint handlers
+func Serve(address, gormDSN string) (err error) {
 	var s *server
-	if s, err = New(dsn); err != nil {
+	if s, err = New(gormDSN); err != nil {
 		return err
 	}
 
 	router := gin.Default()
 	router.POST("/register", s.Register)
-	router.GET("/listusers", s.listUsers)
-	router.GET("/getlnurl/:id", s.GetLNURL)
-	router.POST("/transfer", s.Transfer)
+	router.GET("/listusers", s.ListUsers)
+	router.GET("/gettraveladdress/:id", s.GetTravelAddress)
+	router.POST("/transfer/:id", s.Transfer)
 	router.GET("/gettransfer/:id", s.GetTransfer)
 	router.POST("/inquiryresolution/:id", s.InquiryResolution)
 	router.POST("/transferconfirmation/:id", s.TransferConfirmation)
@@ -74,16 +77,7 @@ func Serve(address, dsn string) (err error) {
 // (and will generate one if it is not provided), customer name
 // and Asset type, and will then generate a LNURL associated with
 // this customer.
-/*
-Example command:
-	curl http://localhost:4435/register \
-			--include \
-			--header "Content-Type: application/json" \
-			--request "POST" --data '{"name":"Tildred Milcot", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}'
-*/
 func (s *server) Register(c *gin.Context) {
-	fmt.Println(c.Request)
-
 	var err error
 	var newCustomer Customer
 	if err = c.BindJSON(&newCustomer); err != nil {
@@ -97,7 +91,7 @@ func (s *server) Register(c *gin.Context) {
 	}
 
 	travelAddress := fmt.Sprintf(travelURLTemplate, newCustomer.WalletAddress)
-	if newCustomer.TravelAddress, _, err = lnurl.GenerateLnUrl(travelAddress); err != nil {
+	if newCustomer.TravelAddress, err = lnurl.LNURLEncode(travelAddress); err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": err.Error()})
 		return
 	}
@@ -109,7 +103,8 @@ func (s *server) Register(c *gin.Context) {
 	c.IndentedJSON(http.StatusCreated, &newCustomer)
 }
 
-// Validate that the Registration JSON is valid
+// Helper function to ensure that the JSON provided to the register
+// endpoint is valid
 func validateCustomer(customer *Customer) (err error) {
 	if customer.CustomerID == uuid.Nil {
 		customer.CustomerID = uuid.New()
@@ -129,8 +124,9 @@ func validateCustomer(customer *Customer) (err error) {
 	return nil
 }
 
-//
-func (s *server) listUsers(c *gin.Context) {
+// The ListUsers endpoint will return a list of the registered users'
+// ID, name and LNURL encoded TravelAddress
+func (s *server) ListUsers(c *gin.Context) {
 	var users []user
 	var customers []Customer
 	s.db.Find(&customers)
@@ -151,8 +147,10 @@ type user struct {
 	LNURL      string
 }
 
-//
-func (s *server) GetLNURL(c *gin.Context) {
+// The GetTravelAddress endpoint returns the ID, name and
+// LNURL encoded TravelAddress of the registered user associated
+// with the provided CustomerID
+func (s *server) GetTravelAddress(c *gin.Context) {
 	var err error
 	var customerID uuid.UUID
 	if customerID, err = uuid.Parse(c.Param("id")); err != nil {
@@ -214,25 +212,8 @@ func (s *server) Transfer(c *gin.Context) {
 	c.IndentedJSON(http.StatusCreated, &newTransfer)
 }
 
-func originatorName(payload *trisa.IdentityPayload) string {
-	originator := payload.Originator
-	nameIds := originator.GetOriginatorPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
-	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
-}
-
-func beneficiaryName(payload *trisa.IdentityPayload) string {
-	beneficiary := payload.Beneficiary
-	nameIds := beneficiary.GetBeneficiaryPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
-	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
-}
-
-func originatorVasp(payload *trisa.IdentityPayload) string {
-	originatingVasp := payload.OriginatingVasp
-	fmt.Printf("%v", originatingVasp)
-	vaspName := originatingVasp.GetOriginatingVasp().GetLegalPerson().Name.NameIdentifiers[0].LegalPersonName
-	return vaspName
-}
-
+// Helper function to ensure that the JSON provided to the transfer
+// endpoint is valid
 func validatePayload(payload *Payload) (err error) {
 	if payload.IVMS101 == "" {
 		return errors.New("ivms101 payload must be set")
@@ -252,7 +233,32 @@ func validatePayload(payload *Payload) (err error) {
 	return nil
 }
 
-//
+// Helper function to extract the originator name identifier from
+// a trisa Identity Payload
+func originatorName(payload *trisa.IdentityPayload) string {
+	originator := payload.Originator
+	nameIds := originator.GetOriginatorPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
+	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
+}
+
+// Helper function to extract the beneficiary name identifier from
+// a trisa Identity Payload
+func beneficiaryName(payload *trisa.IdentityPayload) string {
+	beneficiary := payload.Beneficiary
+	nameIds := beneficiary.GetBeneficiaryPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
+	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
+}
+
+// Helper function to extract the originating vasp name from
+// a trisa Identity Payload
+func originatorVasp(payload *trisa.IdentityPayload) string {
+	originatingVasp := payload.OriginatingVasp
+	vaspName := originatingVasp.GetOriginatingVasp().GetLegalPerson().Name.NameIdentifiers[0].LegalPersonName
+	return vaspName
+}
+
+// The GetTransfer endpoint returns the details of the
+// transfer identified by the specified transfer_id
 func (s *server) GetTransfer(c *gin.Context) {
 	var err error
 	var TransferID uuid.UUID
@@ -301,6 +307,8 @@ func (s *server) InquiryResolution(c *gin.Context) {
 	}
 }
 
+// Helper function to ensure that the JSON provided to the
+// inquiryresolution endpoint is valid
 func validateReply(reply *TransferReply) error {
 	err := errors.New("reply must either be approved or rejected")
 	if reply.Approved == nil && reply.Rejected == "" {
@@ -330,6 +338,8 @@ func (s *server) TransferConfirmation(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// Helper function to ensure that the JSON provided to the
+// transferconfirmation endpoint is valid
 func validateConfirmation(confirmation *TransferConfirmation) error {
 	err := errors.New("confirmation must either have transfer ID or cancelation")
 	if confirmation.TxId == "" && confirmation.Canceled == "" {
