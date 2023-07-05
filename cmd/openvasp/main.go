@@ -62,13 +62,44 @@ func main() {
 				},
 				cli.IntFlag{
 					Name:  "t, assetType",
-					Usage: "name of the OpenVASP customer",
+					Usage: "AssetType (for example bitcoin) of the OpenVASP customer",
 					Value: 3,
 				},
 				cli.StringFlag{
 					Name:  "w, walletAddress",
-					Usage: "name of the OpenVASP customer",
+					Usage: "WalletAddress of the OpenVASP customer",
 					Value: "926ca69a-6c22-42e6-9105-11ab5de1237b",
+				},
+			},
+		},
+		{
+			Name:     "listusers",
+			Usage:    "",
+			Category: "client",
+			Action:   listUsers,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "localhost:4435",
+				},
+			},
+		},
+		{
+			Name:     "gettraveladdress",
+			Usage:    "",
+			Category: "client",
+			Action:   getTravelAddress,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:  "i, id",
+					Usage: "address of the gin server",
+					Value: "b02245ba-de1e-44ed-b51b-2e93dbca426d",
 				},
 			},
 		},
@@ -179,6 +210,28 @@ func register(c *cli.Context) (err error) {
 }
 
 //
+func listUsers(c *cli.Context) (err error) {
+	var response string
+	url := fmt.Sprintf("http://%s/listusers", c.String("address"))
+	if response, err = getRequest(url); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(response)
+	return nil
+}
+
+//
+func getTravelAddress(c *cli.Context) (err error) {
+	var response string
+	url := fmt.Sprintf("http://%s/listusers/%s", c.String("address"), c.String("id"))
+	if response, err = getRequest(url); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(response)
+	return nil
+}
+
+//
 func transfer(c *cli.Context) (err error) {
 	var file *os.File
 	if file, err = os.Open(c.String("path")); err != nil {
@@ -253,8 +306,26 @@ func postRequest(body string, url string) (_ string, err error) {
 	request.Header.Set("Content-Type", "application/json")
 
 	var response *http.Response
-	client := &http.Client{}
-	if response, err = client.Do(request); err != nil {
+	if response, err = http.DefaultClient.Do(request); err != nil {
+		return "", cli.NewExitError(err, 1)
+	}
+
+	var responseBody []byte
+	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
+		return "", cli.NewExitError(err, 1)
+	}
+	return string(responseBody), nil
+}
+
+//
+func getRequest(url string) (_ string, err error) {
+	var request *http.Request
+	if request, err = http.NewRequest(http.MethodGet, url, nil); err != nil {
+		return "", err
+	}
+
+	var response *http.Response
+	if response, err = http.DefaultClient.Do(request); err != nil {
 		return "", cli.NewExitError(err, 1)
 	}
 
