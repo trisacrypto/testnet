@@ -49,7 +49,7 @@
         "originating_vasp": {
             "legal_person": {
                 "name": {
-                    "name_identifier": [
+                    "name_identifiers": [
                         {
                             "legal_person_name": "VASP A",
                             "legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"

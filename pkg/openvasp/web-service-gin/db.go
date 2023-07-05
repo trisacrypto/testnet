@@ -55,7 +55,7 @@ func openDB(dsn string) (db *gorm.DB, err error) {
 		return nil, err
 	}
 
-	if err = db.AutoMigrate(&Customer{}); err != nil {
+	if err = db.AutoMigrate(&Customer{}, &Transfer{}); err != nil {
 		return nil, err
 	}
 	return db, nil

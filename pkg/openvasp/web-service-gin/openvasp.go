@@ -4,19 +4,21 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	trisa "github.com/trisacrypto/trisa/pkg/ivms101"
 	lnurl "github.com/xplorfin/lnurlauth"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type Payload struct {
-	IVMS101   *trisa.IdentityPayload `binding:"required"`
-	AssetType VirtualAsset           `binding:"required"`
-	Amount    float64                `binding:"required"`
-	Callback  string                 `binding:"required"`
+	IVMS101   string
+	AssetType VirtualAsset
+	Amount    float64
+	Callback  string
 }
 
 type VirtualAsset uint16
@@ -49,18 +51,6 @@ type TransferConfirmation struct {
 }
 
 const travelURLTemplate = "https://test.net/transfer/%s?tag=travelRuleInquiry"
-
-func (p *Payload) OriginatorName() string {
-	originator := p.IVMS101.Originator
-	nameIds := originator.GetOriginatorPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
-	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
-}
-
-func (p *Payload) BeneficiaryName() string {
-	beneficiary := p.IVMS101.Beneficiary
-	nameIds := beneficiary.GetBeneficiaryPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
-	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
-}
 
 func Serve(address, dsn string) (err error) {
 	var s *server
@@ -182,12 +172,22 @@ func (s *server) GetLNURL(c *gin.Context) {
 
 //
 func (s *server) Transfer(c *gin.Context) {
-	fmt.Println(c.Request)
-
 	var err error
 	var newPayload Payload
 	if err = c.BindJSON(&newPayload); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
+		return
+	}
+	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, `*`, `"`)
+	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, "+", "\n")
+
+	ivms101 := &trisa.IdentityPayload{}
+	jsonpb := protojson.UnmarshalOptions{
+		AllowPartial:   true,
+		DiscardUnknown: true,
+	}
+	if err = jsonpb.Unmarshal([]byte(newPayload.IVMS101), ivms101); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not unmarshal ivms101": err.Error()})
 		return
 	}
 
@@ -196,26 +196,45 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
-	newTransfer := &Transfer{
+	newTransfer := Transfer{
 		TransferID:     uuid.New(),
 		Status:         Pending,
-		Originator:     newPayload.OriginatorName(),
-		Beneficiary:    newPayload.BeneficiaryName(),
-		OriginatorVasp: newPayload.OriginatorName(),
+		OriginatorVasp: originatorVasp(ivms101),
+		Originator:     originatorName(ivms101),
+		Beneficiary:    beneficiaryName(ivms101),
 		AssetType:      newPayload.AssetType,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
 
 	if db := s.db.Create(&newTransfer); db.Error != nil {
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": db.Error})
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not create transfer": db.Error})
 		return
 	}
 	c.IndentedJSON(http.StatusCreated, &newTransfer)
 }
 
+func originatorName(payload *trisa.IdentityPayload) string {
+	originator := payload.Originator
+	nameIds := originator.GetOriginatorPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
+	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
+}
+
+func beneficiaryName(payload *trisa.IdentityPayload) string {
+	beneficiary := payload.Beneficiary
+	nameIds := beneficiary.GetBeneficiaryPersons()[0].GetNaturalPerson().Name.NameIdentifiers[0]
+	return fmt.Sprintf("%s %s", nameIds.PrimaryIdentifier, nameIds.SecondaryIdentifier)
+}
+
+func originatorVasp(payload *trisa.IdentityPayload) string {
+	originatingVasp := payload.OriginatingVasp
+	fmt.Printf("%v", originatingVasp)
+	vaspName := originatingVasp.GetOriginatingVasp().GetLegalPerson().Name.NameIdentifiers[0].LegalPersonName
+	return vaspName
+}
+
 func validatePayload(payload *Payload) (err error) {
-	if payload.IVMS101 == nil {
+	if payload.IVMS101 == "" {
 		return errors.New("ivms101 payload must be set")
 	}
 

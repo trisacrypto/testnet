@@ -6,13 +6,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
-	trisa "github.com/trisacrypto/trisa/pkg/ivms101"
 	"github.com/urfave/cli"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func main() {
@@ -79,8 +78,8 @@ func main() {
 			Action:   transfer,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "a, address",
-					Usage: "address of the gin server",
+					Name:  "l, lnurl",
+					Usage: "lnurl encoding the address of the gin server",
 					Value: "localhost:4435",
 				},
 				cli.StringFlag{
@@ -191,18 +190,11 @@ func transfer(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 
-	ivms101 := &trisa.IdentityPayload{}
-	jsonpb := protojson.UnmarshalOptions{
-		AllowPartial:   true,
-		DiscardUnknown: true,
-	}
-	if err = jsonpb.Unmarshal(jsonbytes, ivms101); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
 	var response string
-	url := fmt.Sprintf("http://%s/transfer", c.String("address"))
-	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
+	url := fmt.Sprintf("http://%s/transfer", c.String("lnurl"))
+	escaped := strings.ReplaceAll(fmt.Sprintf(`%s`, jsonbytes), `"`, `*`)
+	escaped = strings.ReplaceAll(escaped, "\n", "+")
+	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, escaped)
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
