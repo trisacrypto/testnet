@@ -33,14 +33,16 @@ func main() {
 			Action:   serve,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "a, address",
-					Usage: "the address and port to bind the server on",
-					Value: "localhost:4435",
+					Name:   "a, address",
+					Usage:  "the address and port to bind the server on",
+					Value:  "localhost:4435",
+					EnvVar: "OPENVASP_BIND_ADDR",
 				},
 				cli.StringFlag{
-					Name:  "d, db",
-					Usage: "the dsn of the postgres database to connect to",
-					Value: "localhost:4434",
+					Name:   "d, db",
+					Usage:  "the dsn of the postgres database to connect to",
+					Value:  "localhost:4434",
+					EnvVar: "OPENVASP_DATABASE_DSN",
 				},
 			},
 		},
@@ -128,6 +130,24 @@ func main() {
 					Name:  "c, amount",
 					Usage: "amount of the asset type to be transfered",
 					Value: 100,
+				},
+			},
+		},
+		{
+			Name:     "gettransfer",
+			Usage:    "",
+			Category: "client",
+			Action:   getTransfer,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "localhost:4435",
+				},
+				cli.StringFlag{
+					Name:  "i, id",
+					Usage: "transfer id of the transfer to lookup",
+					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
 				},
 			},
 		},
@@ -223,7 +243,7 @@ func listUsers(c *cli.Context) (err error) {
 //
 func getTravelAddress(c *cli.Context) (err error) {
 	var response string
-	url := fmt.Sprintf("http://%s/listusers/%s", c.String("address"), c.String("id"))
+	url := fmt.Sprintf("http://%s/gettraveladdress/%s", c.String("address"), c.String("id"))
 	if response, err = getRequest(url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -254,6 +274,17 @@ func transfer(c *cli.Context) (err error) {
 	var response string
 	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
 	if response, err = postRequest(body, url); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println(response)
+	return nil
+}
+
+//
+func getTransfer(c *cli.Context) (err error) {
+	var response string
+	url := fmt.Sprintf("http://%s/gettransfer/%s", c.String("address"), c.String("id"))
+	if response, err = getRequest(url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)

@@ -138,7 +138,7 @@ func (s *server) ListUsers(c *gin.Context) {
 		}
 		users = append(users, newUser)
 	}
-	c.IndentedJSON(http.StatusFound, &users)
+	c.IndentedJSON(http.StatusOK, &users)
 }
 
 type user struct {
@@ -165,7 +165,7 @@ func (s *server) GetTravelAddress(c *gin.Context) {
 		Name:       customer.Name,
 		LNURL:      customer.TravelAddress,
 	}
-	c.IndentedJSON(http.StatusFound, &foundUser)
+	c.IndentedJSON(http.StatusOK, &foundUser)
 }
 
 //
@@ -271,7 +271,7 @@ func (s *server) GetTransfer(c *gin.Context) {
 	if db := s.db.Where("transfer_id = ?", TransferID).First(&TransferID); db.Error != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not find transfer": db.Error})
 	}
-	c.IndentedJSON(http.StatusFound, &transfer)
+	c.IndentedJSON(http.StatusOK, &transfer)
 }
 
 //
