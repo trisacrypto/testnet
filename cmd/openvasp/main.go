@@ -63,12 +63,12 @@ func main() {
 					Value: "Tildred Milcot",
 				},
 				cli.IntFlag{
-					Name:  "t, assetType",
+					Name:  "t, assettype",
 					Usage: "asset type (for example bitcoin) of the OpenVASP customer",
 					Value: 3,
 				},
 				cli.StringFlag{
-					Name:  "w, walletAddress",
+					Name:  "w, walletaddress",
 					Usage: "Wallet address of the OpenVASP customer",
 					Value: "926ca69a-6c22-42e6-9105-11ab5de1237b",
 				},
@@ -121,15 +121,20 @@ func main() {
 					Usage: "path to the IVMS101 payload",
 					Value: "pkg/openvasp/testdata/identity.json",
 				},
-				cli.StringFlag{
-					Name:  "t, assetType",
+				cli.IntFlag{
+					Name:  "t, assettype",
 					Usage: "asset type for transfer, i.e. Bitcoin, Etheriem, etc.",
-					Value: "BTC",
+					Value: 3,
 				},
 				cli.Float64Flag{
-					Name:  "c, amount",
+					Name:  "m, amount",
 					Usage: "amount of the asset type to be transfered",
 					Value: 100,
+				},
+				cli.StringFlag{
+					Name:  "c, callback",
+					Usage: "callback for the beneficiary to reply to",
+					Value: "foo",
 				},
 			},
 		},
@@ -153,7 +158,7 @@ func main() {
 		},
 		{
 			Name:     "resolve",
-			Usage:    "",
+			Usage:    "resolve a TRP transfer",
 			Category: "client",
 			Action:   resolve,
 			Flags: []cli.Flag{
@@ -172,7 +177,7 @@ func main() {
 					Usage: "whether or not the transfer should be rejected",
 				},
 				cli.StringFlag{
-					Name:  "a, payment",
+					Name:  "a, address",
 					Usage: "amount of the asset type to be transfered",
 					Value: "some payment address",
 				},
@@ -185,7 +190,7 @@ func main() {
 		},
 		{
 			Name:     "confirm",
-			Usage:    "",
+			Usage:    "confirms a TRP transfer after resolution",
 			Category: "client",
 			Action:   confirm,
 			Flags: []cli.Flag{
@@ -203,6 +208,11 @@ func main() {
 					Name:  "c, cancelled",
 					Usage: "whether or not the tranfer should be rejected",
 				},
+				cli.StringFlag{
+					Name:  "x, txid",
+					Usage: "the txid to be returned on approval",
+					Value: "some asset-specific tx identifier",
+				},
 			},
 		},
 	}
@@ -217,10 +227,10 @@ func serve(c *cli.Context) (err error) {
 	return nil
 }
 
-//
+// sends a POST request to the register endpoint
 func register(c *cli.Context) (err error) {
 	url := fmt.Sprintf("http://%s/register", c.String("address"))
-	body := `{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`
+	body := fmt.Sprintf(`{"name": "%s", "assettype": %d, "walletaddress": "%s"}`, c.String("name"), c.Int("assettype"), c.String("walletaddress"))
 	var response string
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
@@ -229,7 +239,7 @@ func register(c *cli.Context) (err error) {
 	return nil
 }
 
-// sends a get request to the listusers endpoint
+// sends a GET request to the listusers endpoint
 func listUsers(c *cli.Context) (err error) {
 	var response string
 	url := fmt.Sprintf("http://%s/listusers", c.String("address"))
@@ -240,7 +250,7 @@ func listUsers(c *cli.Context) (err error) {
 	return nil
 }
 
-// sends a get request to the gettraveladdress endpoint
+// sends a GET request to the gettraveladdress endpoint
 func getTravelAddress(c *cli.Context) (err error) {
 	var response string
 	url := fmt.Sprintf("http://%s/gettraveladdress/%s", c.String("address"), c.String("id"))
@@ -251,7 +261,7 @@ func getTravelAddress(c *cli.Context) (err error) {
 	return nil
 }
 
-//
+// sends a POST request to the transfer endpoint
 func transfer(c *cli.Context) (err error) {
 	var file *os.File
 	if file, err = os.Open(c.String("path")); err != nil {
@@ -272,7 +282,7 @@ func transfer(c *cli.Context) (err error) {
 	}
 
 	var response string
-	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
+	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s"}`, ivms101, c.Int("assettype"), c.Float64("amount"), c.String("callback"))
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -280,7 +290,7 @@ func transfer(c *cli.Context) (err error) {
 	return nil
 }
 
-// sends a get request to the transfer endpoint
+// sends a GET request to the transfer endpoint
 func getTransfer(c *cli.Context) (err error) {
 	var response string
 	url := fmt.Sprintf("http://%s/gettransfer/%s", c.String("address"), c.String("id"))
@@ -291,11 +301,11 @@ func getTransfer(c *cli.Context) (err error) {
 	return nil
 }
 
-//
+// sends a POST request to the inquiryresolution endpoint
 func resolve(c *cli.Context) (err error) {
 	var body string
 	if c.Bool("approve") {
-		body = fmt.Sprintln(`{"approved": {"address": "some payment address", "callback: "foo"}`)
+		body = fmt.Sprintf(`{"approved": {"address": "%s", "callback: "%s"}`, c.String("address"), c.String("callback"))
 	} else {
 		body = fmt.Sprintln(`{"rejected": "transfer rejected"}`)
 	}
@@ -313,7 +323,7 @@ func resolve(c *cli.Context) (err error) {
 func confirm(c *cli.Context) (err error) {
 	var body string
 	if !c.Bool("cancelled") {
-		body = fmt.Sprintln(`{"txid": "some asset-specific tx identifier"}`)
+		body = fmt.Sprintf(`{"txid": "%s"}`, c.String("txid"))
 	} else {
 		body = fmt.Sprintln(`{"canceled": "transfer canceled"}`)
 	}
@@ -327,7 +337,8 @@ func confirm(c *cli.Context) (err error) {
 	return nil
 }
 
-//
+// sends a POST request containing the provided body to the provided
+// URL and returns the response
 func postRequest(body string, url string) (_ string, err error) {
 	var request *http.Request
 	byteBody := []byte(body)
@@ -348,7 +359,8 @@ func postRequest(body string, url string) (_ string, err error) {
 	return string(responseBody), nil
 }
 
-//
+// sends a GET request to the provided URL and returns
+// the response
 func getRequest(url string) (_ string, err error) {
 	var request *http.Request
 	if request, err = http.NewRequest(http.MethodGet, url, nil); err != nil {
