@@ -8,6 +8,38 @@ import (
 	"gorm.io/gorm"
 )
 
+type Payload struct {
+	IVMS101   string
+	AssetType VirtualAsset
+	Amount    float64
+	Callback  string
+}
+
+type VirtualAsset uint16
+
+const (
+	UnknownAsset VirtualAsset = iota
+	Bitcoin
+	Tether
+	Ethereum
+	Litecoin
+	XRP
+	BitcoinCash
+	Tezos
+	EOS
+)
+
+type TransferReply struct {
+	Approved string
+	Rejected string
+	Callback string
+}
+
+type TransferConfirmation struct {
+	TxId     string
+	Canceled string
+}
+
 type Transfer struct {
 	gorm.Model
 	TransferID     uuid.UUID      `gorm:"uniqueIndex;size:255;column:transfer_id;not null"`

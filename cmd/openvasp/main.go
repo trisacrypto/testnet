@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -222,7 +221,7 @@ func register(c *cli.Context) (err error) {
 	url := fmt.Sprintf("http://%s/register", c.String("address"))
 	body := `{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`
 	var response string
-	if response, err = postRequest(body, url); err != nil {
+	if response, err = openvasp.PostRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
@@ -273,7 +272,7 @@ func transfer(c *cli.Context) (err error) {
 
 	var response string
 	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
-	if response, err = postRequest(body, url); err != nil {
+	if response, err = openvasp.PostRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
@@ -302,7 +301,7 @@ func resolve(c *cli.Context) (err error) {
 
 	var response string
 	url := fmt.Sprintf("http://%s/inquiryresolution/%s", c.String("address"), c.String("id"))
-	if response, err = postRequest(body, url); err != nil {
+	if response, err = openvasp.PostRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
@@ -320,32 +319,11 @@ func confirm(c *cli.Context) (err error) {
 
 	var response string
 	url := fmt.Sprintf("http://%s/transferconfirmation/%s", c.String("address"), c.String("id"))
-	if response, err = postRequest(body, url); err != nil {
+	if response, err = openvasp.PostRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
 	return nil
-}
-
-//
-func postRequest(body string, url string) (_ string, err error) {
-	var request *http.Request
-	byteBody := []byte(body)
-	if request, err = http.NewRequest(http.MethodPost, url, bytes.NewReader(byteBody)); err != nil {
-		return "", err
-	}
-	request.Header.Set("Content-Type", "application/json")
-
-	var response *http.Response
-	if response, err = http.DefaultClient.Do(request); err != nil {
-		return "", cli.NewExitError(err, 1)
-	}
-
-	var responseBody []byte
-	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
-		return "", cli.NewExitError(err, 1)
-	}
-	return string(responseBody), nil
 }
 
 //

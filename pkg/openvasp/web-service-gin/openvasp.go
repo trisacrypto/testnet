@@ -14,42 +14,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-type Payload struct {
-	IVMS101   string
-	AssetType VirtualAsset
-	Amount    float64
-	Callback  string
-}
-
-type VirtualAsset uint16
-
-const (
-	UnknownAsset VirtualAsset = iota
-	Bitcoin
-	Tether
-	Ethereum
-	Litecoin
-	XRP
-	BitcoinCash
-	Tezos
-	EOS
-)
-
-type TransferReply struct {
-	Approved *TransferApproval
-	Rejected string
-}
-
-type TransferApproval struct {
-	Approved string
-	Callback string
-}
-
-type TransferConfirmation struct {
-	TxId     string
-	Canceled string
-}
-
 const travelURLTemplate = "http://localhost:4435/transfer/%s?tag=travelRuleInquiry"
 
 // Serves the Gin server on the provided address, creates a
@@ -68,7 +32,6 @@ func Serve(address, gormDSN string) (err error) {
 	router.POST("/transfer/:id", s.Transfer)
 	router.GET("/gettransfer/:id", s.GetTransfer)
 	router.POST("/inquiryresolution/:id", s.InquiryResolution)
-	router.POST("/transferconfirmation/:id", s.TransferConfirmation)
 	router.Run(address)
 	return nil
 }
@@ -291,14 +254,16 @@ func (s *server) InquiryResolution(c *gin.Context) {
 	}
 
 	transferID := c.Param("id")
-	if reply.Approved != nil {
+	if reply.Approved != "" {
 		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Approved); db.Error != nil {
 			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not approve transfer": db.Error})
 		}
+		c.IndentedJSON(http.StatusAccepted, &TransferConfirmation{TxId: transferID})
 	} else if reply.Rejected != "" {
 		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Approved); db.Error != nil {
 			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not reject transfer": db.Error})
 		}
+		c.IndentedJSON(http.StatusAccepted, &TransferConfirmation{Canceled: "The Transaction has been Canceled"})
 	}
 
 	var transfer *Transfer
@@ -310,11 +275,15 @@ func (s *server) InquiryResolution(c *gin.Context) {
 // Helper function to ensure that the JSON provided to the
 // inquiryresolution endpoint is valid
 func validateReply(reply *TransferReply) error {
+	if reply.Callback == "" {
+		return errors.New("reply must have a callback")
+	}
+
 	err := errors.New("reply must either be approved or rejected")
-	if reply.Approved == nil && reply.Rejected == "" {
+	if reply.Approved == "" && reply.Rejected == "" {
 		return err
 	}
-	if reply.Approved != nil && reply.Rejected != "" {
+	if reply.Approved != "" && reply.Rejected != "" {
 		return err
 	}
 	return nil
