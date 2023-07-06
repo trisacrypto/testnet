@@ -32,6 +32,7 @@ func Serve(address, gormDSN string) (err error) {
 	router.POST("/transfer/:id", s.Transfer)
 	router.GET("/gettransfer/:id", s.GetTransfer)
 	router.POST("/inquiryresolution/:id", s.InquiryResolution)
+	router.POST("/transferconfirmation/:id", s.TransferConfirmation)
 	router.Run(address)
 	return nil
 }
@@ -41,6 +42,7 @@ func Serve(address, gormDSN string) (err error) {
 // and Asset type, and will then generate a LNURL associated with
 // this customer.
 func (s *server) Register(c *gin.Context) {
+	// Bind the request JSON to a Customer struct
 	var err error
 	var newCustomer Customer
 	if err = c.BindJSON(&newCustomer); err != nil {
@@ -48,17 +50,20 @@ func (s *server) Register(c *gin.Context) {
 		return
 	}
 
+	// Validate the received Customer struct
 	if err = validateCustomer(&newCustomer); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid customer provided": err.Error()})
 		return
 	}
 
+	// Encode the new customer's LNURL
 	travelAddress := fmt.Sprintf(travelURLTemplate, newCustomer.WalletAddress)
 	if newCustomer.TravelAddress, err = lnurl.LNURLEncode(travelAddress); err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": err.Error()})
 		return
 	}
 
+	// Save the new Customer struct to the database
 	if db := s.db.Create(&newCustomer); db.Error != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": db.Error})
 		return
@@ -135,15 +140,25 @@ func (s *server) GetTravelAddress(c *gin.Context) {
 // validaating the transfer payload and saving the
 // pending transfer GORM model to the Postgres database.
 func (s *server) Transfer(c *gin.Context) {
+	// Bind the request JSON to a Payload struct
 	var err error
 	var newPayload Payload
 	if err = c.BindJSON(&newPayload); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
 		return
 	}
+	//TODO:
 	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, `*`, `"`)
 	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, "+", "\n")
 
+	// Validate the received Payload struct
+	if err = validatePayload(&newPayload); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid payload provided": err.Error()})
+		return
+	}
+
+	// Unmarshal the Payload struct's IVMS101 payload to a
+	// trisa.IdentityPayload struct
 	ivms101 := &trisa.IdentityPayload{}
 	jsonpb := protojson.UnmarshalOptions{
 		AllowPartial:   true,
@@ -154,11 +169,7 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
-	if err = validatePayload(&newPayload); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid payload provided": err.Error()})
-		return
-	}
-
+	// Construct the Transfer struct
 	newTransfer := Transfer{
 		TransferID:     uuid.New(),
 		Status:         Pending,
@@ -170,6 +181,7 @@ func (s *server) Transfer(c *gin.Context) {
 		Created:        time.Now(),
 	}
 
+	// Save the new Transfer struct to the database
 	if db := s.db.Create(&newTransfer); db.Error != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not create transfer": db.Error})
 		return
@@ -245,8 +257,7 @@ func (s *server) GetTransfer(c *gin.Context) {
 // approved responses will have another callback), the Transfer
 // in the database is updated with the coresponding status.
 func (s *server) InquiryResolution(c *gin.Context) {
-	fmt.Println(c.Request)
-
+	// Bind the request JSON to a TransferReply struct
 	var err error
 	var reply TransferReply
 	if err = c.BindJSON(&reply); err != nil {
@@ -254,11 +265,13 @@ func (s *server) InquiryResolution(c *gin.Context) {
 		return
 	}
 
+	// Validate the received TransferReply struct
 	if err = validateReply(&reply); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid resolution": err.Error()})
 		return
 	}
 
+	// Update the transfer status
 	transferID := c.Param("id")
 	if reply.Approved != nil {
 		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Approved); db.Error != nil {
@@ -271,11 +284,7 @@ func (s *server) InquiryResolution(c *gin.Context) {
 		}
 		c.IndentedJSON(http.StatusAccepted, &TransferConfirmation{Canceled: "The Transaction has been Canceled"})
 	}
-
-	var transfer *Transfer
-	if db := s.db.Where("customer_id = ?", transferID).First(&transfer); db.Error != nil {
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not find updated transfer": db.Error})
-	}
+	c.Status(http.StatusOK)
 }
 
 // Helper function to ensure that the JSON provided to the
@@ -304,8 +313,7 @@ func validateReply(reply *TransferReply) error {
 // identifiers resulting from on-chain transfer executions
 // or transfer cancelation comments.
 func (s *server) TransferConfirmation(c *gin.Context) {
-	fmt.Println(c.Request)
-
+	// Bind the request JSON to a TransferConfirmation struct
 	var err error
 	var confirmation TransferConfirmation
 	if err = c.BindJSON(&confirmation); err != nil {
@@ -313,9 +321,22 @@ func (s *server) TransferConfirmation(c *gin.Context) {
 		return
 	}
 
+	// Validate the received TransferConfirmation struct
 	if err = validateConfirmation(&confirmation); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid resolution": err.Error()})
 		return
+	}
+
+	// Update the transfer status
+	transferID := c.Param("id")
+	if confirmation.TxId != "" {
+		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Approved); db.Error != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not approve transfer": db.Error})
+		}
+	} else if confirmation.Canceled != "" {
+		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Rejected); db.Error != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not reject transfer": db.Error})
+		}
 	}
 	c.Status(http.StatusOK)
 }
