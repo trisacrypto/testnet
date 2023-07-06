@@ -8,6 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
+//
+type Customer struct {
+	gorm.Model
+	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
+	Name          string       `gorm:"column:name;not null"`
+	AssetType     VirtualAsset `gorm:"column:asset_type;not null"`
+	WalletAddress string       `gorm:"column:wallet_address;not null"`
+	TravelAddress string       `gorm:"column:travel_address;not null"`
+}
+
+//
 type Payload struct {
 	IVMS101   string
 	AssetType VirtualAsset
@@ -29,17 +40,7 @@ const (
 	EOS
 )
 
-type TransferReply struct {
-	Approved string
-	Rejected string
-	Callback string
-}
-
-type TransferConfirmation struct {
-	TxId     string
-	Canceled string
-}
-
+//
 type Transfer struct {
 	gorm.Model
 	TransferID     uuid.UUID      `gorm:"uniqueIndex;size:255;column:transfer_id;not null"`
@@ -61,19 +62,32 @@ const (
 	Rejected
 )
 
-type Customer struct {
-	gorm.Model
-	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
-	Name          string       `gorm:"column:name;not null"`
-	AssetType     VirtualAsset `gorm:"column:asset_type;not null"`
-	WalletAddress string       `gorm:"column:wallet_address;not null"`
-	TravelAddress string       `gorm:"column:travel_address;not null"`
+// TransferApproval struct is to be sent to
+// the TransferInquiry endpoint when executing
+// the callback provided by a Transfer call
+type TransferReply struct {
+	Approved *TransferApproval
+	Rejected string
 }
 
+type TransferApproval struct {
+	Address  string
+	Callback string
+}
+
+//
+type TransferConfirmation struct {
+	TxId     string
+	Canceled string
+}
+
+// Wraps a GORM database and contains
+// handlers for the Gin endpoints
 type server struct {
 	db *gorm.DB
 }
 
+// Create a new Server object containing a GORM database
 func New(dsn string) (newServer *server, err error) {
 	newServer = &server{}
 	if newServer.db, err = openDB(dsn); err != nil {
@@ -82,6 +96,7 @@ func New(dsn string) (newServer *server, err error) {
 	return newServer, nil
 }
 
+// Opens a new GORM database and performs the migration
 func openDB(dsn string) (db *gorm.DB, err error) {
 	if db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{}); err != nil {
 		return nil, err

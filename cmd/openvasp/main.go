@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -22,12 +23,12 @@ func main() {
 
 	app.Name = "openvasp"
 	app.Version = pkg.Version()
-	app.Usage = "a gRPC based directory service for TRISA identity lookups"
+	app.Usage = "a tool used to run and test a Gin server implementing the TRP protocol"
 	app.Flags = []cli.Flag{}
 	app.Commands = []cli.Command{
 		{
 			Name:     "serve",
-			Usage:    "run the openvasp gin server",
+			Usage:    "run the OpenVASP gin server",
 			Category: "server",
 			Action:   serve,
 			Flags: []cli.Flag{
@@ -47,7 +48,7 @@ func main() {
 		},
 		{
 			Name:     "register",
-			Usage:    "",
+			Usage:    "register a new contact with the OpenVASP server",
 			Category: "client",
 			Action:   register,
 			Flags: []cli.Flag{
@@ -63,19 +64,19 @@ func main() {
 				},
 				cli.IntFlag{
 					Name:  "t, assetType",
-					Usage: "AssetType (for example bitcoin) of the OpenVASP customer",
+					Usage: "asset type (for example bitcoin) of the OpenVASP customer",
 					Value: 3,
 				},
 				cli.StringFlag{
 					Name:  "w, walletAddress",
-					Usage: "WalletAddress of the OpenVASP customer",
+					Usage: "Wallet address of the OpenVASP customer",
 					Value: "926ca69a-6c22-42e6-9105-11ab5de1237b",
 				},
 			},
 		},
 		{
 			Name:     "listusers",
-			Usage:    "",
+			Usage:    "list the registered OpenVASP contacts",
 			Category: "client",
 			Action:   listUsers,
 			Flags: []cli.Flag{
@@ -88,7 +89,7 @@ func main() {
 		},
 		{
 			Name:     "gettraveladdress",
-			Usage:    "",
+			Usage:    "list a specific OpenVASP contact",
 			Category: "client",
 			Action:   getTravelAddress,
 			Flags: []cli.Flag{
@@ -99,14 +100,14 @@ func main() {
 				},
 				cli.StringFlag{
 					Name:  "i, id",
-					Usage: "address of the gin server",
+					Usage: "The customer id of the registered user to lookup",
 					Value: "b02245ba-de1e-44ed-b51b-2e93dbca426d",
 				},
 			},
 		},
 		{
 			Name:     "transfer",
-			Usage:    "",
+			Usage:    "initiate a TRP tranfer",
 			Category: "client",
 			Action:   transfer,
 			Flags: []cli.Flag{
@@ -134,7 +135,7 @@ func main() {
 		},
 		{
 			Name:     "gettransfer",
-			Usage:    "",
+			Usage:    "list a transfer by transfer id",
 			Category: "client",
 			Action:   getTransfer,
 			Flags: []cli.Flag{
@@ -163,12 +164,12 @@ func main() {
 				},
 				cli.StringFlag{
 					Name:  "i, id",
-					Usage: "address of the gin server",
-					Value: "foo",
+					Usage: "id of the transfer being confirmed",
+					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
 				},
 				cli.BoolFlag{
 					Name:  "y, approve",
-					Usage: "asset type for transfer, i.e. Bitcoin, Etheriem, etc.",
+					Usage: "whether or not the transfer should be rejected",
 				},
 				cli.StringFlag{
 					Name:  "a, payment",
@@ -195,12 +196,12 @@ func main() {
 				},
 				cli.StringFlag{
 					Name:  "i, id",
-					Usage: "address of the gin server",
-					Value: "foo",
+					Usage: "id of the transfer being confirmed",
+					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
 				},
 				cli.BoolFlag{
 					Name:  "c, cancelled",
-					Usage: "amount of the asset type to be transfered",
+					Usage: "whether or not the tranfer should be rejected",
 				},
 			},
 		},
@@ -221,14 +222,14 @@ func register(c *cli.Context) (err error) {
 	url := fmt.Sprintf("http://%s/register", c.String("address"))
 	body := `{"name": "Mildred Tilcott", "assettype": 3, "walletaddress": "926ca69a-6c22-42e6-9105-11ab5de1237b"}`
 	var response string
-	if response, err = openvasp.PostRequest(body, url); err != nil {
+	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
 	return nil
 }
 
-//
+// sends a get request to the listusers endpoint
 func listUsers(c *cli.Context) (err error) {
 	var response string
 	url := fmt.Sprintf("http://%s/listusers", c.String("address"))
@@ -239,7 +240,7 @@ func listUsers(c *cli.Context) (err error) {
 	return nil
 }
 
-//
+// sends a get request to the gettraveladdress endpoint
 func getTravelAddress(c *cli.Context) (err error) {
 	var response string
 	url := fmt.Sprintf("http://%s/gettraveladdress/%s", c.String("address"), c.String("id"))
@@ -272,14 +273,14 @@ func transfer(c *cli.Context) (err error) {
 
 	var response string
 	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": 3, "amount": 3, "callback": "foo"}`, ivms101)
-	if response, err = openvasp.PostRequest(body, url); err != nil {
+	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
 	return nil
 }
 
-//
+// sends a get request to the transfer endpoint
 func getTransfer(c *cli.Context) (err error) {
 	var response string
 	url := fmt.Sprintf("http://%s/gettransfer/%s", c.String("address"), c.String("id"))
@@ -301,7 +302,7 @@ func resolve(c *cli.Context) (err error) {
 
 	var response string
 	url := fmt.Sprintf("http://%s/inquiryresolution/%s", c.String("address"), c.String("id"))
-	if response, err = openvasp.PostRequest(body, url); err != nil {
+	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
@@ -319,11 +320,32 @@ func confirm(c *cli.Context) (err error) {
 
 	var response string
 	url := fmt.Sprintf("http://%s/transferconfirmation/%s", c.String("address"), c.String("id"))
-	if response, err = openvasp.PostRequest(body, url); err != nil {
+	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
 	return nil
+}
+
+//
+func postRequest(body string, url string) (_ string, err error) {
+	var request *http.Request
+	byteBody := []byte(body)
+	if request, err = http.NewRequest(http.MethodPost, url, bytes.NewReader(byteBody)); err != nil {
+		return "", err
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	var response *http.Response
+	if response, err = http.DefaultClient.Do(request); err != nil {
+		return "", cli.NewExitError(err, 1)
+	}
+
+	var responseBody []byte
+	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
+		return "", cli.NewExitError(err, 1)
+	}
+	return string(responseBody), nil
 }
 
 //

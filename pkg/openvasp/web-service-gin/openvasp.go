@@ -131,7 +131,9 @@ func (s *server) GetTravelAddress(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, &foundUser)
 }
 
-//
+// The Transfer endpoint initiates a TRP transfer,
+// validaating the transfer payload and saving the
+// pending transfer GORM model to the Postgres database.
 func (s *server) Transfer(c *gin.Context) {
 	var err error
 	var newPayload Payload
@@ -237,7 +239,11 @@ func (s *server) GetTransfer(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, &transfer)
 }
 
-//
+// The InquiryResolution endpoint takes in a response
+// from the callback URL from the transfer inquiry (the Transfer
+// endpoint). Based on the response (either approval or rejection,
+// approved responses will have another callback), the Transfer
+// in the database is updated with the coresponding status.
 func (s *server) InquiryResolution(c *gin.Context) {
 	fmt.Println(c.Request)
 
@@ -254,7 +260,7 @@ func (s *server) InquiryResolution(c *gin.Context) {
 	}
 
 	transferID := c.Param("id")
-	if reply.Approved != "" {
+	if reply.Approved != nil {
 		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Approved); db.Error != nil {
 			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not approve transfer": db.Error})
 		}
@@ -275,21 +281,28 @@ func (s *server) InquiryResolution(c *gin.Context) {
 // Helper function to ensure that the JSON provided to the
 // inquiryresolution endpoint is valid
 func validateReply(reply *TransferReply) error {
-	if reply.Callback == "" {
-		return errors.New("reply must have a callback")
+	if reply.Approved != nil {
+		if reply.Approved.Callback == "" {
+			return errors.New("approved replies must have a callback")
+		}
 	}
 
 	err := errors.New("reply must either be approved or rejected")
-	if reply.Approved == "" && reply.Rejected == "" {
+	if reply.Approved == nil && reply.Rejected == "" {
 		return err
 	}
-	if reply.Approved != "" && reply.Rejected != "" {
+	if reply.Approved != nil && reply.Rejected != "" {
 		return err
 	}
 	return nil
 }
 
-//
+// The TransferConfirmation endpoint handles and validates
+// callbacks that  are exucuted based on the callback url
+// provided by requests to the InquiryResolution endpoint.
+// These callbacks should provide either asset specific
+// identifiers resulting from on-chain transfer executions
+// or transfer cancelation comments.
 func (s *server) TransferConfirmation(c *gin.Context) {
 	fmt.Println(c.Request)
 
