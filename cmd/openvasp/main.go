@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -278,12 +278,12 @@ func transfer(c *cli.Context) (err error) {
 	}
 	defer file.Close()
 
-	var jsonbytes []byte
-	if err = json.NewDecoder(file).Decode(&jsonbytes); err != nil {
+	responseBody := &bytes.Buffer{}
+	if _, err = io.Copy(responseBody, file); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	//TODO: Find a better way to avoid binding issues with quotes
-	ivms101 := strings.ReplaceAll(string(jsonbytes), `"`, `*`)
+	ivms101 := strings.ReplaceAll(responseBody.String(), `"`, `*`)
 	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
 
 	var url string
@@ -292,8 +292,9 @@ func transfer(c *cli.Context) (err error) {
 	}
 
 	var response string
-	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": "%t"}`,
-		ivms101, c.Int("assettype"),
+	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": %t}`,
+		ivms101,
+		c.Int("assettype"),
 		c.Float64("amount"),
 		c.String("callback"),
 		c.Bool("reject"))
@@ -374,11 +375,11 @@ func postRequest(body string, url string) (_ string, err error) {
 		return "", cli.NewExitError(err, 1)
 	}
 
-	var responseBody []byte
-	if err = json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
+	responseBody := &bytes.Buffer{}
+	if _, err = io.Copy(responseBody, response.Body); err != nil {
 		return "", cli.NewExitError(err, 1)
 	}
-	return string(responseBody), nil
+	return responseBody.String(), nil
 }
 
 // sends a GET request to the provided URL and returns
@@ -394,9 +395,9 @@ func getRequest(url string) (_ string, err error) {
 		return "", cli.NewExitError(err, 1)
 	}
 
-	var responseBody []byte
-	if err = json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
+	responseBody := &bytes.Buffer{}
+	if _, err = io.Copy(responseBody, response.Body); err != nil {
 		return "", cli.NewExitError(err, 1)
 	}
-	return string(responseBody), nil
+	return responseBody.String(), nil
 }

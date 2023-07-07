@@ -198,7 +198,7 @@ func (s *server) Transfer(c *gin.Context) {
 				},
 			})
 	} else {
-		c.IndentedJSON(http.StatusAccepted, &TransferReply{Rejected: "The Transfer has been rejected"})
+		c.IndentedJSON(http.StatusAccepted, &TransferReply{Rejected: fmt.Sprintf(`transfer "%s" has been rejected`, newTransfer.TransferID)})
 	}
 }
 
