@@ -15,6 +15,7 @@ import (
 )
 
 const travelURLTemplate = "http://localhost:4435/transfer/%s?tag=travelRuleInquiry"
+const confirmationURLTemplate = "http://localhost:4435/transferConfirmation?q=%s"
 
 // Serves the Gin server on the provided address, creates a
 // Postgress database on the provided DSN and creates the
@@ -186,7 +187,19 @@ func (s *server) Transfer(c *gin.Context) {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not create transfer": db.Error})
 		return
 	}
-	c.IndentedJSON(http.StatusCreated, &newTransfer)
+
+	// Respond with approval or rejection
+	if !newPayload.Reject {
+		c.IndentedJSON(http.StatusAccepted,
+			&TransferReply{
+				Approved: &TransferApproval{
+					Address:  "payment address",
+					Callback: fmt.Sprintf(confirmationURLTemplate, newTransfer.TransferID),
+				},
+			})
+	} else {
+		c.IndentedJSON(http.StatusAccepted, &TransferReply{Rejected: "The Transfer has been rejected"})
+	}
 }
 
 // Helper function to ensure that the JSON provided to the transfer

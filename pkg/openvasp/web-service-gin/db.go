@@ -24,6 +24,7 @@ type Payload struct {
 	AssetType VirtualAsset
 	Amount    float64
 	Callback  string
+	Reject    bool
 }
 
 type VirtualAsset uint16

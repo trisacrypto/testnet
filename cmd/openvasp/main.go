@@ -136,6 +136,10 @@ func main() {
 					Usage: "callback for the beneficiary to reply to",
 					Value: "foo",
 				},
+				cli.BoolFlag{
+					Name:  "r, reject",
+					Usage: "whether or not the transfer will be rejected",
+				},
 			},
 		},
 		{
@@ -230,7 +234,10 @@ func serve(c *cli.Context) (err error) {
 // sends a POST request to the register endpoint
 func register(c *cli.Context) (err error) {
 	url := fmt.Sprintf("http://%s/register", c.String("address"))
-	body := fmt.Sprintf(`{"name": "%s", "assettype": %d, "walletaddress": "%s"}`, c.String("name"), c.Int("assettype"), c.String("walletaddress"))
+	body := fmt.Sprintf(`{"name": "%s", "assettype": %d, "walletaddress": "%s"}`,
+		c.String("name"),
+		c.Int("assettype"),
+		c.String("walletaddress"))
 	var response string
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
@@ -253,7 +260,9 @@ func listUsers(c *cli.Context) (err error) {
 // sends a GET request to the gettraveladdress endpoint
 func getTravelAddress(c *cli.Context) (err error) {
 	var response string
-	url := fmt.Sprintf("http://%s/gettraveladdress/%s", c.String("address"), c.String("id"))
+	url := fmt.Sprintf("http://%s/gettraveladdress/%s",
+		c.String("address"),
+		c.String("id"))
 	if response, err = getRequest(url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -282,7 +291,11 @@ func transfer(c *cli.Context) (err error) {
 	}
 
 	var response string
-	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s"}`, ivms101, c.Int("assettype"), c.Float64("amount"), c.String("callback"))
+	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": "%t"}`,
+		ivms101, c.Int("assettype"),
+		c.Float64("amount"),
+		c.String("callback"),
+		c.Bool("reject"))
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -293,7 +306,9 @@ func transfer(c *cli.Context) (err error) {
 // sends a GET request to the transfer endpoint
 func getTransfer(c *cli.Context) (err error) {
 	var response string
-	url := fmt.Sprintf("http://%s/gettransfer/%s", c.String("address"), c.String("id"))
+	url := fmt.Sprintf("http://%s/gettransfer/%s",
+		c.String("address"),
+		c.String("id"))
 	if response, err = getRequest(url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -305,13 +320,17 @@ func getTransfer(c *cli.Context) (err error) {
 func resolve(c *cli.Context) (err error) {
 	var body string
 	if c.Bool("approve") {
-		body = fmt.Sprintf(`{"approved": {"address": "%s", "callback: "%s"}`, c.String("address"), c.String("callback"))
+		body = fmt.Sprintf(`{"approved": {"address": "%s", "callback: "%s"}`,
+			c.String("address"),
+			c.String("callback"))
 	} else {
 		body = fmt.Sprintln(`{"rejected": "transfer rejected"}`)
 	}
 
 	var response string
-	url := fmt.Sprintf("http://%s/inquiryresolution/%s", c.String("address"), c.String("id"))
+	url := fmt.Sprintf("http://%s/inquiryresolution/%s",
+		c.String("address"),
+		c.String("id"))
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -329,7 +348,9 @@ func confirm(c *cli.Context) (err error) {
 	}
 
 	var response string
-	url := fmt.Sprintf("http://%s/transferconfirmation/%s", c.String("address"), c.String("id"))
+	url := fmt.Sprintf("http://%s/transferconfirmation/%s",
+		c.String("address"),
+		c.String("id"))
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
