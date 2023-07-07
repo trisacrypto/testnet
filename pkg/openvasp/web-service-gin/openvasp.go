@@ -351,7 +351,7 @@ func (s *server) TransferConfirmation(c *gin.Context) {
 			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not reject transfer": db.Error})
 		}
 	}
-	c.Status(http.StatusOK)
+	c.IndentedJSON(http.StatusOK, "transfer confirmation was successfull")
 }
 
 // Helper function to ensure that the JSON provided to the

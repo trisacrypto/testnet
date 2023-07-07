@@ -99,9 +99,9 @@ func main() {
 					Value: "localhost:4435",
 				},
 				cli.StringFlag{
-					Name:  "i, id",
-					Usage: "The customer id of the registered user to lookup",
-					Value: "b02245ba-de1e-44ed-b51b-2e93dbca426d",
+					Name:     "i, id",
+					Usage:    "The customer id of the registered user to lookup",
+					Required: true,
 				},
 			},
 		},
@@ -154,9 +154,9 @@ func main() {
 					Value: "localhost:4435",
 				},
 				cli.StringFlag{
-					Name:  "i, id",
-					Usage: "transfer id of the transfer to lookup",
-					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
+					Name:     "i, id",
+					Usage:    "transfer id of the transfer to lookup",
+					Required: true,
 				},
 			},
 		},
@@ -181,7 +181,7 @@ func main() {
 					Usage: "whether or not the transfer should be rejected",
 				},
 				cli.StringFlag{
-					Name:  "a, address",
+					Name:  "t, assetaddress",
 					Usage: "amount of the asset type to be transfered",
 					Value: "some payment address",
 				},
@@ -323,7 +323,7 @@ func resolve(c *cli.Context) (err error) {
 	var body string
 	if c.Bool("approve") {
 		body = fmt.Sprintf(`{"approved": {"address": "%s", "callback: "%s"}`,
-			c.String("address"),
+			c.String("assetaddress"),
 			c.String("callback"))
 	} else {
 		body = fmt.Sprintln(`{"rejected": "transfer rejected"}`)
