@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -279,7 +279,7 @@ func transfer(c *cli.Context) (err error) {
 	defer file.Close()
 
 	var jsonbytes []byte
-	if jsonbytes, err = ioutil.ReadAll(file); err != nil {
+	if err = json.NewDecoder(file).Decode(&jsonbytes); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	//TODO: Find a better way to avoid binding issues with quotes
@@ -375,7 +375,7 @@ func postRequest(body string, url string) (_ string, err error) {
 	}
 
 	var responseBody []byte
-	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
+	if err = json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
 		return "", cli.NewExitError(err, 1)
 	}
 	return string(responseBody), nil
@@ -395,7 +395,7 @@ func getRequest(url string) (_ string, err error) {
 	}
 
 	var responseBody []byte
-	if responseBody, err = ioutil.ReadAll(response.Body); err != nil {
+	if err = json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
 		return "", cli.NewExitError(err, 1)
 	}
 	return string(responseBody), nil
