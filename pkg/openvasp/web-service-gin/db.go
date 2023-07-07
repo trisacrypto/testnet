@@ -8,7 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
-//
+// The Customer struct binds to JSON sent to
+// the Register endpoint when executing
+// registering a contact and is used to store
+// contacts in the database
 type Customer struct {
 	gorm.Model
 	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
@@ -18,7 +21,8 @@ type Customer struct {
 	TravelAddress string       `gorm:"column:travel_address;not null"`
 }
 
-//
+// The Payload struct binds to JSON sent to
+// the Transfer endpoint
 type Payload struct {
 	IVMS101   string
 	AssetType VirtualAsset
@@ -41,7 +45,9 @@ const (
 	EOS
 )
 
-//
+// The Transfer struct is constructed from
+// Payload data sent to the transfer endpoint
+// and is used to store transfers in the database
 type Transfer struct {
 	gorm.Model
 	TransferID     uuid.UUID      `gorm:"uniqueIndex;size:255;column:transfer_id;not null"`
@@ -63,7 +69,7 @@ const (
 	Rejected
 )
 
-// TransferApproval struct is to be sent to
+// TransferApproval struct binds to JSON sent to
 // the TransferInquiry endpoint when executing
 // the callback provided by a Transfer call
 type TransferReply struct {
@@ -76,7 +82,8 @@ type TransferApproval struct {
 	Callback string
 }
 
-//
+// TransferConfirmation struct binds to JSON sent to
+// the TransferConfirmation endpoint
 type TransferConfirmation struct {
 	TxId     string
 	Canceled string

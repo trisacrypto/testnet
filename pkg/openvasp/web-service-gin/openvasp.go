@@ -148,7 +148,7 @@ func (s *server) Transfer(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
 		return
 	}
-	//TODO:
+	//TODO: Find a better way to avoid binding issues with quotes
 	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, `*`, `"`)
 	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, "+", "\n")
 

@@ -282,6 +282,7 @@ func transfer(c *cli.Context) (err error) {
 	if jsonbytes, err = ioutil.ReadAll(file); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	//TODO: Find a better way to avoid binding issues with quotes
 	ivms101 := strings.ReplaceAll(string(jsonbytes), `"`, `*`)
 	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
 
