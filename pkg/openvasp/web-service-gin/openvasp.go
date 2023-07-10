@@ -15,7 +15,7 @@ import (
 )
 
 const travelURLTemplate = "http://localhost:4435/transfer/%s?tag=travelRuleInquiry"
-const confirmationURLTemplate = "http://localhost:4435/transferConfirmation?q=%s"
+const confirmationURLTemplate = "http://openvasp.test-net.io/transferConfirmation?q=%s"
 
 // Serves the Gin server on the provided address, creates a
 // Postgress database on the provided DSN and creates the

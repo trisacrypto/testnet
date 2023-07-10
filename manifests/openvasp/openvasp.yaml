@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openvasp
+  namespace: trisa
+  labels:
+    app: openvasp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openvasp
+  template:
+    metadata:
+      labels:
+        app: openvasp
+    spec:
+      containers:
+      - name: openvasp
+        image: trisa/openvasp:fooooooooooooooo
+        ports:
+        - containerPort: 4436
+          protocol: TCP
+        resources: {}
+        env:
+        - name: OPENVASP_BIND_ADDR
+          value: ":4436"
+        - name: RVASP_TRISA_BIND_ADDR
+          value: ":4435"
+        - name: OPENVASP_DATABASE
+          value: "/data/openvasp.db"

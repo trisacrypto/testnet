@@ -323,7 +323,7 @@ func resolve(c *cli.Context) (err error) {
 	var body string
 	if c.Bool("approve") {
 		body = fmt.Sprintf(`{"approved": {"address": "%s", "callback: "%s"}`,
-			c.String("assetaddress"),
+			c.String("assetcodaddress"),
 			c.String("callback"))
 	} else {
 		body = fmt.Sprintln(`{"rejected": "transfer rejected"}`)
