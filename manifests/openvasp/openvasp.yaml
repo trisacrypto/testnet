@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openvasp
-        image: trisa/openvasp:fooooooooooooooo
+        image: trisa-gds/openvasp:5b2316b
         ports:
         - containerPort: 4436
           protocol: TCP

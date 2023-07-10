@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const travelURLTemplate = "http://localhost:4435/transfer/%s?tag=travelRuleInquiry"
+const travelURLTemplate = "http://openvasp.test-net.io/transfer/%s?tag=travelRuleInquiry"
 const confirmationURLTemplate = "http://openvasp.test-net.io/transferConfirmation?q=%s"
 
 // Serves the Gin server on the provided address, creates a
