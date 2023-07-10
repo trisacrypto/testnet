@@ -130,7 +130,7 @@ jobs:
           # context and Dockerfile - should be configured for each image
           context: .
           file: ./containers/openvasp/Dockerfile
-          #push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
