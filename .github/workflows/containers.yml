@@ -132,9 +132,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-          
-  GIT_REVISION=${{ steps.vars.outputs.revision }}
+          build-args: |      
+            GIT_REVISION=${{ steps.vars.outputs.revision }}
   migrate:
     name: migrate
     runs-on: ubuntu-latest
