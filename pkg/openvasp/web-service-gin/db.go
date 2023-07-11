@@ -24,12 +24,12 @@ type Customer struct {
 // The Payload struct binds to JSON sent to
 // the Transfer endpoint
 type Payload struct {
-	WalletAddress string
-	IVMS101       string
-	AssetType     VirtualAsset
-	Amount        float64
-	Callback      string
-	Reject        bool
+	IVMS101   string
+	AssetType VirtualAsset
+	Amount    float64
+	Callback  string
+	txid      string
+	Reject    bool
 }
 
 type VirtualAsset uint16

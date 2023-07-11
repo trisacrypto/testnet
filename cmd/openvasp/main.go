@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fiatjaf/go-lnurl"
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
@@ -146,6 +147,11 @@ func main() {
 					Usage: "callback for the beneficiary to reply to",
 					Value: "foo",
 				},
+				cli.StringFlag{
+					Name:  "i, id",
+					Usage: "id of the transfer being confirmed",
+					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
+				},
 				cli.BoolFlag{
 					Name:  "r, reject",
 					Usage: "whether or not the transfer will be rejected",
@@ -277,15 +283,20 @@ func transfer(c *cli.Context) (err error) {
 	ivms101 := strings.ReplaceAll(responseBody.String(), `"`, `*`)
 	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
 
+	var url string
+	if url, err = lnurl.LNURLDecode(c.String("lnurl")); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
 	var response string
-	body := fmt.Sprintf(`{"walletaddress": "%s", "ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": %t}`,
-		c.String("lnurl"),
+	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "txid": "%s", "reject": %t}`,
 		ivms101,
 		c.Int("assettype"),
 		c.Float64("amount"),
 		c.String("callback"),
+		c.String("id"),
 		c.Bool("reject"))
-	if response, err = postRequest(body, fmt.Sprintf("http://%s/inittransfer/926ca69a-6c22-42e6-9105-11ab5de1237b?tag=travelRuleInquiry", c.String("address"))); err != nil {
+	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Printf("\n%s\n\n", response)

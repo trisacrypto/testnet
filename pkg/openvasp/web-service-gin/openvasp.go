@@ -174,27 +174,26 @@ func (s *server) InitTransfer(c *gin.Context) {
 	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, `"`, `*`)
 	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, "\n", "+")
 
-	body := fmt.Sprintf(`{"walletaddress": "%s", "ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": %t}`,
-		newPayload.WalletAddress,
-		newPayload.IVMS101,
-		newPayload.AssetType,
-		newPayload.Amount,
-		newPayload.Callback,
-		newPayload.Reject)
+	// body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": %t}`,
+	// 	newPayload.IVMS101,
+	// 	newPayload.AssetType,
+	// 	newPayload.Amount,
+	// 	newPayload.Callback,
+	// 	newPayload.Reject)
 
-	var url string
-	if url, err = lnurl.LNURLDecode(newPayload.WalletAddress); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid LNURL provided": err.Error()})
-		return
-	}
+	// var url string
+	// if url, err = lnurl.LNURLDecode(newPayload.WalletAddress); err != nil {
+	// 	c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid LNURL provided": err.Error()})
+	// 	return
+	// }
 
-	var response string
-	if response, err = postRequest(body, url); err != nil {
-		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not create transfer": err})
-		return
-	}
-	fmt.Println(response)
-	c.IndentedJSON(http.StatusOK, response)
+	// var response string
+	// if response, err = postRequest(body, url); err != nil {
+	// 	c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not create transfer": err})
+	// 	return
+	// }
+	// fmt.Println(response)
+	//c.IndentedJSON(http.StatusOK, response)
 }
 
 // The Transfer endpoint initiates a TRP transfer,
@@ -230,9 +229,19 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
+	var transferID uuid.UUID
+	if newPayload.txid == "" {
+		transferID = uuid.New()
+	} else {
+		if transferID, err = uuid.Parse(newPayload.txid); err != nil {
+			c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not parse id": err.Error()})
+			return
+		}
+	}
+
 	// Construct the Transfer struct
 	newTransfer := Transfer{
-		TransferID:     uuid.New(),
+		TransferID:     transferID,
 		Status:         Pending,
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
@@ -413,10 +422,6 @@ func validateCustomer(customer *Customer) (err error) {
 // Helper function to ensure that the JSON provided to the transfer
 // endpoint is valid
 func validatePayload(payload *Payload) (err error) {
-	if payload.WalletAddress == "" {
-		return errors.New("LNURL must be set")
-	}
-
 	if payload.IVMS101 == "" {
 		return errors.New("ivms101 payload must be set")
 	}
