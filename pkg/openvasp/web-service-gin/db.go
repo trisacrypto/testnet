@@ -89,7 +89,8 @@ type TransferConfirmation struct {
 // Wraps a GORM database and contains
 // handlers for the Gin endpoints
 type server struct {
-	db *gorm.DB
+	db          *gorm.DB
+	callbackURL string
 }
 
 // Create a new Server object containing a GORM database

@@ -14,21 +14,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	trisa "github.com/trisacrypto/trisa/pkg/ivms101"
-	"github.com/urfave/cli"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const travelURLTemplate = "http://localhost:4434/transfer/%s?tag=travelRuleInquiry"
-const confirmationURLTemplate = "http://localhost:4434/transferConfirmation/%s"
+const travelURLTemplate = "%s/transfer/%s?tag=travelRuleInquiry"
+const confirmationURLTemplate = "%s/transferConfirmation/%s"
 
 // Serves the Gin server on the provided address, creates a
 // Postgress database on the provided DSN and creates the
 // Gin endpoint handlers
-func Serve(address, gormDSN string) (err error) {
+func Serve(address, callbackURL, gormDSN string) (err error) {
 	var s *server
 	if s, err = New(gormDSN); err != nil {
 		return err
 	}
+	s.callbackURL = callbackURL
 
 	router := gin.Default()
 	router.POST("/register", s.Register)
@@ -64,7 +64,7 @@ func (s *server) Register(c *gin.Context) {
 	}
 
 	// Encode the new customer's LNURL
-	travelAddress := fmt.Sprintf(travelURLTemplate, newCustomer.WalletAddress)
+	travelAddress := fmt.Sprintf(travelURLTemplate, s.callbackURL, newCustomer.WalletAddress)
 	if newCustomer.TravelAddress, err = lnurl.LNURLEncode(travelAddress); err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not register customer": err.Error()})
 		return
@@ -123,7 +123,6 @@ func (s *server) GetTravelAddress(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, &foundUser)
 }
 
-//
 func (s *server) InitTransfer(c *gin.Context) {
 	// Bind the request JSON to a Payload struct
 	var err error
@@ -260,7 +259,7 @@ func (s *server) Transfer(c *gin.Context) {
 		c.IndentedJSON(http.StatusAccepted,
 			&TransferReply{
 				Address:  "payment address",
-				Callback: fmt.Sprintf(confirmationURLTemplate, newTransfer.TransferID),
+				Callback: fmt.Sprintf(confirmationURLTemplate, s.callbackURL, newTransfer.TransferID),
 			})
 	} else {
 		c.IndentedJSON(http.StatusAccepted, &TransferReply{Rejected: fmt.Sprintf(`transfer "%s" has been rejected`, newTransfer.TransferID)})
@@ -290,7 +289,6 @@ func (s *server) GetTransfer(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, &transfer)
 }
 
-//
 func (s *server) initConfirmation(c *gin.Context) {
 	// Bind the request JSON to a TransferReply struct
 	var err error
@@ -492,12 +490,12 @@ func postRequest(body string, url string) (_ string, err error) {
 
 	var response *http.Response
 	if response, err = http.DefaultClient.Do(request); err != nil {
-		return "", cli.NewExitError(err, 1)
+		return "", err
 	}
 
 	responseBody := &bytes.Buffer{}
 	if _, err = io.Copy(responseBody, response.Body); err != nil {
-		return "", cli.NewExitError(err, 1)
+		return "", err
 	}
 	return responseBody.String(), nil
 }

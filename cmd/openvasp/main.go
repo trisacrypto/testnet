@@ -38,7 +38,13 @@ func main() {
 					EnvVar: "OPENVASP_BIND_ADDR",
 				},
 				cli.StringFlag{
-					Name:   "d, db",
+					Name:   "c, callback",
+					Usage:  "the URL that the server will listen on for callbacks from the counterparty",
+					Value:  "http://localhost:4435",
+					EnvVar: "OPENVASP_CALLBACK_URL",
+				},
+				cli.StringFlag{
+					Name:   "d, dsn",
 					Usage:  "the dsn of the postgres database to connect to",
 					Value:  "localhost:4434",
 					EnvVar: "OPENVASP_DATABASE_DSN",
@@ -210,7 +216,7 @@ func main() {
 
 // Serve the OpenVASP gin server
 func serve(c *cli.Context) (err error) {
-	if err = openvasp.Serve(c.String("address"), c.String("dsn")); err != nil {
+	if err = openvasp.Serve(c.String("address"), c.String("callback"), c.String("dsn")); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	return nil
@@ -310,7 +316,6 @@ func getTransfer(c *cli.Context) (err error) {
 	return nil
 }
 
-//
 func confirm(c *cli.Context) (err error) {
 	var body string
 	if !c.Bool("reject") {
