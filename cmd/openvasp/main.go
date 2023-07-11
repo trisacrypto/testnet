@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fiatjaf/go-lnurl"
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
@@ -114,7 +113,12 @@ func main() {
 				cli.StringFlag{
 					Name:  "l, lnurl",
 					Usage: "lnurl encoding the address of the gin server",
-					Value: "LNURL1DP68GUP69UHKCMMRV9KXSMMNWSARGDPNX5HHGUNPDEEKVETJ9UUNYDNRVYMRJCFDXE3NYV3DXSEX2D3D8YCNQDFDXYCKZC34V3JNZV3NXA3R7ARPVU7HGUNPWEJKC5N4D3J5JMN3W45HY7GQ9NV7V",
+					Value: "LNURL1DP68GUP69UHKCMMRV9KXSMMNWSARGDPNXSHHGUNPDEEKVETJ9UUNYDNRVYMRJCFDXE3NYV3DXSEX2D3D8YCNQDFDXYCKZC34V3JNZV3NXA3R7ARPVU7HGUNPWEJKC5N4D3J5JMN3W45HY7GDMVDWJ",
+				},
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the originator gin server",
+					Value: "localhost:4435",
 				},
 				cli.StringFlag{
 					Name:  "p, path",
@@ -143,6 +147,19 @@ func main() {
 			},
 		},
 		{
+			Name:     "listtransfers",
+			Usage:    "list the registered OpenVASP contacts",
+			Category: "client",
+			Action:   listTransfers,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "localhost:4435",
+				},
+			},
+		},
+		{
 			Name:     "gettransfer",
 			Usage:    "list a transfer by transfer id",
 			Category: "client",
@@ -157,38 +174,6 @@ func main() {
 					Name:     "i, id",
 					Usage:    "transfer id of the transfer to lookup",
 					Required: true,
-				},
-			},
-		},
-		{
-			Name:     "resolve",
-			Usage:    "resolve a TRP transfer",
-			Category: "client",
-			Action:   resolve,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "a, address",
-					Usage: "address of the gin server",
-					Value: "localhost:4435",
-				},
-				cli.StringFlag{
-					Name:  "i, id",
-					Usage: "id of the transfer being confirmed",
-					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
-				},
-				cli.BoolFlag{
-					Name:  "y, approve",
-					Usage: "whether or not the transfer should be rejected",
-				},
-				cli.StringFlag{
-					Name:  "t, assetaddress",
-					Usage: "amount of the asset type to be transfered",
-					Value: "some payment address",
-				},
-				cli.StringFlag{
-					Name:  "c, callback",
-					Usage: "amount of the asset type to be transfered",
-					Value: "foo",
 				},
 			},
 		},
@@ -209,13 +194,13 @@ func main() {
 					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
 				},
 				cli.BoolFlag{
-					Name:  "c, cancelled",
+					Name:  "r, reject",
 					Usage: "whether or not the tranfer should be rejected",
 				},
 				cli.StringFlag{
-					Name:  "x, txid",
-					Usage: "the txid to be returned on approval",
-					Value: "some asset-specific tx identifier",
+					Name:  "c, callback",
+					Usage: "amount of the asset type to be transfered",
+					Value: "foo",
 				},
 			},
 		},
@@ -225,7 +210,7 @@ func main() {
 
 // Serve the OpenVASP gin server
 func serve(c *cli.Context) (err error) {
-	if err = openvasp.Serve(c.String("address"), c.String("dns")); err != nil {
+	if err = openvasp.Serve(c.String("address"), c.String("dsn")); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	return nil
@@ -286,19 +271,26 @@ func transfer(c *cli.Context) (err error) {
 	ivms101 := strings.ReplaceAll(responseBody.String(), `"`, `*`)
 	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
 
-	var url string
-	if url, err = lnurl.LNURLDecode(c.String("lnurl")); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
 	var response string
-	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": %t}`,
+	body := fmt.Sprintf(`{"walletaddress": "%s", "ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": %t}`,
+		c.String("lnurl"),
 		ivms101,
 		c.Int("assettype"),
 		c.Float64("amount"),
 		c.String("callback"),
 		c.Bool("reject"))
-	if response, err = postRequest(body, url); err != nil {
+	if response, err = postRequest(body, fmt.Sprintf("http://%s/inittransfer/926ca69a-6c22-42e6-9105-11ab5de1237b?tag=travelRuleInquiry", c.String("address"))); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Printf("\n%s\n\n", response)
+	return nil
+}
+
+// sends a GET request to the listusers endpoint
+func listTransfers(c *cli.Context) (err error) {
+	var response string
+	url := fmt.Sprintf("http://%s/listtransfers", c.String("address"))
+	if response, err = getRequest(url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)
@@ -318,39 +310,17 @@ func getTransfer(c *cli.Context) (err error) {
 	return nil
 }
 
-// sends a POST request to the inquiryresolution endpoint
-func resolve(c *cli.Context) (err error) {
-	var body string
-	if c.Bool("approve") {
-		body = fmt.Sprintf(`{"approved": {"address": "%s", "callback: "%s"}`,
-			c.String("assetcodaddress"),
-			c.String("callback"))
-	} else {
-		body = fmt.Sprintln(`{"rejected": "transfer rejected"}`)
-	}
-
-	var response string
-	url := fmt.Sprintf("http://%s/inquiryresolution/%s",
-		c.String("address"),
-		c.String("id"))
-	if response, err = postRequest(body, url); err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	fmt.Println(response)
-	return nil
-}
-
 //
 func confirm(c *cli.Context) (err error) {
 	var body string
-	if !c.Bool("cancelled") {
-		body = fmt.Sprintf(`{"txid": "%s"}`, c.String("txid"))
+	if !c.Bool("reject") {
+		body = fmt.Sprintf(`{"address": "payment address", "callback": "%s"}`, c.String("callback"))
 	} else {
-		body = fmt.Sprintln(`{"canceled": "transfer canceled"}`)
+		body = fmt.Sprintf(`{"rejected": "transfer canceled", "callback": "%s"}`, c.String("callback"))
 	}
 
 	var response string
-	url := fmt.Sprintf("http://%s/transferconfirmation/%s",
+	url := fmt.Sprintf("http://%s/initconfirmation/%s?tag=travelRuleInquiry",
 		c.String("address"),
 		c.String("id"))
 	if response, err = postRequest(body, url); err != nil {
