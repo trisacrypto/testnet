@@ -15,6 +15,10 @@ COPY go.sum .
 COPY cmd ./cmd
 COPY pkg ./pkg
 
+Run mkdir -p /data
+
+docker run --name postgres-db -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
+
 # Build binary
 RUN go build -v -o /go/bin/openvasp -ldflags="-X 'github.com/trisacrypto/testnet/pkg.GitVersion=$GIT_REVISION'" ./cmd/openvasp
 
