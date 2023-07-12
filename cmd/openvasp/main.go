@@ -196,14 +196,9 @@ func main() {
 			Action:   confirm,
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "a, address",
+					Name:  "e, endpoint",
 					Usage: "address of the gin server",
 					Value: "localhost:4435",
-				},
-				cli.StringFlag{
-					Name:  "i, id",
-					Usage: "id of the transfer being confirmed",
-					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
 				},
 				cli.BoolFlag{
 					Name:  "r, reject",
@@ -330,16 +325,13 @@ func getTransfer(c *cli.Context) (err error) {
 func confirm(c *cli.Context) (err error) {
 	var body string
 	if !c.Bool("reject") {
-		body = fmt.Sprintf(`{"address": "payment address", "callback": "%s"}`, c.String("callback"))
+		body = fmt.Sprintf(`{"approved": {"address": "payment address", "callback": "%s"}}`, c.String("callback"))
 	} else {
 		body = fmt.Sprintf(`{"rejected": "transfer canceled", "callback": "%s"}`, c.String("callback"))
 	}
 
 	var response string
-	url := fmt.Sprintf("http://%s/initconfirmation/%s?tag=travelRuleInquiry",
-		c.String("address"),
-		c.String("id"))
-	if response, err = postRequest(body, url); err != nil {
+	if response, err = postRequest(body, c.String("endpoint")); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Println(response)

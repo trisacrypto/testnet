@@ -74,9 +74,13 @@ const (
 // the TransferInquiry endpoint when executing
 // the callback provided by a Transfer call
 type TransferReply struct {
+	Approved *TransferApproval
+	Rejected string
+}
+
+type TransferApproval struct {
 	Address  string
 	Callback string
-	Rejected string
 }
 
 // TransferConfirmation struct binds to JSON sent to

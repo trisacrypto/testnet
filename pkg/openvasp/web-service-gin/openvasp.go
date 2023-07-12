@@ -18,7 +18,7 @@ import (
 )
 
 const travelURLTemplate = "%s/transfer/%s?tag=travelRuleInquiry"
-const confirmationURLTemplate = "%s/transferConfirmation/%s"
+const confirmationURLTemplate = "%s/transferconfirmation/%s"
 
 // Serves the Gin server on the provided address, creates a
 // Postgress database on the provided DSN and creates the
@@ -269,8 +269,10 @@ func (s *server) Transfer(c *gin.Context) {
 	if !newPayload.Reject {
 		c.IndentedJSON(http.StatusAccepted,
 			&TransferReply{
-				Address:  "payment address",
-				Callback: fmt.Sprintf(confirmationURLTemplate, s.callbackURL, newTransfer.TransferID),
+				Approved: &TransferApproval{
+					Address:  "payment address",
+					Callback: fmt.Sprintf(confirmationURLTemplate, s.callbackURL, newTransfer.TransferID),
+				},
 			})
 	} else {
 		c.IndentedJSON(http.StatusAccepted, &TransferReply{Rejected: fmt.Sprintf(`transfer "%s" has been rejected`, newTransfer.TransferID)})
@@ -328,22 +330,22 @@ func (s *server) initConfirmation(c *gin.Context) {
 	// 	c.IndentedJSON(http.StatusBadRequest, gin.H{"Transfer not in pending state": transfer})
 	// 	return
 	// }
-	if reply.Address != "" {
+	if reply.Approved != nil {
 		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Approved); db.Error != nil {
 			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not approve transfer": db.Error})
 			return
 		}
-		body = fmt.Sprintf(`{"address": "payment address", "callback": "%s"}`, reply.Callback)
+		body = fmt.Sprintf(`{"approved": {"address": "payment address", "callback": "%s"}}`, reply.Approved.Callback)
 	} else if reply.Rejected != "" {
 		if db := s.db.Model(&Transfer{}).Where("transfer_id = ?", transferID).Update("Status", Rejected); db.Error != nil {
 			c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not reject transfer": db.Error})
 			return
 		}
-		body = fmt.Sprintf(`{"rejected": "transfer canceled", "callback": "%s"}`, reply.Callback)
+		body = fmt.Sprintln(`{"rejected": "transfer canceled"}`)
 	}
 
 	var response string
-	if response, err = postRequest(body, reply.Callback); err != nil {
+	if response, err = postRequest(body, reply.Approved.Callback); err != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not create transfer": err})
 		return
 	}
@@ -445,17 +447,17 @@ func validatePayload(payload *Payload) (err error) {
 // Helper function to ensure that the JSON provided to the
 // inquiryresolution endpoint is valid
 func validateReply(reply *TransferReply) error {
-	if reply.Address != "" {
-		if reply.Callback == "" {
+	if reply.Approved != nil {
+		if reply.Approved.Callback == "" {
 			return errors.New("approved replies must have a callback")
 		}
 	}
 
 	err := errors.New("reply must either be approved or rejected")
-	if reply.Address == "" && reply.Rejected == "" {
+	if reply.Approved == nil && reply.Rejected == "" {
 		return err
 	}
-	if reply.Address != "" && reply.Rejected != "" {
+	if reply.Approved != nil && reply.Rejected != "" {
 		return err
 	}
 	return nil
