@@ -16,7 +16,7 @@ type Customer struct {
 	gorm.Model
 	CustomerID    uuid.UUID `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
 	Name          string    `gorm:"column:name;not null"`
-	Asset         Slip0044  `gorm:"column:asset_type;not null"`
+	Asset         Slip0044  `gorm:"column:asset;not null"`
 	WalletAddress string    `gorm:"column:wallet_address;not null"`
 	TravelAddress string    `gorm:"column:travel_address;not null"`
 }
@@ -46,7 +46,7 @@ type Transfer struct {
 	OriginatorVasp string         `gorm:"column:originator_vasp;not null"`
 	Originator     string         `gorm:"column:originator;not null"`
 	Beneficiary    string         `gorm:"column:beneficiary;not null"`
-	Asset          Slip0044       `gorm:"column:asset_type;not null"`
+	Asset          Slip0044       `gorm:"column:asset;not null"`
 	Amount         float64        `gorm:"column:amount;not null"`
 	Created        time.Time      `gorm:"column:created;not null"`
 }
