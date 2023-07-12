@@ -160,7 +160,7 @@ func (s *server) InitTransfer(c *gin.Context) {
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
 		Beneficiary:    beneficiaryName(ivms101),
-		AssetType:      newPayload.AssetType,
+		Asset:          newPayload.Asset,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
@@ -248,7 +248,7 @@ func (s *server) Transfer(c *gin.Context) {
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
 		Beneficiary:    beneficiaryName(ivms101),
-		AssetType:      newPayload.AssetType,
+		Asset:          newPayload.Asset,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
@@ -409,7 +409,7 @@ func validateCustomer(customer *Customer) (err error) {
 		customer.CustomerID = uuid.New()
 	}
 
-	if customer.AssetType == UnknownAsset {
+	if customer.Asset.Slip0044 == "" {
 		return errors.New("asset must be set")
 	}
 
@@ -430,8 +430,8 @@ func validatePayload(payload *Payload) (err error) {
 		return errors.New("ivms101 payload must be set")
 	}
 
-	if payload.AssetType == UnknownAsset {
-		return errors.New("asset type must be set")
+	if payload.Asset.Slip0044 == "" {
+		return errors.New("asset must be set")
 	}
 
 	if payload.Amount == 0 {

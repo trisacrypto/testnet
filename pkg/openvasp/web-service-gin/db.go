@@ -14,37 +14,27 @@ import (
 // contacts in the database
 type Customer struct {
 	gorm.Model
-	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
-	Name          string       `gorm:"column:name;not null"`
-	AssetType     VirtualAsset `gorm:"column:asset_type;not null"`
-	WalletAddress string       `gorm:"column:wallet_address;not null"`
-	TravelAddress string       `gorm:"column:travel_address;not null"`
+	CustomerID    uuid.UUID `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
+	Name          string    `gorm:"column:name;not null"`
+	Asset         Slip0044  `gorm:"column:asset_type;not null"`
+	WalletAddress string    `gorm:"column:wallet_address;not null"`
+	TravelAddress string    `gorm:"column:travel_address;not null"`
 }
 
 // The Payload struct binds to JSON sent to
 // the Transfer endpoint
 type Payload struct {
-	IVMS101   string
-	AssetType VirtualAsset
-	Amount    float64
-	Callback  string
-	Txid      string
-	Reject    bool
+	IVMS101  string
+	Asset    Slip0044
+	Amount   float64
+	Callback string
+	Txid     string
+	Reject   bool
 }
 
-type VirtualAsset uint16
-
-const (
-	UnknownAsset VirtualAsset = iota
-	Bitcoin
-	Tether
-	Ethereum
-	Litecoin
-	XRP
-	BitcoinCash
-	Tezos
-	EOS
-)
+type Slip0044 struct {
+	Slip0044 string
+}
 
 // The Transfer struct is constructed from
 // Payload data sent to the transfer endpoint
@@ -56,7 +46,7 @@ type Transfer struct {
 	OriginatorVasp string         `gorm:"column:originator_vasp;not null"`
 	Originator     string         `gorm:"column:originator;not null"`
 	Beneficiary    string         `gorm:"column:beneficiary;not null"`
-	AssetType      VirtualAsset   `gorm:"column:asset_type;not null"`
+	Asset          Slip0044       `gorm:"column:asset_type;not null"`
 	Amount         float64        `gorm:"column:amount;not null"`
 	Created        time.Time      `gorm:"column:created;not null"`
 }

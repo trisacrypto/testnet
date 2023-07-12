@@ -122,22 +122,16 @@ func main() {
 					Usage: "lnurl encoding the address of the gin server",
 					Value: "LNURL1DP68GUP69UHKCMMRV9KXSMMNWSARGDPNXSHHGUNPDEEKVETJ9UUNYDNRVYMRJCFDXE3NYV3DXSEX2D3D8YCNQDFDXYCKZC34V3JNZV3NXA3R7ARPVU7HGUNPWEJKC5N4D3J5JMN3W45HY7GDMVDWJ",
 				},
-				cli.StringFlag{
-					Name:  "a, address",
-					Usage: "address of the originator gin server",
-					Value: "localhost:4435",
+				cli.BoolFlag{
+					Name:  "b, beneficiary",
+					Usage: "path to the IVMS101 payload",
 				},
 				cli.StringFlag{
-					Name:  "p, path",
-					Usage: "path to the IVMS101 payload",
-					Value: "pkg/openvasp/testdata/identity.json",
+					Name:  "t, asset",
+					Usage: "asset type for transfer, i.e. Bitcoin, Etheriem, etc.",
+					Value: "BCH",
 				},
 				cli.IntFlag{
-					Name:  "t, assettype",
-					Usage: "asset type for transfer, i.e. Bitcoin, Etheriem, etc.",
-					Value: 3,
-				},
-				cli.Float64Flag{
 					Name:  "m, amount",
 					Usage: "amount of the asset type to be transfered",
 					Value: 100,
@@ -146,15 +140,6 @@ func main() {
 					Name:  "c, callback",
 					Usage: "callback for the beneficiary to reply to",
 					Value: "foo",
-				},
-				cli.StringFlag{
-					Name:  "i, id",
-					Usage: "id of the transfer being confirmed",
-					Value: "a6f1c411-5cc0-4867-b0eb-5f4806c70803",
-				},
-				cli.BoolFlag{
-					Name:  "r, reject",
-					Usage: "whether or not the transfer will be rejected",
 				},
 			},
 		},
@@ -264,8 +249,14 @@ func getTravelAddress(c *cli.Context) (err error) {
 
 // sends a POST request to the transfer endpoint
 func transfer(c *cli.Context) (err error) {
+	var path string
+	path = "pkg/openvasp/testdata/originator.json"
+	if c.Bool("beneficiary") {
+		path = "pkg/openvasp/testdata/beneficiary.json"
+	}
+
 	var file *os.File
-	if file, err = os.Open(c.String("path")); err != nil {
+	if file, err = os.Open(path); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	defer file.Close()
@@ -274,9 +265,15 @@ func transfer(c *cli.Context) (err error) {
 	if _, err = io.Copy(responseBody, file); err != nil {
 		return cli.NewExitError(err, 1)
 	}
+
 	//TODO: Find a better way to avoid binding issues with quotes
-	ivms101 := strings.ReplaceAll(responseBody.String(), `"`, `*`)
-	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
+	var ivms101 string
+	if c.Bool("beneficiary") {
+		ivms101 = responseBody.String()
+	} else {
+		ivms101 = strings.ReplaceAll(responseBody.String(), `"`, `*`)
+		ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
+	}
 
 	var url string
 	if url, err = lnurl.LNURLDecode(c.String("lnurl")); err != nil {
@@ -284,13 +281,13 @@ func transfer(c *cli.Context) (err error) {
 	}
 
 	var response string
-	body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "txid": "%s", "reject": %t}`,
-		ivms101,
-		c.Int("assettype"),
-		c.Float64("amount"),
+	body := fmt.Sprintf(`{"asset": {"slip0044": "%s"}, "amount": %d, "callback": "%s", "IVMS101": %s}`,
+		c.String("asset"),
+		c.Int("amount"),
 		c.String("callback"),
-		c.String("id"),
-		c.Bool("reject"))
+		ivms101)
+	fmt.Println(body)
+	fmt.Println(url)
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -347,12 +344,15 @@ func postRequest(body string, url string) (_ string, err error) {
 		return "", err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("api-version", "3.0.0")
+	request.Header.Set("request-identifier", "ebee")
 
 	var response *http.Response
 	if response, err = http.DefaultClient.Do(request); err != nil {
 		return "", cli.NewExitError(err, 1)
 	}
 
+	fmt.Println(response)
 	responseBody := &bytes.Buffer{}
 	if _, err = io.Copy(responseBody, response.Body); err != nil {
 		return "", cli.NewExitError(err, 1)
