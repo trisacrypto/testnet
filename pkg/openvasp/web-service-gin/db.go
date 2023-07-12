@@ -16,7 +16,7 @@ type Customer struct {
 	gorm.Model
 	CustomerID    uuid.UUID `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
 	Name          string    `gorm:"column:name;not null"`
-	Asset         Slip0044  `gorm:"column:asset;not null"`
+	AssetType     Slip0044  `gorm:"column:asset;not null"`
 	WalletAddress string    `gorm:"column:wallet_address;not null"`
 	TravelAddress string    `gorm:"column:travel_address;not null"`
 }

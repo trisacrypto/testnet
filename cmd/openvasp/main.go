@@ -211,7 +211,7 @@ func serve(c *cli.Context) (err error) {
 // sends a POST request to the register endpoint
 func register(c *cli.Context) (err error) {
 	url := fmt.Sprintf("http://%s/register", c.String("address"))
-	body := fmt.Sprintf(`{"name": "%s", "asset": %s, "walletaddress": "%s"}`,
+	body := fmt.Sprintf(`{"name": "%s", "assettype": %s, "walletaddress": "%s"}`,
 		c.String("name"),
 		c.String("asset"),
 		c.String("walletaddress"))
