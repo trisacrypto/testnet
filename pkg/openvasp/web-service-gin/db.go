@@ -25,7 +25,7 @@ type Customer struct {
 // the Transfer endpoint
 type Payload struct {
 	IVMS101  string
-	Slip0044 Slip0044
+	Asset    Slip0044
 	Amount   float64
 	Callback string
 	Txid     string
@@ -60,7 +60,7 @@ type Transfer struct {
 	OriginatorVasp string         `gorm:"column:originator_vasp;not null"`
 	Originator     string         `gorm:"column:originator;not null"`
 	Beneficiary    string         `gorm:"column:beneficiary;not null"`
-	Asset          VirtualAsset   `gorm:"column:asset_type;not null"`
+	AssetType      VirtualAsset   `gorm:"column:asset_type;not null"`
 	Amount         float64        `gorm:"column:amount;not null"`
 	Created        time.Time      `gorm:"column:created;not null"`
 }

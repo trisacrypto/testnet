@@ -153,6 +153,13 @@ func (s *server) InitTransfer(c *gin.Context) {
 		return
 	}
 
+	asset := UnknownAsset
+	if newPayload.Asset.Slip0044 == "BTH" {
+		asset = BTH
+	} else {
+		asset = BTC
+	}
+
 	// Construct the Transfer struct
 	newTransfer := Transfer{
 		TransferID:     uuid.New(),
@@ -160,7 +167,7 @@ func (s *server) InitTransfer(c *gin.Context) {
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
 		Beneficiary:    beneficiaryName(ivms101),
-		AssetType:      newPayload.Asset.Slip0044,
+		AssetType:      asset,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
@@ -229,6 +236,13 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
+	asset := UnknownAsset
+	if newPayload.Asset.Slip0044 == "BTH" {
+		asset = BTH
+	} else {
+		asset = BTC
+	}
+
 	// Construct the Transfer struct
 	newTransfer := Transfer{
 		TransferID:     uuid.New(),
@@ -236,7 +250,7 @@ func (s *server) Transfer(c *gin.Context) {
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
 		Beneficiary:    beneficiaryName(ivms101),
-		AssetType:      newPayload.Asset.Slip0044,
+		AssetType:      asset,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
@@ -395,7 +409,7 @@ func validateCustomer(customer *Customer) (err error) {
 		customer.CustomerID = uuid.New()
 	}
 
-	if customer.AssetType.Slip0044 == "" {
+	if customer.AssetType == UnknownAsset {
 		return errors.New("asset must be set")
 	}
 
