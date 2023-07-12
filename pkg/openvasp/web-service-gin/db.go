@@ -28,7 +28,7 @@ type Payload struct {
 	AssetType VirtualAsset
 	Amount    float64
 	Callback  string
-	txid      string
+	Txid      string
 	Reject    bool
 }
 

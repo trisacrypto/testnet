@@ -229,11 +229,13 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
+	fmt.Println(newPayload)
 	var transferID uuid.UUID
-	if newPayload.txid == "" {
+	if newPayload.Txid == "" {
+		fmt.Println("Generating uuid")
 		transferID = uuid.New()
 	} else {
-		if transferID, err = uuid.Parse(newPayload.txid); err != nil {
+		if transferID, err = uuid.Parse(newPayload.Txid); err != nil {
 			c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not parse id": err.Error()})
 			return
 		}

@@ -47,7 +47,7 @@ func main() {
 				cli.StringFlag{
 					Name:   "d, dsn",
 					Usage:  "the dsn of the postgres database to connect to",
-					Value:  "localhost:4434",
+					Value:  "",
 					EnvVar: "OPENVASP_DATABASE_DSN",
 				},
 			},
