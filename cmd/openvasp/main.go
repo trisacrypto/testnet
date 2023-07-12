@@ -68,10 +68,10 @@ func main() {
 					Usage: "name of the OpenVASP customer",
 					Value: "Tildred Milcot",
 				},
-				cli.IntFlag{
-					Name:  "t, assettype",
+				cli.StringFlag{
+					Name:  "t, asset",
 					Usage: "asset type (for example bitcoin) of the OpenVASP customer",
-					Value: 3,
+					Value: "BTH",
 				},
 				cli.StringFlag{
 					Name:  "w, walletaddress",
@@ -211,9 +211,9 @@ func serve(c *cli.Context) (err error) {
 // sends a POST request to the register endpoint
 func register(c *cli.Context) (err error) {
 	url := fmt.Sprintf("http://%s/register", c.String("address"))
-	body := fmt.Sprintf(`{"name": "%s", "assettype": %d, "walletaddress": "%s"}`,
+	body := fmt.Sprintf(`{"name": "%s", "asset": %s, "walletaddress": "%s"}`,
 		c.String("name"),
-		c.Int("assettype"),
+		c.String("asset"),
 		c.String("walletaddress"))
 	var response string
 	if response, err = postRequest(body, url); err != nil {
