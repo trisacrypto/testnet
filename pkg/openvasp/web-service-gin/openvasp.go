@@ -160,7 +160,7 @@ func (s *server) InitTransfer(c *gin.Context) {
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
 		Beneficiary:    beneficiaryName(ivms101),
-		Asset:          newPayload.Asset,
+		AssetType:      newPayload.Asset.Slip0044,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
@@ -229,26 +229,14 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
-	fmt.Println(newPayload)
-	var transferID uuid.UUID
-	if newPayload.Txid == "" {
-		fmt.Println("Generating uuid")
-		transferID = uuid.New()
-	} else {
-		if transferID, err = uuid.Parse(newPayload.Txid); err != nil {
-			c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not parse id": err.Error()})
-			return
-		}
-	}
-
 	// Construct the Transfer struct
 	newTransfer := Transfer{
-		TransferID:     transferID,
+		TransferID:     uuid.New(),
 		Status:         Pending,
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
 		Beneficiary:    beneficiaryName(ivms101),
-		Asset:          newPayload.Asset,
+		AssetType:      newPayload.Asset.Slip0044,
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
@@ -266,17 +254,15 @@ func (s *server) Transfer(c *gin.Context) {
 	fmt.Printf("\n%s\n\n", data)
 
 	// Respond with approval or rejection
-	if !newPayload.Reject {
-		c.IndentedJSON(http.StatusAccepted,
-			&TransferReply{
-				Approved: &TransferApproval{
-					Address:  "payment address",
-					Callback: fmt.Sprintf(confirmationURLTemplate, s.callbackURL, newTransfer.TransferID),
-				},
-			})
-	} else {
-		c.IndentedJSON(http.StatusAccepted, &TransferReply{Rejected: fmt.Sprintf(`transfer "%s" has been rejected`, newTransfer.TransferID)})
-	}
+
+	c.IndentedJSON(http.StatusAccepted,
+		&TransferReply{
+			Approved: &TransferApproval{
+				Address:  "payment address",
+				Callback: fmt.Sprintf(confirmationURLTemplate, s.callbackURL, newTransfer.TransferID),
+			},
+		})
+
 }
 
 func (s *server) ListTransfers(c *gin.Context) {
@@ -409,7 +395,7 @@ func validateCustomer(customer *Customer) (err error) {
 		customer.CustomerID = uuid.New()
 	}
 
-	if customer.Asset.Slip0044 == "" {
+	if customer.AssetType.Slip0044 == "" {
 		return errors.New("asset must be set")
 	}
 
