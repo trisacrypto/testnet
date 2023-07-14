@@ -39,7 +39,7 @@ func Serve(address, callbackURL, gormDSN string) (err error) {
 	router.GET("/listtransfers", s.ListTransfers)
 	router.GET("/gettransfer/:id", s.GetTransfer)
 	router.POST("/originatorconfirmation/:id", s.OriginatorConfirmation)
-	router.POST("/confirmation/:id", s.TransferConfirmation)
+	router.POST("/transferconfirmation/:id", s.TransferConfirmation)
 	router.Run(address)
 	return nil
 }

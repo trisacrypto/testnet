@@ -1,19 +1,20 @@
 {
     "originator": {
-        "originator_persons": [
+        "originatorPersons": [
             {
-                "natural_person": {
+                "naturalPerson": {
                     "name": {
-                        "name_identifiers": [
+                        "nameIdentifier": [
                             {
-                                "primary_identifier": "Post",
-                                "secondary_identifier": "Johnny",
-                                "name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+                                "primaryIdentifier": "Sollis",
+                                "secondaryIdentifier": "Daniel",
+                                "nameIdentifierType": "LEGL"
                             }
                         ]
                     },
-                    "geographic_addresses": [
+                    "geographicAddress": [
                         {
+                            "addressType": "GEOG",
                             "streetName": "Potential Street",
                             "buildingNumber": "123",
                             "buildingName": "Cheese Hut",
@@ -23,42 +24,45 @@
                             "country": "US"
                         }
                     ],
-                    "customer_identification": "1002390"
+                    "customerIdentification": "1002390"
                 }
             }
         ]
     },
     "beneficiary": {
-        "beneficiary_persons": [
+        "beneficiaryPersons": [
             {
-                "natural_person": {
+                "naturalPerson": {
                     "name": {
-                        "name_identifiers": [
+                        "nameIdentifier": [
                             {
-                                "primary_identifier": "Mildred",
-                                "secondary_identifier": "Tillcot",
-                                "name_identifier_type": "NATURAL_PERSON_NAME_TYPE_CODE_LEGL"
+                                "primaryIdentifier": "Deziel",
+                                "secondaryIdentifier": "Patrick",
+                                "nameIdentifierType": "LEGL"
                             }
                         ]
                     }
                 }
             }
+        ],
+        "accountNumber": [
+            "miWtRggV2CphycdLk3kjouEiS97o3Cd5xt"
         ]
     },
-    "originating_vasp": {
-        "originating_vasp": {
-            "legal_person": {
+    "originatingVASP": {
+        "originatingVASP": {
+            "legalPerson": {
                 "name": {
-                    "name_identifiers": [
+                    "nameIdentifier": [
                         {
-                            "legal_person_name": "VASP A",
-                            "legal_person_name_identifier_type": "LEGAL_PERSON_NAME_TYPE_CODE_LEGL"
+                            "legalPersonName": "Openvasp",
+                            "legalPersonNameIdentifierType": "LEGL"
                         }
                     ]
                 },
-                "national_identification": {
-                    "national_identifier": "506700T7Z685VUOZL877",
-                    "national_identifier_type": "NATIONAL_IDENTIFIER_TYPE_CODE_LEIX"
+                "nationalIdentification": {
+                    "nationalIdentifier": "SSWN00MLVQLTL2B6BB89",
+                    "nationalIdentifierType": "LEIX"
                 }
             }
         }
