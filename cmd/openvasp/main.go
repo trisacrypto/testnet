@@ -61,7 +61,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "a, address",
 					Usage: "address of the gin server",
-					Value: "localhost:4435",
+					Value: "openvasp.test-net.io",
 				},
 				cli.StringFlag{
 					Name:  "n, name",
@@ -152,7 +152,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "a, address",
 					Usage: "address of the gin server",
-					Value: "localhost:4435",
+					Value: "openvasp.test-net.io",
 				},
 			},
 		},
@@ -165,7 +165,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "a, address",
 					Usage: "address of the gin server",
-					Value: "localhost:4435",
+					Value: "openvasp.test-net.io",
 				},
 				cli.StringFlag{
 					Name:     "i, id",
