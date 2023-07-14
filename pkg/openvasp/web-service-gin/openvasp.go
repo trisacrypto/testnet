@@ -34,12 +34,12 @@ func Serve(address, callbackURL, gormDSN string) (err error) {
 	router.POST("/register", s.Register)
 	router.GET("/listusers", s.ListUsers)
 	router.GET("/gettraveladdress/:id", s.GetTravelAddress)
-	router.POST("/inittransfer/:id", s.InitTransfer)
+	router.POST("/originatortransfer/:lnurl", s.OriginatorTransfer)
 	router.POST("/transfer/:id", s.Transfer)
 	router.GET("/listtransfers", s.ListTransfers)
 	router.GET("/gettransfer/:id", s.GetTransfer)
-	router.POST("/initconfirmation/:id", s.initConfirmation)
-	router.POST("/transferconfirmation/:id", s.TransferConfirmation)
+	router.POST("/originatorconfirmation/:id", s.OriginatorConfirmation)
+	router.POST("/confirmation/:id", s.TransferConfirmation)
 	router.Run(address)
 	return nil
 }
@@ -123,7 +123,7 @@ func (s *server) GetTravelAddress(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, &foundUser)
 }
 
-func (s *server) InitTransfer(c *gin.Context) {
+func (s *server) OriginatorTransfer(c *gin.Context) {
 	// Bind the request JSON to a Payload struct
 	var err error
 	var newPayload Payload
@@ -131,9 +131,6 @@ func (s *server) InitTransfer(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"!!Could not bind request": err.Error()})
 		return
 	}
-	//TODO: Find a better way to avoid binding issues with quotes
-	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, `*`, `"`)
-	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, "+", "\n")
 
 	// Validate the received Payload struct
 	if err = validatePayload(&newPayload); err != nil {
@@ -153,13 +150,6 @@ func (s *server) InitTransfer(c *gin.Context) {
 		return
 	}
 
-	asset := UnknownAsset
-	if newPayload.Asset.Slip0044 == "BTH" {
-		asset = BTH
-	} else {
-		asset = BTC
-	}
-
 	// Construct the Transfer struct
 	newTransfer := Transfer{
 		TransferID:     uuid.New(),
@@ -167,7 +157,7 @@ func (s *server) InitTransfer(c *gin.Context) {
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
 		Beneficiary:    beneficiaryName(ivms101),
-		AssetType:      asset,
+		AssetType:      translateAsset(newPayload.Asset.Slip0044),
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
@@ -178,29 +168,47 @@ func (s *server) InitTransfer(c *gin.Context) {
 		return
 	}
 
-	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, `"`, `*`)
-	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, "\n", "+")
+	body := fmt.Sprintf(`{"ivms101": "%s", "asset": %s, "amount": %f, "callback": "%s"}`,
+		newPayload.IVMS101,
+		newPayload.Asset,
+		newPayload.Amount,
+		newPayload.Callback)
 
-	// body := fmt.Sprintf(`{"ivms101": "%s", "assettype": %d, "amount": %f, "callback": "%s", "reject": %t}`,
-	// 	newPayload.IVMS101,
-	// 	newPayload.AssetType,
-	// 	newPayload.Amount,
-	// 	newPayload.Callback,
-	// 	newPayload.Reject)
+	var url string
+	if url, err = lnurl.LNURLDecode(c.Param("lnurl")); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid LNURL provided": err.Error()})
+		return
+	}
 
-	// var url string
-	// if url, err = lnurl.LNURLDecode(newPayload.WalletAddress); err != nil {
-	// 	c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid LNURL provided": err.Error()})
-	// 	return
-	// }
+	var response string
+	if response, err = postRequest(body, url); err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not create transfer": err})
+		return
+	}
+	fmt.Println(response)
+	c.IndentedJSON(http.StatusOK, response)
+}
 
-	// var response string
-	// if response, err = postRequest(body, url); err != nil {
-	// 	c.IndentedJSON(http.StatusInternalServerError, gin.H{"Could not create transfer": err})
-	// 	return
-	// }
-	// fmt.Println(response)
-	//c.IndentedJSON(http.StatusOK, response)
+func translateAsset(assetType string) (asset VirtualAsset) {
+	switch slip0044 := assetType; slip0044 {
+	case "BTC":
+		asset = Bitcoin
+	case "BTH":
+		asset = BitcoinCash
+	case "ETH":
+		asset = Ethereum
+	case "LTC":
+		asset = Litecoin
+	case "XRP":
+		asset = Ripple
+	case "XTZ":
+		asset = Tezos
+	case "EOS":
+		asset = EOS
+	default:
+		asset = UnknownAsset
+	}
+	return asset
 }
 
 // The Transfer endpoint initiates a TRP transfer,
@@ -214,7 +222,7 @@ func (s *server) Transfer(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not bind request": err.Error()})
 		return
 	}
-	//TODO: Find a better way to avoid binding issues with quotes
+
 	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, `*`, `"`)
 	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, "+", "\n")
 
@@ -224,33 +232,20 @@ func (s *server) Transfer(c *gin.Context) {
 		return
 	}
 
-	// Unmarshal the Payload struct's IVMS101 payload to a
-	// trisa.IdentityPayload struct
-	ivms101 := &trisa.IdentityPayload{}
-	jsonpb := protojson.UnmarshalOptions{
-		AllowPartial:   true,
-		DiscardUnknown: true,
+	ivms101 := trisa.IdentityPayload{}
+	if err = json.Unmarshal([]byte(newPayload.IVMS101), &ivms101); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid payload provided": err.Error()})
 	}
-	if err = jsonpb.Unmarshal([]byte(newPayload.IVMS101), ivms101); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not unmarshal ivms101": err.Error()})
-		return
-	}
-
-	asset := UnknownAsset
-	if newPayload.Asset.Slip0044 == "BTH" {
-		asset = BTH
-	} else {
-		asset = BTC
-	}
+	fmt.Println(&ivms101)
 
 	// Construct the Transfer struct
 	newTransfer := Transfer{
 		TransferID:     uuid.New(),
 		Status:         Pending,
-		OriginatorVasp: originatorVasp(ivms101),
-		Originator:     originatorName(ivms101),
-		Beneficiary:    beneficiaryName(ivms101),
-		AssetType:      asset,
+		OriginatorVasp: originatorVasp(&ivms101),
+		Originator:     originatorName(&ivms101),
+		Beneficiary:    beneficiaryName(&ivms101),
+		AssetType:      translateAsset(newPayload.Asset.Slip0044),
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
 	}
@@ -302,7 +297,7 @@ func (s *server) GetTransfer(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, &transfer)
 }
 
-func (s *server) initConfirmation(c *gin.Context) {
+func (s *server) OriginatorConfirmation(c *gin.Context) {
 	// Bind the request JSON to a TransferReply struct
 	var err error
 	var reply TransferReply

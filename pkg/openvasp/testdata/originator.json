@@ -36,8 +36,8 @@
                     "name": {
                         "nameIdentifier": [
                             {
-                                "primaryIdentifier": "Tilcott",
-                                "secondaryIdentifier": "Mildred",
+                                "primaryIdentifier": "Name",
+                                "secondaryIdentifier": "My",
                                 "nameIdentifierType": "LEGL"
                             }
                         ]
@@ -46,7 +46,7 @@
             }
         ],
         "accountNumber": [
-        "mhtL3YVFdpTVffmLgUp4h4bcP3Su2zr5qx"
+            "miWtRggV2CphycdLk3kjouEiS97o3Cd5xt"
         ]
     },
     "originatingVASP": {

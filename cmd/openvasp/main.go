@@ -68,10 +68,10 @@ func main() {
 					Usage: "name of the OpenVASP customer",
 					Value: "Tildred Milcot",
 				},
-				cli.StringFlag{
+				cli.IntFlag{
 					Name:  "t, asset",
 					Usage: "asset type (for example bitcoin) of the OpenVASP customer",
-					Value: "BTH",
+					Value: 3,
 				},
 				cli.StringFlag{
 					Name:  "w, walletaddress",
@@ -120,7 +120,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "l, lnurl",
 					Usage: "lnurl encoding the address of the gin server",
-					Value: "LNURL1DP68GUP69UHKCMMRV9KXSMMNWSARGDPNXSHHGUNPDEEKVETJ9UUNYDNRVYMRJCFDXE3NYV3DXSEX2D3D8YCNQDFDXYCKZC34V3JNZV3NXA3R7ARPVU7HGUNPWEJKC5N4D3J5JMN3W45HY7GDMVDWJ",
+					Value: "lnurl1dp68gup69uhkcmmrv9kxsmmnwsargdpnx5hhgunpdeekvetj9uunydnrvymrjcfdxe3nyv3dxsex2d3d8ycnqdfdxyckzc34v3jnzv3nxa3r7arpvu7hgunpwejkcun4d3jkjmn3w45hy7gkp969c",
 				},
 				cli.BoolFlag{
 					Name:  "b, beneficiary",
@@ -129,7 +129,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "t, asset",
 					Usage: "asset type for transfer, i.e. Bitcoin, Etheriem, etc.",
-					Value: "BCH",
+					Value: "BTC",
 				},
 				cli.IntFlag{
 					Name:  "m, amount",
@@ -265,15 +265,8 @@ func transfer(c *cli.Context) (err error) {
 	if _, err = io.Copy(responseBody, file); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-
-	//TODO: Find a better way to avoid binding issues with quotes
-	var ivms101 string
-	if c.Bool("beneficiary") {
-		ivms101 = responseBody.String()
-	} else {
-		ivms101 = strings.ReplaceAll(responseBody.String(), `"`, `*`)
-		ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
-	}
+	ivms101 := strings.ReplaceAll(responseBody.String(), `"`, `*`)
+	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
 
 	var url string
 	if url, err = lnurl.LNURLDecode(c.String("lnurl")); err != nil {
@@ -281,13 +274,11 @@ func transfer(c *cli.Context) (err error) {
 	}
 
 	var response string
-	body := fmt.Sprintf(`{"asset": {"slip0044": "%s"}, "amount": %d, "callback": "%s", "IVMS101": %s}`,
+	body := fmt.Sprintf(`{"asset": {"slip0044": "%s"}, "amount": %d, "callback": "%s", "IVMS101": "%s"}`,
 		c.String("asset"),
 		c.Int("amount"),
 		c.String("callback"),
 		ivms101)
-	fmt.Println(body)
-	fmt.Println(url)
 	if response, err = postRequest(body, url); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -345,7 +336,7 @@ func postRequest(body string, url string) (_ string, err error) {
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("api-version", "3.0.0")
-	request.Header.Set("request-identifier", "ebee")
+	request.Header.Set("request-identifier", "ebxe")
 
 	var response *http.Response
 	if response, err = http.DefaultClient.Do(request); err != nil {

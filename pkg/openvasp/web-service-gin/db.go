@@ -28,8 +28,6 @@ type Payload struct {
 	Asset    Slip0044
 	Amount   float64
 	Callback string
-	Txid     string
-	Reject   bool
 }
 
 type Slip0044 struct {
@@ -40,12 +38,11 @@ type VirtualAsset uint16
 
 const (
 	UnknownAsset VirtualAsset = iota
-	BTC
-	Tether
+	Bitcoin
+	BitcoinCash
 	Ethereum
 	Litecoin
-	XRP
-	BTH
+	Ripple
 	Tezos
 	EOS
 )
