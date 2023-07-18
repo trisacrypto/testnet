@@ -68,10 +68,10 @@ func main() {
 					Usage: "name of the OpenVASP customer",
 					Value: "Tildred Milcot",
 				},
-				cli.IntFlag{
+				cli.StringFlag{
 					Name:  "t, asset",
 					Usage: "asset type (for example bitcoin) of the OpenVASP customer",
-					Value: 3,
+					Value: "BTC",
 				},
 				cli.StringFlag{
 					Name:  "w, walletaddress",
@@ -265,8 +265,12 @@ func transfer(c *cli.Context) (err error) {
 	if _, err = io.Copy(responseBody, file); err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	ivms101 := strings.ReplaceAll(responseBody.String(), `"`, `*`)
-	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
+	ivms101 := responseBody.String()
+	if !c.Bool("beneficiary") {
+		ivms101 = strings.ReplaceAll(ivms101, `"`, `*`)
+		ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
+		ivms101 = fmt.Sprintf(`"%s"`, ivms101)
+	}
 
 	var url string
 	if url, err = lnurl.LNURLDecode(c.String("lnurl")); err != nil {
@@ -274,7 +278,7 @@ func transfer(c *cli.Context) (err error) {
 	}
 
 	var response string
-	body := fmt.Sprintf(`{"asset": {"slip0044": "%s"}, "amount": %d, "callback": "%s", "IVMS101": "%s"}`,
+	body := fmt.Sprintf(`{"asset": {"slip0044": "%s"}, "amount": %d, "callback": "%s", "IVMS101": %s}`,
 		c.String("asset"),
 		c.Int("amount"),
 		c.String("callback"),

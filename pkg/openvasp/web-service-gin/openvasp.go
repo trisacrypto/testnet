@@ -18,7 +18,7 @@ import (
 )
 
 const travelURLTemplate = "%s/transfer/%s?tag=travelRuleInquiry"
-const confirmationURLTemplate = "%s/transferconfirmation/%s"
+const confirmationURLTemplate = "%s/confirmation/%s"
 
 // Serves the Gin server on the provided address, creates a
 // Postgress database on the provided DSN and creates the
@@ -34,12 +34,12 @@ func Serve(address, callbackURL, gormDSN string) (err error) {
 	router.POST("/register", s.Register)
 	router.GET("/listusers", s.ListUsers)
 	router.GET("/gettraveladdress/:id", s.GetTravelAddress)
-	router.POST("/originatortransfer/:lnurl", s.OriginatorTransfer)
 	router.POST("/transfer/:id", s.Transfer)
+	router.POST("/originatortransfer/:lnurl", s.OriginatorTransfer)
 	router.GET("/listtransfers", s.ListTransfers)
 	router.GET("/gettransfer/:id", s.GetTransfer)
+	router.POST("/confirmation/:id", s.TransferConfirmation)
 	router.POST("/originatorconfirmation/:id", s.OriginatorConfirmation)
-	router.POST("/transferconfirmation/:id", s.TransferConfirmation)
 	router.Run(address)
 	return nil
 }
@@ -235,12 +235,22 @@ func (s *server) Transfer(c *gin.Context) {
 	ivms101 := trisa.IdentityPayload{}
 	if err = json.Unmarshal([]byte(newPayload.IVMS101), &ivms101); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid payload provided": err.Error()})
+		return
 	}
 	fmt.Println(&ivms101)
 
+	//TODO: handle transfer ID better
+	var transferID uuid.UUID
+	callbackSlice := strings.Split(newPayload.Callback, "/")
+	transferStr := callbackSlice[len(callbackSlice)-1]
+	if transferID, err = uuid.Parse(transferStr); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid transfer ID in callback": err.Error()})
+		return
+	}
+
 	// Construct the Transfer struct
 	newTransfer := Transfer{
-		TransferID:     uuid.New(),
+		TransferID:     transferID,
 		Status:         Pending,
 		OriginatorVasp: originatorVasp(&ivms101),
 		Originator:     originatorName(&ivms101),
