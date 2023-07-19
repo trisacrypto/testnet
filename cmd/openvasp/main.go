@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fiatjaf/go-lnurl"
 	"github.com/joho/godotenv"
 	"github.com/trisacrypto/testnet/pkg"
 	openvasp "github.com/trisacrypto/testnet/pkg/openvasp/web-service-gin"
@@ -117,6 +116,11 @@ func main() {
 			Category: "client",
 			Action:   transfer,
 			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "a, address",
+					Usage: "address of the gin server",
+					Value: "openvasp.test-net.io/originatortransfer",
+				},
 				cli.StringFlag{
 					Name:  "l, lnurl",
 					Usage: "lnurl encoding the address of the gin server",
@@ -266,16 +270,12 @@ func transfer(c *cli.Context) (err error) {
 		return cli.NewExitError(err, 1)
 	}
 	ivms101 := responseBody.String()
-	if !c.Bool("beneficiary") {
-		ivms101 = strings.ReplaceAll(ivms101, `"`, `*`)
-		ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
-		ivms101 = fmt.Sprintf(`"%s"`, ivms101)
-	}
 
-	var url string
-	if url, err = lnurl.LNURLDecode(c.String("lnurl")); err != nil {
-		return cli.NewExitError(err, 1)
-	}
+	ivms101 = strings.ReplaceAll(ivms101, `"`, `*`)
+	ivms101 = strings.ReplaceAll(ivms101, "\n", "+")
+	ivms101 = fmt.Sprintf(`"%s"`, ivms101)
+
+	url := fmt.Sprintf("https://%s/%s", c.String("address"), c.String("lnurl"))
 
 	var response string
 	body := fmt.Sprintf(`{"asset": {"slip0044": "%s"}, "amount": %d, "callback": "%s", "IVMS101": %s}`,

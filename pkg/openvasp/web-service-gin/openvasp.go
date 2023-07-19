@@ -38,7 +38,7 @@ func Serve(address, callbackURL, gormDSN string) (err error) {
 	router.POST("/originatortransfer/:lnurl", s.OriginatorTransfer)
 	router.GET("/listtransfers", s.ListTransfers)
 	router.GET("/gettransfer/:id", s.GetTransfer)
-	router.POST("/confirmation/:id", s.TransferConfirmation)
+	router.POST("/transferconfirmation/:id", s.TransferConfirmation)
 	router.POST("/originatorconfirmation/:id", s.OriginatorConfirmation)
 	router.Run(address)
 	return nil
@@ -132,6 +132,9 @@ func (s *server) OriginatorTransfer(c *gin.Context) {
 		return
 	}
 
+	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, `*`, `"`)
+	newPayload.IVMS101 = strings.ReplaceAll(newPayload.IVMS101, "+", "\n")
+
 	// Validate the received Payload struct
 	if err = validatePayload(&newPayload); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid payload provided": err.Error()})
@@ -150,9 +153,17 @@ func (s *server) OriginatorTransfer(c *gin.Context) {
 		return
 	}
 
+	var transferID uuid.UUID
+	callbackSlice := strings.Split(newPayload.Callback, "/")
+	transferStr := callbackSlice[len(callbackSlice)-1]
+	if transferID, err = uuid.Parse(transferStr); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid transfer ID in callback": err.Error()})
+		return
+	}
+
 	// Construct the Transfer struct
 	newTransfer := Transfer{
-		TransferID:     uuid.New(),
+		TransferID:     transferID,
 		Status:         Pending,
 		OriginatorVasp: originatorVasp(ivms101),
 		Originator:     originatorName(ivms101),
