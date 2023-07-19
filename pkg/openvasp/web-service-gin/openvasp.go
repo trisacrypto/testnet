@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	trisa "github.com/trisacrypto/trisa/pkg/ivms101"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const travelURLTemplate = "%s/originatortransfer/%s?tag=travelRuleInquiry"
@@ -141,17 +140,12 @@ func (s *server) OriginatorTransfer(c *gin.Context) {
 		return
 	}
 
-	// Unmarshal the Payload struct's IVMS101 payload to a
-	// trisa.IdentityPayload struct
-	ivms101 := &trisa.IdentityPayload{}
-	jsonpb := protojson.UnmarshalOptions{
-		AllowPartial:   true,
-		DiscardUnknown: true,
-	}
-	if err = jsonpb.Unmarshal([]byte(newPayload.IVMS101), ivms101); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"Could not unmarshal ivms101": err.Error()})
+	ivms101 := trisa.IdentityPayload{}
+	if err = json.Unmarshal([]byte(newPayload.IVMS101), &ivms101); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"Invalid payload provided": err.Error()})
 		return
 	}
+	fmt.Println(&ivms101)
 
 	var transferID uuid.UUID
 	callbackSlice := strings.Split(newPayload.Callback, "/")
