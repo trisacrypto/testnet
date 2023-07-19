@@ -159,9 +159,9 @@ func (s *server) OriginatorTransfer(c *gin.Context) {
 	newTransfer := Transfer{
 		TransferID:     transferID,
 		Status:         Pending,
-		OriginatorVasp: originatorVasp(ivms101),
-		Originator:     originatorName(ivms101),
-		Beneficiary:    beneficiaryName(ivms101),
+		OriginatorVasp: originatorVasp(&ivms101),
+		Originator:     originatorName(&ivms101),
+		Beneficiary:    beneficiaryName(&ivms101),
 		AssetType:      translateAsset(newPayload.Asset.Slip0044),
 		Amount:         newPayload.Amount,
 		Created:        time.Now(),
