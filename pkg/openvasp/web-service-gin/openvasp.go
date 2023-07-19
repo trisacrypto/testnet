@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const travelURLTemplate = "%s/transfer/%s?tag=travelRuleInquiry"
+const travelURLTemplate = "%s/originatortransfer/%s?tag=travelRuleInquiry"
 const confirmationURLTemplate = "%s/confirmation/%s"
 
 // Serves the Gin server on the provided address, creates a
