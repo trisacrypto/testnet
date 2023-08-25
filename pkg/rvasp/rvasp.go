@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
+	activity "github.com/trisacrypto/directory/pkg/utils/activity"
 	"github.com/trisacrypto/directory/pkg/utils/logger"
 	"github.com/trisacrypto/testnet/pkg"
 	"github.com/trisacrypto/testnet/pkg/rvasp/config"
@@ -910,6 +911,8 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	// TODO: lookup peer from cache rather than always doing a directory service lookup
 	var peer *peers.Peer
 	s.updates.Broadcast(req.Id, fmt.Sprintf("search for %s in directory service", beneficiary.Provider.Name), pb.MessageCategory_TRISADS)
+	// send search request activity to network activity handler
+	activity.Search().Add()
 	if peer, err = s.peers.Search(beneficiary.Provider.Name); err != nil {
 		log.Error().Err(err).Msg("could not search peer from directory service")
 		return s.updates.SendTransferError(client, req.Id,
