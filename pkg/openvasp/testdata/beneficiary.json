@@ -1,0 +1,70 @@
+{
+    "originator": {
+        "originatorPersons": [
+            {
+                "naturalPerson": {
+                    "name": {
+                        "nameIdentifier": [
+                            {
+                                "primaryIdentifier": "Brown",
+                                "secondaryIdentifier": "David",
+                                "nameIdentifierType": "LEGL"
+                            }
+                        ]
+                    },
+                    "geographicAddress": [
+                        {
+                            "addressType": "GEOG",
+                            "streetName": "Potential Street",
+                            "buildingNumber": "123",
+                            "buildingName": "Cheese Hut",
+                            "postCode": "91361",
+                            "townName": "Thousand Oaks",
+                            "countrySubDivision": "California",
+                            "country": "US"
+                        }
+                    ],
+                    "customerIdentification": "1002390"
+                }
+            }
+        ]
+    },
+    "beneficiary": {
+        "beneficiaryPersons": [
+            {
+                "naturalPerson": {
+                    "name": {
+                        "nameIdentifier": [
+                            {
+                                "primaryIdentifier": "Swanlake",
+                                "secondaryIdentifier": "Jessica",
+                                "nameIdentifierType": "LEGL"
+                            }
+                        ]
+                    }
+                }
+            }
+        ],
+        "accountNumber": [
+            "mjeNvn2LprQeLxk2PBqWA4sSpq2bUe3JCM"
+        ]
+    },
+    "originatingVASP": {
+        "originatingVASP": {
+            "legalPerson": {
+                "name": {
+                    "nameIdentifier": [
+                        {
+                            "legalPersonName": "Openvasp",
+                            "legalPersonNameIdentifierType": "LEGL"
+                        }
+                    ]
+                },
+                "nationalIdentification": {
+                    "nationalIdentifier": "SSWN00MLVQLTL2B6BB89",
+                    "nationalIdentifierType": "LEIX"
+                }
+            }
+        }
+    }
+}
