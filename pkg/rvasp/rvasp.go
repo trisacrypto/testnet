@@ -89,6 +89,7 @@ func New(conf *config.Config) (s *Server, err error) {
 		s.peers.Connect(grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 	s.updates = NewUpdateManager()
+	activity.Start(conf.Activity)
 	return s, nil
 }
 

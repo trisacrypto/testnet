@@ -11,7 +11,7 @@ require (
 	github.com/rs/zerolog v1.29.1
 	github.com/shopspring/decimal v1.3.1
 	github.com/stretchr/testify v1.8.4
-	github.com/trisacrypto/directory v1.7.3-0.20230825222534-8a510da50ff7
+	github.com/trisacrypto/directory v1.7.3
 	github.com/trisacrypto/trisa v0.99999.1
 	github.com/urfave/cli v1.22.14
 	github.com/xplorfin/lnurlauth v0.60.0
