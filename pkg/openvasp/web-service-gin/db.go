@@ -8,13 +8,55 @@ import (
 	"gorm.io/gorm"
 )
 
+// The Customer struct binds to JSON sent to
+// the Register endpoint when executing
+// registering a contact and is used to store
+// contacts in the database
+type Customer struct {
+	gorm.Model
+	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
+	Name          string       `gorm:"column:name;not null"`
+	AssetType     VirtualAsset `gorm:"column:asset_type;not null"`
+	WalletAddress string       `gorm:"column:wallet_address;not null"`
+	TravelAddress string       `gorm:"column:travel_address;not null"`
+}
+
+// The Payload struct binds to JSON sent to
+// the Transfer endpoint
+type Payload struct {
+	IVMS101  string
+	Asset    Slip0044
+	Amount   float64
+	Callback string
+}
+
+type Slip0044 struct {
+	Slip0044 string
+}
+
+type VirtualAsset uint16
+
+const (
+	UnknownAsset VirtualAsset = iota
+	Bitcoin
+	BitcoinCash
+	Ethereum
+	Litecoin
+	Ripple
+	Tezos
+	EOS
+)
+
+// The Transfer struct is constructed from
+// Payload data sent to the transfer endpoint
+// and is used to store transfers in the database
 type Transfer struct {
 	gorm.Model
 	TransferID     uuid.UUID      `gorm:"uniqueIndex;size:255;column:transfer_id;not null"`
 	Status         TransferStatus `gorm:"column:status;not null"`
 	OriginatorVasp string         `gorm:"column:originator_vasp;not null"`
 	Originator     string         `gorm:"column:originator;not null"`
-	Beneficiaary   string         `gorm:"column:beneficiary;not null"`
+	Beneficiary    string         `gorm:"column:beneficiary;not null"`
 	AssetType      VirtualAsset   `gorm:"column:asset_type;not null"`
 	Amount         float64        `gorm:"column:amount;not null"`
 	Created        time.Time      `gorm:"column:created;not null"`
@@ -29,19 +71,34 @@ const (
 	Rejected
 )
 
-type Customer struct {
-	gorm.Model
-	CustomerID    uuid.UUID    `gorm:"uniqueIndex;size:255;column:customer_id;not null"`
-	Name          string       `gorm:"column:name;not null"`
-	AssetType     VirtualAsset `gorm:"column:asset_type;not null"`
-	WalletAddress string       `gorm:"column:wallet_address;not null"`
-	TravelAddress string       `gorm:"column:travel_address;not null"`
+// TransferApproval struct binds to JSON sent to
+// the TransferInquiry endpoint when executing
+// the callback provided by a Transfer call
+type TransferReply struct {
+	Approved *TransferApproval
+	Rejected string
 }
 
+type TransferApproval struct {
+	Address  string
+	Callback string
+}
+
+// TransferConfirmation struct binds to JSON sent to
+// the TransferConfirmation endpoint
+type TransferConfirmation struct {
+	TxId     string
+	Canceled string
+}
+
+// Wraps a GORM database and contains
+// handlers for the Gin endpoints
 type server struct {
-	db *gorm.DB
+	db          *gorm.DB
+	callbackURL string
 }
 
+// Create a new Server object containing a GORM database
 func New(dsn string) (newServer *server, err error) {
 	newServer = &server{}
 	if newServer.db, err = openDB(dsn); err != nil {
@@ -50,12 +107,13 @@ func New(dsn string) (newServer *server, err error) {
 	return newServer, nil
 }
 
+// Opens a new GORM database and performs the migration
 func openDB(dsn string) (db *gorm.DB, err error) {
 	if db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{}); err != nil {
 		return nil, err
 	}
 
-	if err = db.AutoMigrate(&Customer{}); err != nil {
+	if err = db.AutoMigrate(&Customer{}, &Transfer{}); err != nil {
 		return nil, err
 	}
 	return db, nil

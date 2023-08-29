@@ -8,6 +8,60 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=rvasp
+    profiles:
+      - rvasp
+
+  openvaspdb:
+    image: postgres
+    ports:
+      - 5437:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=openvasp
+    profiles:
+      - openvasp
+
+  counterpartydb:
+    image: postgres
+    ports:
+      - 5438:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=counterparty
+    profiles:
+      - openvasp
+
+  openvasp:
+    build:
+      context: ../
+      dockerfile: ./containers/openvasp/Dockerfile
+    ports:
+      - 4435:4435
+    environment:
+      - OPENVASP_DATABASE_DSN=postgres://postgres:postgres@openvaspdb:5432/openvasp?sslmode=disable
+      - OPENVASP_BIND_ADDR=:4435
+      - OPENVASP_CALLBACK_URL=http://localhost:4435
+    depends_on:
+      - openvaspdb
+    profiles:
+      - openvasp
+
+  counterparty:
+    build:
+      context: ../
+      dockerfile: ./containers/openvasp/Dockerfile
+    ports:
+      - 4436:4436
+    environment:
+      - OPENVASP_DATABASE_DSN=postgres://postgres:postgres@counterpartydb:5432/counterparty?sslmode=disable
+      - OPENVASP_BIND_ADDR=:4436
+      - OPENVASP_CALLBACK_URL=http://localhost:4436
+    depends_on:
+      - counterpartydb
+    profiles:
+      - openvasp
 
   migrate:
     build:
@@ -22,6 +76,8 @@ services:
       - RVASP_DATABASE_MAX_RETRIES=5
     volumes:
       - ../fixtures/rvasps:/fixtures
+    profiles:
+      - rvasp
 
   gds:
     image: trisa/gds:latest
@@ -49,6 +105,8 @@ services:
       - GDS_CERTMAN_INTERVAL=96h
       - GDS_BACKUP_ENABLED=false
       - GDS_SECRETS_TESTING=true
+    profiles:
+      - rvasp
 
   alice:
     image: trisa/rvasp:latest
@@ -73,6 +131,8 @@ services:
       - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/alice:/certs
+    profiles:
+      - rvasp
 
   bob:
     image: trisa/rvasp:latest
@@ -97,6 +157,8 @@ services:
       - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/bob:/certs
+    profiles:
+      - rvasp
 
   evil:
     image: trisa/rvasp:latest
@@ -121,6 +183,8 @@ services:
       - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/evil:/certs
+    profiles:
+      - rvasp
 
   charlie:
     image: trisa/rvasp:latest
@@ -145,6 +209,8 @@ services:
       - RVASP_ASYNC_NOT_AFTER
     volumes:
       - ../fixtures/certs/charlie:/certs
+    profiles:
+      - rvasp
 
   vaspdirectory:
     build:
