@@ -31,7 +31,7 @@ func NewTRISAMock(conf *config.Config) (s *TRISA, remotePeers *peers.Peers, mock
 	}
 
 	// Create a mock remote peer cache
-	remotePeers = peers.NewMock(s.certs, s.chain, conf.GDS.URL)
+	remotePeers = peers.New(s.certs, s.chain, conf.GDS.URL)
 	remotePeers.Add(&peers.PeerInfo{
 		CommonName: "alice",
 		Endpoint:   "gds.example.io:443",
