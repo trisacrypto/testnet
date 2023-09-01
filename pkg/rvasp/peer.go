@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog/log"
+	activity "github.com/trisacrypto/directory/pkg/utils/activity"
 	"github.com/trisacrypto/trisa/pkg/trisa/peers"
 )
 
@@ -40,6 +41,8 @@ func (s *Server) fetchSigningKey(peer *peers.Peer) (key *rsa.PublicKey, err erro
 	}
 
 	if peer.SigningKey() == nil {
+		// send key exchange activity to network activity handler
+		activity.KeyExchange().Add()
 		// If no key is available, perform a key exchange with the remote peer
 		if peer.ExchangeKeys(true); err != nil {
 			log.Warn().Str("common_name", peer.String()).Err(err).Msg("could not exchange keys with remote peer")
@@ -62,6 +65,8 @@ func (s *Server) resolveEndpoint(peer *peers.Peer) (err error) {
 	// If the endpoint is not in the peer, do the lookup to fetch the endpoint
 	if peer.Info().Endpoint == "" {
 		var remote *peers.Peer
+		// send lookup request activity to network activity handler
+		activity.Lookup().Add()
 		if remote, err = s.peers.Lookup(peer.String()); err != nil {
 			log.Warn().Str("peer", peer.String()).Err(err).Msg("could not lookup peer")
 			return fmt.Errorf("could not lookup peer: %s", err)

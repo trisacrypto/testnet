@@ -7,6 +7,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog"
+	activity "github.com/trisacrypto/directory/pkg/utils/activity"
 )
 
 // Config uses envconfig to load required settings from the environment and
@@ -27,6 +28,7 @@ type Config struct {
 	LogLevel       LogLevelDecoder `envconfig:"RVASP_LOG_LEVEL" default:"info"`
 	GDS            GDSConfig
 	Database       DatabaseConfig
+	Activity       activity.Config
 }
 
 // GDSConfig is the configuration for connecting to GDS
