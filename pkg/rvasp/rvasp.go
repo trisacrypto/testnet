@@ -89,7 +89,12 @@ func New(conf *config.Config) (s *Server, err error) {
 		s.peers.Connect(grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 	s.updates = NewUpdateManager()
-	activity.Start(conf.Activity)
+
+	// Start the activity publisher
+	if err = activity.Start(conf.Activity); err != nil {
+		return nil, fmt.Errorf("could not start the activity publisher: %s", err)
+	}
+
 	return s, nil
 }
 
