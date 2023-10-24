@@ -269,12 +269,9 @@ func (s *Server) Transfer(ctx context.Context, req *pb.TransferRequest) (reply *
 
 // fetchBeneficiary fetches the beneficiary Wallet from the request.
 func (s *Server) fetchBeneficiaryWallet(req *pb.TransferRequest) (wallet *db.Wallet, err error) {
-	if req.ExternalDemo {
-		// If external demo is enabled, then create the Wallet from the request parameters
-		if req.BeneficiaryVasp == "" {
-			return nil, status.Error(codes.InvalidArgument, "if external demo is true, must specify beneficiary vasp")
-		}
-
+	if req.BeneficiaryVasp != "" {
+		// If a beneficiary VASP is provided, assume the transfer is to an external
+		// VASP (not a local wallet)
 		wallet = &db.Wallet{
 			Address: req.Beneficiary,
 			Provider: db.VASP{
@@ -283,7 +280,7 @@ func (s *Server) fetchBeneficiaryWallet(req *pb.TransferRequest) (wallet *db.Wal
 			Vasp: s.vasp,
 		}
 	} else {
-		// Lookup beneficiary wallet from the database and confirm it belongs to a remote RVASP
+		// Otherwise attempt to lookup the beneficiary wallet from the database
 		wallet = &db.Wallet{}
 		if err = s.db.LookupAnyBeneficiary(req.Beneficiary).First(wallet).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {

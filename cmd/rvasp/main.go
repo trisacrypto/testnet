@@ -169,10 +169,6 @@ func main() {
 					Name:  "B, beneficiary-vasp",
 					Usage: "the common name or vasp directory searchable name of the beneficiary vasp",
 				},
-				&cli.BoolFlag{
-					Name:  "E, external-demo",
-					Usage: "whether the beneficiary is a demo node (e.g. alice or bob) or not",
-				},
 			},
 		},
 		{
@@ -349,7 +345,6 @@ func transfer(c *cli.Context) (err error) {
 		BeneficiaryVasp: c.String("beneficiary-vasp"),
 		Amount:          float32(c.Float64("amount")),
 		AssetType:       c.String("asset-type"),
-		ExternalDemo:    c.Bool("external-demo"),
 	}
 
 	if req.Account == "" {
