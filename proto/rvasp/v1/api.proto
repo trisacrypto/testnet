@@ -74,7 +74,6 @@ message TransferRequest {
     string originating_vasp = 4;  // common name of the originating VASP for demo UI error handling (optional)
     string beneficiary_vasp = 5;  // common name of the beneficiary VASP for demo UI error handling or external demo lookup (optional if external_demo is false)
     bool check_beneficiary = 6;   // if set, confirm that the beneficiary wallet belongs to the beneficiary VASP (optional)
-    bool external_demo = 7;       // if true, beneficiary is resolved via beneficiary_vasp common name and the directory service
     string asset_type = 8;        // the type of virtual asset for multi-asset chains
 }
 
