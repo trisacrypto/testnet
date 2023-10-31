@@ -6,8 +6,8 @@
 # Version info should be synced from the version.go file
 __version_info__ = {
     'major': 1,
-    'minor': 0,
-    'micro': 0,
+    'minor': 1,
+    'micro': 3,
     'releaselevel': 'final',
     'serial': 1,
 }
