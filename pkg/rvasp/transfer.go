@@ -240,9 +240,23 @@ func ValidateIdentityPayload(identity *ivms101.IdentityPayload, requireBeneficia
 		}
 
 		// Check that the account number is present
-		if len(identity.Beneficiary.AccountNumbers) == 0 || identity.Beneficiary.AccountNumbers[0] == "" {
-			log.Warn().Msg("identity payload missing account number")
+		if len(identity.Beneficiary.AccountNumbers) == 0 {
+			log.Warn().Msg("identity payload missing beneficiary account number")
 			return protocol.Errorf(protocol.IncompleteIdentity, "missing beneficiary account number")
+		} else {
+			// Verify that there is at least one valid account number
+			foundValid := false
+			for _, accountNumber := range identity.Beneficiary.AccountNumbers {
+				if accountNumber != "" {
+					foundValid = true
+					break
+				}
+			}
+
+			if !foundValid {
+				log.Warn().Strs("account_numbers", identity.Beneficiary.AccountNumbers).Msg("no valid beneficiary account numbers")
+				return protocol.Errorf(protocol.IncompleteIdentity, "no valid beneficiary account number(s) found")
+			}
 		}
 
 		// Check that the beneficiary vasp is present
