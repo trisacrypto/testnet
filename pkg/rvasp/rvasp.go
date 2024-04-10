@@ -3,6 +3,7 @@ package rvasp
 import (
 	"context"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1133,4 +1134,20 @@ func (s *Server) handleTransaction(client string, req *pb.Command) (err error) {
 	}
 
 	return s.updates.Send(client, rep)
+}
+
+func (s *Server) Status(context.Context, *pb.Empty) (_ *pb.ServerStatus, err error) {
+	var cert *x509.Certificate
+	if cert, err = s.trisa.certs.GetLeafCertificate(); err != nil {
+		log.Warn().Err(err).Msg("could not get trisa leaf certificate")
+		return nil, status.Error(codes.FailedPrecondition, "could not parse trisa certificate")
+	}
+
+	return &pb.ServerStatus{
+		Status:     pb.ServerStatus_ONLINE,
+		Version:    pkg.Version(),
+		CommonName: cert.Subject.CommonName,
+		NotBefore:  cert.NotBefore.Format(time.RFC3339),
+		NotAfter:   cert.NotAfter.Format(time.RFC3339),
+	}, nil
 }

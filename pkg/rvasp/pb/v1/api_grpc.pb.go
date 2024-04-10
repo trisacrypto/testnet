@@ -143,6 +143,7 @@ var TRISADemo_ServiceDesc = grpc.ServiceDesc{
 const (
 	TRISAIntegration_Transfer_FullMethodName      = "/rvasp.v1.TRISAIntegration/Transfer"
 	TRISAIntegration_AccountStatus_FullMethodName = "/rvasp.v1.TRISAIntegration/AccountStatus"
+	TRISAIntegration_Status_FullMethodName        = "/rvasp.v1.TRISAIntegration/Status"
 )
 
 // TRISAIntegrationClient is the client API for TRISAIntegration service.
@@ -151,6 +152,7 @@ const (
 type TRISAIntegrationClient interface {
 	Transfer(ctx context.Context, in *TransferRequest, opts ...grpc.CallOption) (*TransferReply, error)
 	AccountStatus(ctx context.Context, in *AccountRequest, opts ...grpc.CallOption) (*AccountReply, error)
+	Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ServerStatus, error)
 }
 
 type tRISAIntegrationClient struct {
@@ -179,12 +181,22 @@ func (c *tRISAIntegrationClient) AccountStatus(ctx context.Context, in *AccountR
 	return out, nil
 }
 
+func (c *tRISAIntegrationClient) Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ServerStatus, error) {
+	out := new(ServerStatus)
+	err := c.cc.Invoke(ctx, TRISAIntegration_Status_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TRISAIntegrationServer is the server API for TRISAIntegration service.
 // All implementations must embed UnimplementedTRISAIntegrationServer
 // for forward compatibility
 type TRISAIntegrationServer interface {
 	Transfer(context.Context, *TransferRequest) (*TransferReply, error)
 	AccountStatus(context.Context, *AccountRequest) (*AccountReply, error)
+	Status(context.Context, *Empty) (*ServerStatus, error)
 	mustEmbedUnimplementedTRISAIntegrationServer()
 }
 
@@ -197,6 +209,9 @@ func (UnimplementedTRISAIntegrationServer) Transfer(context.Context, *TransferRe
 }
 func (UnimplementedTRISAIntegrationServer) AccountStatus(context.Context, *AccountRequest) (*AccountReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AccountStatus not implemented")
+}
+func (UnimplementedTRISAIntegrationServer) Status(context.Context, *Empty) (*ServerStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
 func (UnimplementedTRISAIntegrationServer) mustEmbedUnimplementedTRISAIntegrationServer() {}
 
@@ -247,6 +262,24 @@ func _TRISAIntegration_AccountStatus_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TRISAIntegration_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TRISAIntegrationServer).Status(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TRISAIntegration_Status_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TRISAIntegrationServer).Status(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TRISAIntegration_ServiceDesc is the grpc.ServiceDesc for TRISAIntegration service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -261,6 +294,10 @@ var TRISAIntegration_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AccountStatus",
 			Handler:    _TRISAIntegration_AccountStatus_Handler,
+		},
+		{
+			MethodName: "Status",
+			Handler:    _TRISAIntegration_Status_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

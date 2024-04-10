@@ -20,6 +20,7 @@ service TRISADemo {
 service TRISAIntegration {
     rpc Transfer (TransferRequest) returns (TransferReply);
     rpc AccountStatus (AccountRequest) returns (AccountReply);
+    rpc Status (Empty) returns (ServerStatus);
 }
 
 // Allows for standardized error handling for demo purposes.
@@ -158,3 +159,22 @@ message Message {
     }
 }
 
+
+message Empty{}
+
+
+message ServerStatus {
+    enum Status {
+        UNKNOWN = 0;
+        ONLINE = 1;
+        MAINTENANCE = 2;
+        UNHEALTHY = 3;
+        OFFLINE = 4;
+    }
+
+    Status status = 1;
+    string version = 2;
+    string common_name = 3;
+    string not_before = 4;
+    string not_after = 5;
+}

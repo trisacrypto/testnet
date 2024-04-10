@@ -44,7 +44,7 @@ func (s *Server) fetchSigningKey(peer *peers.Peer) (key *rsa.PublicKey, err erro
 		// send key exchange activity to network activity handler
 		activity.KeyExchange().Add()
 		// If no key is available, perform a key exchange with the remote peer
-		if peer.ExchangeKeys(true); err != nil {
+		if _, err = peer.ExchangeKeys(true); err != nil {
 			log.Warn().Str("common_name", peer.String()).Err(err).Msg("could not exchange keys with remote peer")
 			return nil, fmt.Errorf("could not exchange keys with remote peer: %s", err)
 		}

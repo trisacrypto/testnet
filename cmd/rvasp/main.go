@@ -202,6 +202,20 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:     "status",
+			Usage:    "get the current rVASP status and certificate info",
+			Category: "client",
+			Action:   rvaspStatus,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:   "e, endpoint",
+					Usage:  "the address and port to connect to the server on",
+					Value:  "localhost:4434",
+					EnvVar: "RVASP_ADDR",
+				},
+			},
+		},
 	}
 
 	app.Run(os.Args)
@@ -457,6 +471,23 @@ func stream(c *cli.Context) (err error) {
 		}
 		printJSON(msg)
 	}
+}
+
+func rvaspStatus(c *cli.Context) (err error) {
+	client, err := makeClient(c)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var status *pb.ServerStatus
+	if status, err = client.Status(ctx, &pb.Empty{}); err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return printJSON(status)
 }
 
 // helper function to create the GRPC client with default options
