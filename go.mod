@@ -15,7 +15,7 @@ require (
 	github.com/trisacrypto/directory v1.7.4-0.20230831191800-d57320b797fe
 	github.com/trisacrypto/trisa v0.4.0
 	github.com/urfave/cli v1.22.14
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.57.1
 	google.golang.org/protobuf v1.31.0
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.25.4
