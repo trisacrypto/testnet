@@ -8,7 +8,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`vaspbot.net`)
+    - match: Host(`vaspbot.com`)
       kind: Rule
       services:
         - name: demo-web-service
@@ -25,7 +25,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`demo.alice.vaspbot.net`)
+    - match: Host(`demo.alice.vaspbot.com`)
       kind: Rule
       services:
         - name: demobff-alice-service
@@ -42,7 +42,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`demo.bob.vaspbot.net`)
+    - match: Host(`demo.bob.vaspbot.com`)
       kind: Rule
       services:
         - name: demobff-bob-service

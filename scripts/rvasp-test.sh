@@ -5,8 +5,8 @@ if [ "$1" == "--local" ]; then
     ALICE_ENDPOINT=localhost:5434
     BOB_ENDPOINT=localhost:6434
 else
-    ALICE_ENDPOINT=admin.alice.vaspbot.net:443
-    BOB_ENDPOINT=admin.bob.vaspbot.net:443
+    ALICE_ENDPOINT=admin.alice.vaspbot.com:443
+    BOB_ENDPOINT=admin.bob.vaspbot.com:443
 fi
 
 # Send from Alice to Bob
