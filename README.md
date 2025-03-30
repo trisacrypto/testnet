@@ -5,7 +5,7 @@
 The TRISA test net is comprised of the following:
 
 - [TRISA Directory Service](https://trisatest.net) - a user interface to explore the TRISA Global Directory Service and register to become a TRISA member
-- [TestNet Demo](https://vaspbot.net) - a demo site to show TRISA interactions between “robot” VASPs that run in the TestNet
+- [TestNet Demo](https://vaspbot.com) - a demo site to show TRISA interactions between “robot” VASPs that run in the TestNet
 
 For more details, see the [TRISA Documentation](https://trisatest.net/), or check out the [TRISA codebase](https://github.com/trisacrypto/trisa).
 

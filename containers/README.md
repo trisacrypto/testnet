@@ -44,7 +44,7 @@ Additionally you can use the `skaffold build` command to build and push the imag
 The rVASP CLI can be used to interact with the rVASPs running in the containers. By default, `alice` listens on `localhost:5434`, `bob` listens on `localhost:6434`, and `evil` listens on `localhost:7434`. For example, one might initiate a transfer between two accounts using the `transfer` command:
 
 ```
-$ go run ./cmd/rvasp transfer -e localhost:6434 -a robert@bobvasp.co.uk -b mary@alicevasp.us -B api.alice.vaspbot.net -d 42.99 -E
+$ go run ./cmd/rvasp transfer -e localhost:6434 -a robert@bobvasp.co.uk -b mary@alicevasp.us -B api.alice.vaspbot.com -d 42.99 -E
 ```
 
 The `resetdb` command can be used to reset the rVASP database without restarting the containers, using a fixtures directory containing a `vasps.json` and `wallets.json` (defaults to `pkg/rvasp/fixtures`).

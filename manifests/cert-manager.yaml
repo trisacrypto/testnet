@@ -60,8 +60,8 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-  - "vaspbot.net"
-  - "*.vaspbot.net"
-  - "*.alice.vaspbot.net"
-  - "*.bob.vaspbot.net"
-  - "*.evil.vaspbot.net"
+  - "vaspbot.com"
+  - "*.vaspbot.com"
+  - "*.alice.vaspbot.com"
+  - "*.bob.vaspbot.com"
+  - "*.evil.vaspbot.com"

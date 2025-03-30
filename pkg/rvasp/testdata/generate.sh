@@ -18,7 +18,7 @@ openssl req -x509 -newkey rsa:4096 -sha256 -days 10950 \
 openssl req -new -newkey rsa:4096 \
     -nodes -keyout alice.key.pem -out alice.csr \
     -subj "/C=US/ST=New York/L=New York/O=Alice VASP/OU=Testing/CN=alice" \
-    -addext "subjectAltName=DNS:alice.vaspbot.net,DNS:*.alice.vaspbot.net,DNS:bufnet,DNS:alice"
+    -addext "subjectAltName=DNS:alice.vaspbot.com,DNS:*.alice.vaspbot.com,DNS:bufnet,DNS:alice"
 
 # Create signed certificates with CA
 openssl x509 -req -days 10950 \

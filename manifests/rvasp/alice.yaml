@@ -32,7 +32,7 @@ spec:
         resources: {}
         env:
         - name: RVASP_NAME
-          value: "api.alice.vaspbot.net"
+          value: "api.alice.vaspbot.com"
         - name: RVASP_BIND_ADDR
           value: ":4434"
         - name: RVASP_TRISA_BIND_ADDR
@@ -40,7 +40,7 @@ spec:
         - name: RVASP_DATABASE
           value: "/data/rvasp.db"
         - name: RVASP_CERT_PATH
-          value: "/data/certs/api.alice.vaspbot.net.gz"
+          value: "/data/certs/api.alice.vaspbot.com.gz"
         - name: RVASP_TRUST_CHAIN_PATH
           value: "/data/certs/trisa.zip"
         - name: RVASP_DIRECTORY_SERVICE_URL
@@ -53,7 +53,7 @@ spec:
           secretName: alice-certs
           items:
           - key: mtls
-            path: api.alice.vaspbot.net.gz
+            path: api.alice.vaspbot.com.gz
           - key: chain
             path: trisa.zip
 ---

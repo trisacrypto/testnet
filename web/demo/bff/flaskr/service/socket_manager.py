@@ -140,10 +140,10 @@ class SocketManager:
                 msg.transfer.transaction.timestamp,
                 '23hlkjad824',  # TODO: need transaction ID - Issue #1
                 msg.transfer.transaction.originator.wallet_address,
-                'api.bob.vaspbot.net',
+                'api.bob.vaspbot.com',
                 msg.transfer.transaction.originator.provider,
                 msg.transfer.transaction.beneficiary.wallet_address,
-                'api.alice.vaspbot.net',
+                'api.alice.vaspbot.com',
                 msg.transfer.transaction.beneficiary.provider,
                 MessageToJson(msg.transfer)
             ))
