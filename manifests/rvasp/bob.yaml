@@ -44,7 +44,7 @@ spec:
         - name: RVASP_TRUST_CHAIN_PATH
           value: "/data/certs/trisa.zip"
         - name: RVASP_DIRECTORY_SERVICE_URL
-          value: "api.trisatest.net:443"
+          value: "api.testnet.directory:443"
         - name: RVASP_LOG_LEVEL
           value: info
       volumes:

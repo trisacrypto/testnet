@@ -183,7 +183,7 @@ class App extends Component {
 
         var leftPane = null
 
-        var topRow = <div className="top-row" align="center"><h2>VASP Cryptocurrency Exchange Simulator utilizing TRISA protocol</h2><h3>Learn more about integrating TRISA: <a target="_blank" href="https://trisatest.net">Documentation</a></h3></div>
+        var topRow = <div className="top-row" align="center"><h2>VASP Cryptocurrency Exchange Simulator utilizing TRISA protocol</h2><h3>Learn more about integrating TRISA: <a target="_blank" href="https://testnet.directory">Documentation</a></h3></div>
 
         if (this.state.selectedOriginatingVasp) {
             console.log("Originating vasp creation")
