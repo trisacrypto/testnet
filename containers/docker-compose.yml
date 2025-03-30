@@ -87,7 +87,7 @@ services:
     volumes:
       - ../fixtures/db:/data
     environment:
-      - GDS_DIRECTORY_ID=trisatest.net
+      - GDS_DIRECTORY_ID=testnet.directory
       - GDS_SECRET_KEY=supersecretsquirrel
       - GDS_MAINTENANCE=false
       - GDS_LOG_LEVEL=debug

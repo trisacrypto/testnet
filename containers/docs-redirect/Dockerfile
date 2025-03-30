@@ -1,7 +1,7 @@
 FROM nginx:stable
 
 LABEL maintainer="TRISA <admin@trisa.io>"
-LABEL description="Redirect trisatest.net to trisa.dev"
+LABEL description="Redirect testnet.directory to trisa.dev"
 
 COPY containers/docs-redirect/nginx.conf /etc/nginx/conf.d/default.conf
 

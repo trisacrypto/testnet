@@ -36,13 +36,13 @@ spec:
         - name: GDS_BIND_ADDR
           value: :443
         - name: GDS_DIRECTORY_ID
-          value: vaspdirectory.net
+          value: trisa.directory
         - name: GDS_DATABASE_URL
           value: leveldb:////data
         - name: GDS_LOG_LEVEL
           value: info
         - name: GDS_SERVICE_EMAIL
-          value: "TRISA Directory Service <admin@vaspdirectory.net>"
+          value: "TRISA Directory Service <admin@trisa.directory>"
         - name: GDS_ADMIN_EMAIL
           value: "TRISA Admins <admin@trisa.io>"
         - name: SECTIGO_USERNAME
