@@ -14,7 +14,7 @@ RUN npm run build
 
 FROM nginx:stable
 
-LABEL maintainer="TRISA <admin@trisa.io>"
+LABEL maintainer="TRISA <admin@travelrule.io>"
 LABEL description="rVASP Demo React Frontend Application"
 
 COPY --from=builder /usr/src/app/build/ /var/www/

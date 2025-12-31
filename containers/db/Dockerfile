@@ -4,7 +4,7 @@ COPY . .
 RUN go test ./... && go build -v ./cmd/rvasp
 
 FROM ubuntu:focal
-LABEL maintainer="TRISA <info@trisa.io>"
+LABEL maintainer="TRISA <info@travelrule.io>"
 LABEL description="Job to reset the Robot VASP working database"
 RUN apt-get update && apt-get install -y postgresql-client
 COPY --from=builder /rvasp/build/rvasp /bin/

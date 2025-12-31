@@ -35,7 +35,7 @@ RUN go build -v -o /go/bin/rvasp -ldflags="-X 'github.com/trisacrypto/testnet/pk
 # Final Stage
 FROM ${FINAL_IMAGE} AS final
 
-LABEL maintainer="TRISA <info@trisa.io>"
+LABEL maintainer="TRISA <info@travelrule.io>"
 LABEL description="Robot VASP for TRISA demonstration and integration"
 
 # Ensure ca-certificates are up to date

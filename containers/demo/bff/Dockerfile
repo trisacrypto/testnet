@@ -1,6 +1,6 @@
 FROM python:3.8
 
-LABEL maintainer="TRISA <admin@trisa.io>"
+LABEL maintainer="TRISA <admin@travelrule.io>"
 LABEL description="Backend for Frontend (BFF) for rVASP Demo"
 
 # Install rvaspy library
@@ -28,4 +28,3 @@ ENV FLASK_ENV development
 RUN [ "flask", "init-db" ]
 
 ENTRYPOINT ["flask", "run", "--host", "0.0.0.0", "--port", "8000"]
-

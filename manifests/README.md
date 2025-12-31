@@ -84,7 +84,7 @@
     Create a basic-auth secret to login
 
     ```
-    $ htpasswd -nb admin@trisa.io [supersecretpassword] | openssl base64
+    $ htpasswd -nb admin@travelrule.io [supersecretpassword] | openssl base64
     ```
 
     Write the results into `creds/traefik-dashboard-auth.yaml`
