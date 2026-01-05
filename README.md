@@ -1,6 +1,6 @@
 # TRISA TestNet
 
-**An integration and test platform for the [TRISA Travel Rule Implementation](https://trisa.io).**
+**An integration and test platform for the [TRISA Travel Rule Implementation](https://travelrule.io).**
 
 The TRISA test net is comprised of the following:
 

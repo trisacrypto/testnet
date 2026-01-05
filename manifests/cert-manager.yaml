@@ -5,7 +5,7 @@ metadata:
   namespace: cert-manager
 spec:
   acme:
-    email: benjamin@trisa.io
+    email: benjamin@travelrule.io
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-staging
@@ -24,7 +24,7 @@ metadata:
   namespace: cert-manager
 spec:
   acme:
-    email: admin@trisa.io
+    email: admin@travelrule.io
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-prod

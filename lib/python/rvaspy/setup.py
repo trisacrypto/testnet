@@ -2,7 +2,7 @@
 # setup
 # Setup script for installing the rvaspy client library.
 #
-# Author:   Benjamin Bengfort <benjamin@trisa.io>
+# Author:   Benjamin Bengfort <benjamin@travelrule.io>
 # Created:  Wed Oct 28 08:23:49 2020 -0400
 #
 # For license information, see LICENSE.txt
@@ -33,7 +33,7 @@ from setuptools import find_packages
 NAME         = "rvaspy"
 DESCRIPTION  = "Python bindings for the rVASP API"
 AUTHOR       = "TRISA"
-EMAIL        = "benjamin@trisa.io"
+EMAIL        = "benjamin@travelrule.io"
 MAINTAINER   = "Benjamin Bengfort"
 LICENSE      = "MIT"
 REPOSITORY   = "https://github.com/bbengfort/rvasp/"

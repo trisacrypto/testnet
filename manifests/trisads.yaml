@@ -44,7 +44,7 @@ spec:
         - name: GDS_SERVICE_EMAIL
           value: "TRISA Directory Service <admin@trisa.directory>"
         - name: GDS_ADMIN_EMAIL
-          value: "TRISA Admins <admin@trisa.io>"
+          value: "TRISA Admins <admin@travelrule.io>"
         - name: SECTIGO_USERNAME
           valueFrom:
             secretKeyRef:
